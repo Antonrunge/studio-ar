@@ -197,8 +197,16 @@ td.hi{color:#f43f5e;font-weight:500}td.gr{color:#34d399;font-weight:500}
     <h1>&#10010; Studio A R</h1>
     <div class="sub">Acesso ao sistema de gest&#227;o</div>
     <div class="login-err" id="login-err"></div>
-    <div class="fi"><label>E-mail</label><input type="email" id="lg-email" placeholder="seu-setor@studioar.com"></div>
-    <div class="fi"><label>Senha</label><input type="password" id="lg-pass" placeholder="********"></div>
+    <div class="fi"><label>E-mail</label><input type="email" id="lg-email" placeholder="seu-setor@studioar.com" autocomplete="email"></div>
+    <div class="fi"><label>Senha</label>
+      <div style="position:relative">
+        <input type="password" id="lg-pass" placeholder="********" autocomplete="current-password" style="padding-right:42px">
+        <button type="button" onclick="toggleSenha()" id="lg-eye" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#71717a;font-size:16px;padding:0;width:auto">&#128065;</button>
+      </div>
+    </div>
+    <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:#71717a;margin-bottom:12px;cursor:pointer">
+      <input type="checkbox" id="lg-lembrar" style="width:auto;accent-color:#f43f5e"> Lembrar meu acesso neste dispositivo
+    </label>
     <button class="pb" id="lg-btn">Entrar</button>
     <div id="login-loading">Conectando&#8230;</div>
   </div>
@@ -3298,6 +3306,33 @@ document.getElementById("mb-toggle").addEventListener("click",toggleMobileSideba
 document.getElementById("sb-backdrop").addEventListener("click",closeMobileSidebar);
 document.getElementById("lg-btn").onclick=doLogin;
 document.getElementById("lg-pass").addEventListener("keydown",function(e){if(e.key==="Enter")doLogin();});
+// olhinho da senha
+function toggleSenha(){
+  var inp=document.getElementById("lg-pass");
+  var btn=document.getElementById("lg-eye");
+  if(inp.type==="password"){inp.type="text";btn.textContent="\uD83D\uDE48";}
+  else{inp.type="password";btn.textContent="\uD83D\uDC41\uFE0F";}
+}
+// lembrar acesso
+(function(){
+  var saved=null;
+  try{saved=JSON.parse(localStorage.getItem("studioar_login"));}catch(e){}
+  if(saved&&saved.email){
+    document.getElementById("lg-email").value=saved.email;
+    document.getElementById("lg-pass").value=saved.pass||"";
+    document.getElementById("lg-lembrar").checked=true;
+  }
+})();
+var _origDoLogin=doLogin;
+doLogin=function(){
+  var lembrar=document.getElementById("lg-lembrar").checked;
+  if(lembrar){
+    try{localStorage.setItem("studioar_login",JSON.stringify({email:document.getElementById("lg-email").value,pass:document.getElementById("lg-pass").value}));}catch(e){}
+  } else {
+    try{localStorage.removeItem("studioar_login");}catch(e){}
+  }
+  _origDoLogin();
+};
 
 /* ─ PIX ─ */
 function crc16(str){
