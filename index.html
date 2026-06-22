@@ -315,12 +315,12 @@ function openAdminAuthModal(onSuccess){
 
 var CURRENT_USER = null; // {uid, email, role, nome}
 var ROLE_TABS = {
-  admin: ["dashboard","agenda","leads","services","products","expenses","advances","prolabore","dre","clients","db","requests","audit","estoque","arprof","fornecedores"],
-  recepcao: ["agenda","services","products","clients","requests","estoque"],
-  financeiro: ["dashboard","expenses","advances","prolabore","dre","arprof"],
-  marketing: ["clients"],
-  profissional: ["agenda","prolabore"],
-  comercial: ["leads"]
+  admin: ["dashboard","agenda","leads","services","products","expenses","advances","prolabore","dre","clients","db","requests","audit","estoque","arprof","fornecedores","mensagens"],
+  recepcao: ["agenda","services","products","clients","requests","estoque","mensagens"],
+  financeiro: ["dashboard","expenses","advances","prolabore","dre","arprof","mensagens"],
+  marketing: ["clients","mensagens"],
+  profissional: ["agenda","prolabore","mensagens"],
+  comercial: ["leads","mensagens"]
 };
 var ROLE_LABELS = {admin:"Administrador",recepcao:"Recep\u00e7\u00e3o",financeiro:"Financeiro",marketing:"Marketing",profissional:"Profissional",comercial:"Comercial"};
 var COL_MAP = {svc:"servicos",prd:"produtos",exp:"despesas",adv:"adiantamentos",agn:"agendamentos",contacts:"contatos"};
@@ -491,7 +491,7 @@ function fdtLong(s){var days=["Dom","Seg","Ter","Qua","Qui","Sex","S\u00e1b"];va
 function timeSlots(){var s=[];for(var h=9;h<19;h++){s.push((h<10?"0":"")+h+":00");s.push((h<10?"0":"")+h+":30");}s.push("19:00");return s;}
 
 var S={tab:"dashboard",month:5,year:2026,day:0,cliSearch:"",cliSort:"dias",cliSvcFilter:"",bdTab:"clientes",bdSearch:"",agnDate:hj(),leadsView:"funil"};
-var D={svc:[],prd:[],exp:[],adv:[],agn:[],contacts:[],requests:[],audit:[],estoque:[],leads:[],arEntradas:[],arSaidas:[],arProdutos:[],fornecedores:[]};
+var D={svc:[],prd:[],exp:[],adv:[],agn:[],contacts:[],requests:[],audit:[],estoque:[],leads:[],arEntradas:[],arSaidas:[],arProdutos:[],fornecedores:[],msgs:[]};
 var PL_CUSTOM=null,PROFS_CUSTOM=null;
 var RANKING_EXCLUDED_DEFAULT=["ANTON","DIANE","ISABELA","MATHEUS"];
 var RANKING_EXCLUDED=null;
@@ -589,6 +589,9 @@ function setupListeners(){
   listen("arSaidas",function(a){D.arSaidas=a;});
   listen("arProdutos",function(a){D.arProdutos=a;});
   listen("fornecedores",function(a){D.fornecedores=a;});
+  db.collection("mensagens").orderBy("ts","desc").limit(100).onSnapshot(function(snap){
+    D.msgs=snap.docs.map(function(d){return d.data();}).reverse();rT();
+  });
   db.collection("config").doc("catalogo").onSnapshot(function(doc){if(doc.exists){if(doc.data().servicos)CAT_SVCS=doc.data().servicos;if(doc.data().produtos)CAT_PRODS=doc.data().produtos;}});
   var u1=db.collection("config").doc("prolabore").onSnapshot(function(doc){PL_CUSTOM=doc.exists?doc.data().values:null;rT();});
   var u2=db.collection("config").doc("profissionais").onSnapshot(function(doc){PROFS_CUSTOM=doc.exists?doc.data().list:null;rT();});
@@ -694,7 +697,7 @@ function tbl(rows,cols,type){
 function kp(l,v,s){return'<div class="kp"><div class="kl">'+l+'</div><div class="kv">'+v+'</div>'+(s?'<div class="ks">'+s+'</div>':'')+'</div>';}
 
 /* SIDEBAR */
-var NAV=[["dashboard","\uD83D\uDCCA","Dashboard"],["agenda","\uD83D\uDCC5","Agenda"],["services","\u2702\uFE0F","Servi\u00e7os"],["products","\uD83E\uDDF4","Produtos"],["expenses","\uD83D\uDCB8","Despesas"],["advances","\uD83D\uDCB5","Adiantamentos"],["prolabore","\uD83D\uDC65","Pr\u00f3-Labore"],["dre","\uD83D\uDCC8","DRE / DFC"],["clients","\uD83D\uDC69","Clientes"],["leads","\uD83C\uDFAF","Leads"],["db","\uD83D\uDDC4\uFE0F","Banco de Dados"],["requests","\uD83D\uDCE5","Solicita\u00e7\u00f5es Online"],["audit","\uD83D\uDD0D","Auditoria"],["estoque","\uD83E\uDDF4","Estoque"],["arprof","\uD83C\uDFF7\uFE0F","A R Professional"],["fornecedores","\uD83D\uDE9A","Fornecedores"]];
+var NAV=[["dashboard","\uD83D\uDCCA","Dashboard"],["agenda","\uD83D\uDCC5","Agenda"],["services","\u2702\uFE0F","Servi\u00e7os"],["products","\uD83E\uDDF4","Produtos"],["expenses","\uD83D\uDCB8","Despesas"],["advances","\uD83D\uDCB5","Adiantamentos"],["prolabore","\uD83D\uDC65","Pr\u00f3-Labore"],["dre","\uD83D\uDCC8","DRE / DFC"],["clients","\uD83D\uDC69","Clientes"],["leads","\uD83C\uDFAF","Leads"],["db","\uD83D\uDDC4\uFE0F","Banco de Dados"],["requests","\uD83D\uDCE5","Solicita\u00e7\u00f5es Online"],["audit","\uD83D\uDD0D","Auditoria"],["estoque","\uD83E\uDDF4","Estoque"],["arprof","\uD83C\uDFF7\uFE0F","A R Professional"],["fornecedores","\uD83D\uDE9A","Fornecedores"],["mensagens","\uD83D\uDCAC","Mensagens"]];
 var DIVULGADORES_CUSTOM=null;
 var DIVULGADORES_DEFAULT=["Lorran","Isabela","Diane","Anton"];
 function getDivulgadores(){return DIVULGADORES_CUSTOM||DIVULGADORES_DEFAULT;}
@@ -739,7 +742,8 @@ function openS(editId){
   var r=editId?D.svc.find(function(x){return x.id===editId;}):null;
   // inicializa itens de serviço
   if(!editId){
-    _msItems=[{trabalho:getSvcs()[0]||"CORTE",profs:[],valor:"",custo:0}];
+    var svcDef=getSvcs()[0]||"CORTE";
+    _msItems=[{trabalho:svcDef,profs:[],valor:"",custo:materialCostFor(svcDef)}];
     _pgItems=[{forma:"PIX",valor:""}];
   }
   var cli=r?r.cliente:"";
@@ -756,6 +760,7 @@ function openS(editId){
     +'<button type="button" id="ms-c-btn" class="gb" style="flex-shrink:0;padding:8px 10px" title="Buscar">&#128269;</button>'
     +'</div></div>'
     +'<div id="ms-fidelidade" style="margin-bottom:6px"></div>'
+    +'<div id="ms-cli-hist"></div>'
     +'<div id="ms-cli-info" style="margin-bottom:6px;font-size:11px;min-height:14px"></div>'
     +'<div class="g3">'
     +'<div class="fi"><label>Telefone <span style="color:#52525b;font-weight:400">(identifica sem erro)</span></label><input type="text" id="ms-tel" value="'+es(r?r.telefone:"")+'" placeholder="(12) 99999-9999"></div>'
@@ -1342,6 +1347,29 @@ function fillClientFields(cl,px){
   if(info&&cl.nome)info.innerHTML='<span style="color:#34d399">&#10003; Cliente encontrada &#8212; dados preenchidos</span>';
   var fidEl=document.getElementById(px+"-fidelidade");
   if(fidEl&&cl.nome)fidEl.innerHTML=fidelidadeBadge(cl.nome);
+  // histórico recente
+  if(px==="ms"&&cl.nome){
+    var hist=D.svc.filter(function(r){return r.cliente&&r.cliente.trim().toUpperCase()===cl.nome.trim().toUpperCase();}).sort(function(a,b){return b.date.localeCompare(a.date);}).slice(0,5);
+    var histEl=document.getElementById("ms-cli-hist");
+    if(histEl){
+      if(hist.length){
+        histEl.innerHTML='<div style="background:#18181b;border:1px solid #27272a;border-radius:7px;padding:8px 10px;margin-bottom:8px">'
+          +'<div style="font-size:10px;font-weight:600;color:#71717a;margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">&#128203; \u00daltimos atendimentos</div>'
+          +hist.map(function(r){
+            var profs=(r.profissionais||[r.profissional]).filter(Boolean).join(", ");
+            return'<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #27272a;font-size:11px">'
+              +'<div><span style="color:#a1a1aa">'+fdt(r.date)+'</span> <span style="color:#f1f5f9;margin-left:6px">'+es(r.trabalho)+'</span>'
+              +(r.observacoes?'<span style="color:#52525b;margin-left:4px;font-size:10px">— '+es(r.observacoes.slice(0,30))+'</span>':'')
+              +'</div>'
+              +'<div style="text-align:right"><span style="color:#34d399">'+fmt(r.valor)+'</span>'
+              +(profs?'<span style="color:#71717a;font-size:10px;margin-left:6px">'+es(profs)+'</span>':'')+'</div></div>';
+          }).join("")
+          +'</div>';
+      } else {
+        histEl.innerHTML='';
+      }
+    }
+  }
 }
 function tryAutoFill(el,px){
   px=px||"ms";
@@ -2567,6 +2595,7 @@ function rT(){
   else if(S.tab==="estoque")h=rEstoque();
   else if(S.tab==="arprof")h=rArProf();
   else if(S.tab==="fornecedores")h=rFornecedores();
+  else if(S.tab==="mensagens")h=rMensagens();
   document.getElementById("ct").innerHTML=h;
 }
 function rAll(){rSb();rT();}
@@ -2681,7 +2710,14 @@ function celebrar(){
 /* ─ MÚLTIPLOS SERVIÇOS POR ATENDIMENTO ─ */
 var _msItems=[];
 function addMsItem(){
-  _msItems.push({trabalho:getSvcs()[0]||"CORTE",profs:[],valor:""});
+  var el=document.getElementById("ms-items");
+  if(el){
+    el.querySelectorAll("[data-ms-item-val]").forEach(function(inp){var idx=parseInt(inp.dataset.msItemVal);if(_msItems[idx]!==undefined)_msItems[idx].valor=parseFloat(inp.value)||0;});
+    el.querySelectorAll("[data-ms-item-custo]").forEach(function(inp){var idx=parseInt(inp.dataset.msItemCusto);if(_msItems[idx]!==undefined)_msItems[idx].custo=parseFloat(inp.value)||0;});
+    el.querySelectorAll("[data-ms-item-svc]").forEach(function(sel){var idx=parseInt(sel.dataset.msItemSvc);if(_msItems[idx]!==undefined)_msItems[idx].trabalho=sel.value;});
+  }
+  var novoSvc=getSvcs()[0]||"CORTE";
+  _msItems.push({trabalho:novoSvc,profs:[],valor:"",custo:materialCostFor(novoSvc)});
   renderMsItems();
 }
 function removeMsItem(i){_msItems.splice(i,1);renderMsItems();}
@@ -2862,6 +2898,7 @@ function saveAgendaConfig(){
 var _mpToken=null;
 function loadMpToken(cb){
   if(_mpToken){cb(_mpToken);return;}
+  // admin, recepcao e comercial podem usar o token (mas não editar)
   db.collection("config").doc("mpToken").get().then(function(doc){
     if(doc.exists&&doc.data().token){_mpToken=doc.data().token;cb(_mpToken);}
     else cb(null);
@@ -3192,6 +3229,47 @@ function savBaixarPrateleira(prodId){
   if(qtd<=0)return;
   db.collection("arProdutos").doc(prodId).update({prateleira:firebase.firestore.FieldValue.increment(-qtd)});
   showToast("\u2705 Baixa registrada na prateleira!");cmod();
+}
+
+/* ─ MENSAGENS INTERNAS ─ */
+function rMensagens(){
+  var msgs=D.msgs||[];
+  var eu=CURRENT_USER?CURRENT_USER.nome:"?";
+  var roles={"admin":"Admin","recepcao":"Recep\u00e7\u00e3o","comercial":"Comercial","financeiro":"Financeiro","profissional":"Profissional","marketing":"Marketing"};
+  var roleLabel=CURRENT_USER?roles[CURRENT_USER.role]||CURRENT_USER.role:"";
+  var bubbles=msgs.map(function(m){
+    var mine=m.de===eu;
+    var dt=m.ts&&m.ts.toDate?m.ts.toDate():new Date(m.ts||0);
+    var dtStr=dt.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"})+" "+dt.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
+    return'<div style="display:flex;flex-direction:'+(mine?"row-reverse":"row")+';align-items:flex-end;gap:8px;margin-bottom:10px">'
+      +'<div style="width:32px;height:32px;border-radius:50%;background:'+(mine?"#f43f5e":"#3f3f46")+';display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;color:#fff">'+es((m.de||"?")[0].toUpperCase())+'</div>'
+      +'<div style="max-width:72%">'
+      +'<div style="font-size:10px;color:#52525b;margin-bottom:2px;text-align:'+(mine?"right":"left")+'">'+es(m.de)+(m.roleLabel?" · "+es(m.roleLabel):"")+" · "+dtStr+'</div>'
+      +'<div style="background:'+(mine?"#f43f5e20":"#27272a")+';border:1px solid '+(mine?"#f43f5e40":"#3f3f46")+';border-radius:'+(mine?"12px 12px 2px 12px":"12px 12px 12px 2px")+';padding:8px 12px;font-size:12px;color:#f1f5f9">'+es(m.texto)+'</div>'
+      +'</div></div>';
+  }).join("")||'<div class="emp">Nenhuma mensagem ainda. Comece a conversa!</div>';
+  return'<div class="pg" style="display:flex;flex-direction:column;height:calc(100vh - 60px)">'
+    +'<div class="ph"><h2>\uD83D\uDCAC Mensagens Internas</h2>'
+    +'<div style="font-size:11px;color:#71717a">Chat em tempo real entre toda a equipe</div></div>'
+    +'<div id="msg-feed" style="flex:1;overflow-y:auto;padding:12px 0;margin-bottom:10px">'+bubbles+'</div>'
+    +'<div style="display:flex;gap:8px;padding:10px 0;border-top:1px solid #27272a">'
+    +'<input type="text" id="msg-input" placeholder="Digite sua mensagem..." style="flex:1" onkeydown="if(event.key===\'Enter\'&&!event.shiftKey){event.preventDefault();enviarMsg();}">'
+    +'<button class="pb" onclick="enviarMsg()" style="flex-shrink:0;padding:10px 16px">\u27A4 Enviar</button>'
+    +'</div></div>';
+}
+function enviarMsg(){
+  var inp=document.getElementById("msg-input");
+  if(!inp||!inp.value.trim())return;
+  var texto=inp.value.trim();inp.value="";
+  var roles={"admin":"Admin","recepcao":"Recep\u00e7\u00e3o","comercial":"Comercial","financeiro":"Financeiro","profissional":"Profissional","marketing":"Marketing"};
+  db.collection("mensagens").add({
+    de:CURRENT_USER?CURRENT_USER.nome:"?",
+    roleLabel:CURRENT_USER?roles[CURRENT_USER.role]||"":"",
+    texto:texto,
+    ts:firebase.firestore.FieldValue.serverTimestamp()
+  }).then(function(){
+    setTimeout(function(){var f=document.getElementById("msg-feed");if(f)f.scrollTop=f.scrollHeight;},200);
+  });
 }
 
 /* MOBILE SIDEBAR TOGGLE */
