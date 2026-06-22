@@ -719,7 +719,7 @@ function rSb(){
     +'<select id="sl-y" style="margin-bottom:4px">'+yOpts+'</select>'
     +'<select id="sl-d">'+dOpts+'</select></div>'
     +'<nav style="flex:1;padding:6px;overflow-y:auto">'+navBtns+'</nav>'
-    +(CURRENT_USER&&CURRENT_USER.role==="admin"?'<div class="bkp-bar"><button class="bkp-save" onclick="openPix()">&#128178; PIX</button><button class="bkp-save" onclick="openMpPayment()">&#128179; MP</button><button class="bkp-save" onclick="openFidelidadeConfig()">&#127881; Fidelidade</button><button class="bkp-save" onclick="openCatalog()">&#128230; Cat&aacute;logo</button><button class="bkp-save" onclick="exportJSON()">&#128190; Backup</button><button class="bkp-load" onclick="importJSON()">&#128194; Migrar</button></div>'
+    +(CURRENT_USER&&CURRENT_USER.role==="admin"?'<div class="bkp-bar"><button class="bkp-save" onclick="openPix()">&#128178; PIX</button><button class="bkp-save" onclick="openMpConfig()">&#128273; Token MP</button><button class="bkp-save" onclick="openFidelidadeConfig()">&#127881; Fidelidade</button><button class="bkp-save" onclick="openCatalog()">&#128230; Cat&aacute;logo</button><button class="bkp-save" onclick="exportJSON()">&#128190; Backup</button><button class="bkp-load" onclick="importJSON()">&#128194; Migrar</button></div>'
       :(CURRENT_USER&&(CURRENT_USER.role==="recepcao"||CURRENT_USER.role==="comercial")?'<div class="bkp-bar"><button class="bkp-save" onclick="openPix()">&#128178; PIX</button><button class="bkp-save" onclick="openMpPayment()">&#128179; MP</button></div>':''))
     +'<div class="user-badge"><div><div class="nm">'+es(CURRENT_USER?CURRENT_USER.nome:"")+'</div><div class="rl"><span class="sync-dot"></span>'+es(ROLE_LABELS[CURRENT_USER?CURRENT_USER.role:""]||"")+'</div></div><button onclick="doLogout()">Sair</button></div>'
     +'<div style="padding:8px 14px;border-top:1px solid #1f1f23;font-size:10px;color:#3f3f46">Online \u00b7 Studio A R</div>';
@@ -2859,38 +2859,75 @@ function saveAgendaConfig(){
 }
 
 /* ─ MERCADO PAGO ─ */
+var _mpToken=null;
+function loadMpToken(cb){
+  if(_mpToken){cb(_mpToken);return;}
+  db.collection("config").doc("mpToken").get().then(function(doc){
+    if(doc.exists&&doc.data().token){_mpToken=doc.data().token;cb(_mpToken);}
+    else cb(null);
+  }).catch(function(){cb(null);});
+}
+function openMpConfig(){
+  if(!CURRENT_USER||CURRENT_USER.role!=="admin")return showToast("\u274c Apenas o admin pode configurar o token MP","#f43f5e");
+  loadMpToken(function(tok){
+    omod(mhdr("\uD83D\uDD10 Configura\u00e7\u00e3o \u2014 Mercado Pago")
+      +'<div style="font-size:11px;color:#a1a1aa;margin-bottom:10px">O Access Token \u00e9 armazenado de forma segura no Firebase e s\u00f3 o admin consegue alterar. Diane e o comercial usam o bot\u00e3o MP sem precisar digitar nada.</div>'
+      +'<div style="font-size:11px;color:#fbbf24;margin-bottom:10px">Onde encontrar: mercadopago.com.br \u2192 Seu neg\u00f3cio \u2192 Integra\u00e7\u00f5es \u2192 Suas integra\u00e7\u00f5es \u2192 STUDIO A R \u2192 Credenciais de produ\u00e7\u00e3o \u2192 Access Token</div>'
+      +'<div class="fi"><label>Access Token de Produ\u00e7\u00e3o</label><input type="text" id="mp-cfg-token" value="'+(tok||"")+'" placeholder="APP_USR-..." autocomplete="off" style="font-family:monospace;font-size:11px"></div>'
+      +'<button class="pb" onclick="saveMpToken()">&#128190; Salvar Token</button>'
+      +(tok?'<div style="margin-top:10px;font-size:11px;color:#34d399">&#10003; Token configurado. Diane pode usar o bot\u00e3o MP diretamente.</div>':""));
+  });
+}
+function saveMpToken(){
+  var tok=(document.getElementById("mp-cfg-token").value||"").trim();
+  if(!tok)return showToast("\u274c Cole o Access Token antes de salvar","#f43f5e");
+  db.collection("config").doc("mpToken").set({token:tok});
+  _mpToken=tok;
+  showToast("\u2705 Token MP salvo com sucesso!");cmod();
+}
 function openMpPayment(valorSug){
-  omod(mhdr("\uD83D\uDCB3 Link de Pagamento \u2014 Mercado Pago")
-    +'<div class="fi"><label>Descri\u00e7\u00e3o do servi\u00e7o</label><input type="text" id="mp-pay-desc" placeholder="Ex: Luzes + Corte" value="Studio A R \u2014 Servi\u00e7o"></div>'
-    +'<div class="fi"><label>Valor (R$)</label><input type="number" id="mp-pay-val" value="'+(valorSug||"")+'"></div>'
-    +'<div class="fi"><label>Access Token MP (configurado pelo admin)</label><input type="text" id="mp-pay-token" placeholder="APP_USR-..." autocomplete="off"></div>'
-    +'<div style="font-size:10px;color:#52525b;margin-bottom:10px">O token fica apenas na sua tela, n\u00e3o \u00e9 armazenado. Encontre em: mercadopago.com.br \u2192 Seu neg\u00f3cio \u2192 Configura\u00e7\u00f5es \u2192 Credenciais de prod.</div>'
-    +'<button class="pb" onclick="gerarLinkMP()">Gerar Link de Pagamento</button>'
-    +'<div id="mp-pay-result" style="margin-top:12px"></div>');
+  loadMpToken(function(tok){
+    var tokenArea=tok
+      ?'<input type="hidden" id="mp-pay-token" value="'+es(tok)+'">'
+       +'<div style="font-size:11px;color:#34d399;margin-bottom:8px">&#10003; Conta Mercado Pago configurada \u2014 Studio A R</div>'
+      :(CURRENT_USER&&CURRENT_USER.role==="admin"
+        ?'<div style="background:#fbbf2414;border:1px solid #fbbf2440;padding:8px 11px;border-radius:7px;font-size:11px;color:#fbbf24;margin-bottom:8px">Token MP n\u00e3o configurado. <button class="gb" style="font-size:10px;margin-left:6px" onclick="cmod();openMpConfig()">Configurar agora</button></div><input type="hidden" id="mp-pay-token" value="">'
+        :'<div style="color:#f87171;font-size:11px;margin-bottom:8px">Token MP n\u00e3o configurado. Avise o administrador.</div><input type="hidden" id="mp-pay-token" value="">');
+    omod(mhdr("\uD83D\uDCB3 Link de Pagamento \u2014 Mercado Pago")
+      +tokenArea
+      +'<div class="fi"><label>Descri\u00e7\u00e3o do servi\u00e7o</label><input type="text" id="mp-pay-desc" placeholder="Ex: Luzes + Corte" value="Studio A R \u2014 Servi\u00e7o"></div>'
+      +'<div class="fi"><label>Valor (R$)</label><input type="number" id="mp-pay-val" value="'+(valorSug||"")+'"></div>'
+      +'<button class="pb" onclick="gerarLinkMP()">&#128279; Gerar Link de Pagamento</button>'
+      +'<div id="mp-pay-result" style="margin-top:12px"></div>');
+  });
 }
 function gerarLinkMP(){
   var token=(document.getElementById("mp-pay-token").value||"").trim();
   var desc=(document.getElementById("mp-pay-desc").value||"Studio A R").trim();
   var val=parseFloat(document.getElementById("mp-pay-val").value)||0;
-  if(!token)return showToast("\u274c Informe o Access Token do Mercado Pago","#f43f5e");
+  if(!token)return showToast("\u274c Token MP n\u00e3o configurado. Avise o administrador.","#f43f5e");
   if(!val)return showToast("\u274c Informe o valor","#f43f5e");
   var res=document.getElementById("mp-pay-result");
-  if(res)res.innerHTML='<div style="color:#71717a;font-size:11px">Gerando link...</div>';
+  if(res)res.innerHTML='<div style="color:#71717a;font-size:11px">\u23F3 Gerando link...</div>';
   fetch("https://api.mercadopago.com/checkout/preferences",{
     method:"POST",
     headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},
     body:JSON.stringify({items:[{title:desc,quantity:1,unit_price:val,currency_id:"BRL"}],
-      back_urls:{success:"https://salaodebelezastudioar.netlify.app",failure:"https://salaodebelezastudioar.netlify.app"},
+      back_urls:{success:"https://antonrunge.github.io/studio-ar",failure:"https://antonrunge.github.io/studio-ar"},
       auto_return:"approved",statement_descriptor:"STUDIO A R"})
   }).then(function(r){return r.json();}).then(function(data){
     if(data.init_point){
+      var link=data.init_point;
       if(res)res.innerHTML='<div style="background:#34d39914;border:1px solid #34d39930;padding:10px;border-radius:8px">'
         +'<div style="color:#34d399;font-weight:600;margin-bottom:6px">&#10003; Link gerado com sucesso!</div>'
-        +'<div style="font-size:11px;margin-bottom:8px"><a href="'+data.init_point+'" target="_blank" style="color:#38bdf8;word-break:break-all">'+data.init_point+'</a></div>'
+        +'<div style="font-size:11px;margin-bottom:8px;word-break:break-all"><a href="'+link+'" target="_blank" style="color:#38bdf8">'+link+'</a></div>'
         +'<div style="display:flex;gap:8px">'
-        +'<button class="pb" onclick="navigator.clipboard.writeText(\''+data.init_point+'\').then(function(){showToast(\'&#128203; Link copiado!\')})">&#128203; Copiar Link</button>'
-        +'<button class="gb" onclick="window.open(\''+data.init_point+'\',\'_blank\')">&#128279; Abrir</button>'
+        +'<button class="pb" id="mp-copy-btn">&#128203; Copiar Link</button>'
+        +'<button class="gb" onclick="window.open(\''+link+'\',\'_blank\')">&#128279; Abrir</button>'
         +'</div></div>';
+      document.getElementById("mp-copy-btn").onclick=function(){
+        navigator.clipboard.writeText(link).then(function(){showToast("\u2705 Link copiado! Cole no WhatsApp da cliente.");});
+      };
     } else {
       if(res)res.innerHTML='<div style="color:#f87171;font-size:11px">Erro: '+(data.message||data.error||JSON.stringify(data))+'</div>';
     }
