@@ -939,7 +939,7 @@ function savS(){
       custoMaterial:parseFloat(it.custo)||0,observacoes:idx===0?obs:"",
       desconto:desconto,ehSinal:ehSinal,sinalDesc:ehSinal?sinalDesc:"",sinalUsado:false,
       pagamento:"pendente",createdBy:CURRENT_USER?CURRENT_USER.role:""};
-    var recipeSel=getRecipeSelections(it.trabalho);
+    var recipeSel=getRecipeSelectionsIdx(it.trabalho,idx);
     if(recipeSel.length)applyRecipeDeductions(it.trabalho,recipeSel);
     db.collection("servicos").doc(recId).set(rec);
     if(idx===0)updateContactAfterSave(rec);
@@ -2727,27 +2727,21 @@ function renderMsItems(){
   el.innerHTML=_msItems.map(function(item,i){
     var profChecks=profs.map(function(p){
       var chk=item.profs.indexOf(p)>=0;
-      return'<label style="display:flex;align-items:center;gap:4px;font-size:10px;color:#d4d4d8;cursor:pointer;margin-right:6px;margin-bottom:3px">'
-        +'<input type="checkbox" data-ms-item-prof="'+i+'" value="'+es(p)+'"'+(chk?' checked':'')+' style="width:auto;accent-color:#f43f5e"> '+es(p)+'</label>';
+      return'<label style="display:flex;align-items:center;gap:4px;font-size:10px;color:#d4d4d8;cursor:pointer;margin-right:6px;margin-bottom:3px">'+'<input type="checkbox" data-ms-item-prof="'+i+'" value="'+es(p)+'"'+( chk?' checked':'')+' style="width:auto;accent-color:#f43f5e"> '+es(p)+'</label>';
     }).join("");
-    return'<div style="background:#1f1f23;border:1px solid #3f3f46;border-radius:8px;padding:10px 12px;margin-bottom:8px">'
-      +'<div style="display:flex;gap:8px;align-items:center;margin-bottom:7px">'
-      +(i>0?'<span style="font-size:11px;color:#52525b;min-width:18px">#'+(i+1)+'</span>':'')
-      +'<select data-ms-item-svc="'+i+'" style="flex:1;font-size:11px">'+getSvcs().map(function(s){return'<option value="'+es(s)+'"'+(s===item.trabalho?' selected':'')+'>'+es(s)+'</option>';}).join("")+'</select>'
-      +'<input type="number" data-ms-item-val="'+i+'" value="'+es(String(item.valor||""))+'" placeholder="R$ Valor" style="width:90px;font-size:11px">'
-      +'<input type="number" data-ms-item-custo="'+i+'" value="'+es(String(item.custo||""))+'" placeholder="R$ Mat." title="Custo de material" style="width:74px;font-size:11px">'
-      +(i>0?'<button class="db" onclick="removeMsItem('+i+')" style="flex-shrink:0;padding:5px 8px">\u00d7</button>':'')
-      +'</div>'
-      +'<div style="font-size:10px;color:#71717a;margin-bottom:4px">Profissional(is) deste servi\u00e7o:</div>'
-      +'<div style="display:flex;flex-wrap:wrap">'+profChecks+'</div></div>';
-  }).join("")
-  +'<div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">'
-  +'<button class="gb" onclick="addMsItem()">\uFF0B Adicionar outro servi\u00e7o</button>'
-  +'<span id="ms-items-total" style="font-size:12px;color:#f1f5f9">Total: '+fmt(_msItems.reduce(function(s,it){return s+(parseFloat(it.valor)||0);},0))+'</span>'
-  +'</div>';
-  // re-bind
+    var recipeHtml=buildRecipeAreaHtmlIdx(item.trabalho,i);
+    return'<div style="background:#1f1f23;border:1px solid #3f3f46;border-radius:8px;padding:10px 12px;margin-bottom:8px">'+'<div style="display:flex;gap:8px;align-items:center;margin-bottom:7px">'+( i>0?'<span style="font-size:11px;color:#52525b;min-width:18px">#'+(i+1)+'</span>':'')+'<select data-ms-item-svc="'+i+'" style="flex:1;font-size:11px">'+getSvcs().map(function(s){return'<option value="'+es(s)+'"'+( s===item.trabalho?' selected':'')+'>'+es(s)+'</option>';}).join("")+'</select>'+'<input type="number" data-ms-item-val="'+i+'" value="'+es(String(item.valor||""))+'" placeholder="R$ Valor" style="width:90px;font-size:11px">'+'<input type="number" data-ms-item-custo="'+i+'" value="'+es(String(item.custo||""))+'" placeholder="R$ Mat." title="Custo de material" style="width:74px;font-size:11px">'+( i>0?'<button class="db" onclick="removeMsItem('+i+')" style="flex-shrink:0;padding:5px 8px">\u00d7</button>':'')+'</div>'+'<div style="font-size:10px;color:#71717a;margin-bottom:4px">Profissional(is) deste servi\u00e7o:</div>'+'<div style="display:flex;flex-wrap:wrap">'+profChecks+'</div>'+( recipeHtml?'<div id="ms-recipe-area-'+i+'" style="margin-top:8px">'+recipeHtml+'</div>':'<div id="ms-recipe-area-'+i+'"></div>')+'</div>';
+  }).join("")+'<div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">'+'<button class="gb" onclick="addMsItem()">\uFF0B Adicionar outro servi\u00e7o</button>'+'<span id="ms-items-total" style="font-size:12px;color:#f1f5f9">Total: '+fmt(_msItems.reduce(function(s,it){return s+(parseFloat(it.valor)||0);},0))+'</span>'+'</div>';
   el.querySelectorAll("[data-ms-item-svc]").forEach(function(sel){
-    sel.onchange=function(){_msItems[parseInt(this.dataset.msItemSvc)].trabalho=this.value;};
+    sel.onchange=function(){
+      var idx=parseInt(this.dataset.msItemSvc);
+      _msItems[idx].trabalho=this.value;
+      _msItems[idx].custo=materialCostFor(this.value);
+      var custoEl=el.querySelector('[data-ms-item-custo="'+idx+'"]');
+      if(custoEl)custoEl.value=_msItems[idx].custo||"";
+      var recArea=document.getElementById("ms-recipe-area-"+idx);
+      if(recArea)recArea.innerHTML=buildRecipeAreaHtmlIdx(this.value,idx);
+    };
   });
   el.querySelectorAll("[data-ms-item-val]").forEach(function(inp){
     inp.oninput=function(){_msItems[parseInt(this.dataset.msItemVal)].valor=parseFloat(this.value)||0;renderMsTotal();};
@@ -2764,26 +2758,23 @@ function renderMsItems(){
   });
 }
 function renderMsTotal(){var el=document.getElementById("ms-items-total");if(el)el.textContent="Total: "+fmt(_msItems.reduce(function(s,it){return s+(parseFloat(it.valor)||0);},0));}
-
-/* ─ MÚLTIPLAS FORMAS DE PAGAMENTO ─ */
-var _pgItems=[];
-function addPgItem(){_pgItems.push({forma:"PIX",valor:""});renderPgItems();}
-function removePgItem(i){_pgItems.splice(i,1);renderPgItems();}
-function renderPgItems(){
-  var el=document.getElementById("ms-pgtos");if(!el)return;
-  el.innerHTML=_pgItems.map(function(pg,i){
-    return'<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">'
-      +'<select data-pg-forma="'+i+'" style="flex:1;font-size:11px">'+PGTOS.map(function(f){return'<option value="'+es(f)+'"'+(f===pg.forma?' selected':'')+'>'+es(f)+'</option>';}).join("")+'</select>'
-      +'<input type="number" data-pg-val="'+i+'" value="'+es(String(pg.valor||""))+'" placeholder="Valor R$" style="width:90px;font-size:11px">'
-      +(i>0?'<button class="db" onclick="removePgItem('+i+')" style="flex-shrink:0">\u00d7</button>':'')
-      +'</div>';
-  }).join("")
-  +'<button class="gb" onclick="addPgItem()" style="margin-top:2px">\uFF0B Outra forma</button>';
-  el.querySelectorAll("[data-pg-forma]").forEach(function(sel){
-    sel.onchange=function(){_pgItems[parseInt(this.dataset.pgForma)].forma=this.value;};
-  });
-  el.querySelectorAll("[data-pg-val]").forEach(function(inp){
-    inp.oninput=function(){_pgItems[parseInt(this.dataset.pgVal)].valor=parseFloat(this.value)||0;};
+function buildRecipeAreaHtmlIdx(svc,idx){
+  var recipe=getRecipe(svc);
+  if(!recipe||!recipe.length)return"";
+  var rows=recipe.map(function(ing,j){
+    if(ing.tipo==="fixo"){return'<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:11px;color:#a1a1aa"><span>'+es(ing.produto)+'</span><span style="color:#71717a">'+ing.qtd+ing.unidade+'</span></div>';}
+    var opts=ing.opcoes.map(function(o){return'<option value="'+es(o)+'">'+es(o)+'</option>';}).join("");
+    return'<div style="display:flex;align-items:center;gap:8px;padding:4px 0"><span style="font-size:11px;color:#a1a1aa;width:62px;flex-shrink:0">'+es(ing.categoria)+'</span><select id="ms-recipe-'+idx+'-'+j+'" style="flex:1;font-size:11px;padding:5px 8px">'+opts+'</select><span style="font-size:10px;color:#52525b;width:34px;text-align:right">'+ing.qtd+ing.unidade+'</span></div>';
+  }).join("");
+  return'<div class="fi"><label>Produtos Utilizados (baixa autom\u00e1tica do estoque)</label><div style="background:#27272a;border:1px solid #3f3f46;border-radius:7px;padding:9px 11px">'+rows+'</div></div>';
+}
+function getRecipeSelectionsIdx(svc,idx){
+  var recipe=getRecipe(svc);
+  if(!recipe)return[];
+  return recipe.map(function(ing,j){
+    if(ing.tipo==="fixo")return{produto:ing.produto,qtd:ing.qtd};
+    var sel=document.getElementById("ms-recipe-"+idx+"-"+j);
+    return{produto:sel?sel.value:ing.opcoes[0],qtd:ing.qtd};
   });
 }
 
