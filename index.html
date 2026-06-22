@@ -4,6 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Studio A R — Gestão Online</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#f43f5e">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Studio A R">
+<link rel="apple-touch-icon" href="icon-192.png">
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
@@ -3364,6 +3371,15 @@ function copyPix(){
     :(el.select(),document.execCommand("copy"),showToast("\u2705 Pix Copia e Cola copiado!"));
 }
 
+</script>
+<script>
+if('serviceWorker' in navigator){
+  window.addEventListener('load',function(){
+    navigator.serviceWorker.register('/studio-ar/sw.js')
+      .then(function(r){console.log('SW registrado',r.scope);})
+      .catch(function(e){console.log('SW erro',e);});
+  });
+}
 </script>
 </body>
 </html>
