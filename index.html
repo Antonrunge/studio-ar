@@ -90,8 +90,8 @@ td.hi{color:#f43f5e;font-weight:500}td.gr{color:#34d399;font-weight:500}
 .mtabs{display:flex;gap:6px;margin-bottom:14px}
 .mtab{background:#27272a;border:1px solid #3f3f46;color:#a1a1aa;border-radius:6px;padding:5px 12px;font-size:11px;cursor:pointer}
 .mtab.on{background:#f43f5e;border-color:#f43f5e;color:#fff;font-weight:600}
-.bkp-bar{padding:8px 10px;border-top:1px solid #1f1f23;background:#0f0f12}
-.bkp-bar button{width:100%;padding:7px;border-radius:6px;font-size:10px;font-weight:600;cursor:pointer;margin-bottom:4px;border:none}
+.bkp-bar{padding:6px 8px;border-top:1px solid #1f1f23;background:#0f0f12;display:flex;flex-wrap:wrap;gap:3px}
+.bkp-bar button{flex:1 1 auto;padding:5px 4px;border-radius:5px;font-size:9px;font-weight:600;cursor:pointer;border:none;min-width:0}
 .bkp-save{background:#34d39922;color:#34d399;border:1px solid #34d39944 !important}
 .bkp-load{background:#38bdf822;color:#38bdf8;border:1px solid #38bdf844 !important}
 .bkp-toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#34d399;color:#000;padding:8px 18px;border-radius:8px;font-size:12px;font-weight:600;z-index:9999;opacity:0;transition:opacity .3s}
@@ -730,8 +730,8 @@ function rSb(){
     +'<select id="sl-m" style="margin-bottom:4px">'+mOpts+'</select>'
     +'<select id="sl-y" style="margin-bottom:4px">'+yOpts+'</select>'
     +'<select id="sl-d">'+dOpts+'</select></div>'
-    +'<nav style="flex:1;padding:6px;overflow-y:auto">'+navBtns+'</nav>'
-    +(CURRENT_USER&&CURRENT_USER.role==="admin"?'<div class="bkp-bar"><button class="bkp-save" onclick="openPix()">&#128178; PIX</button><button class="bkp-save" onclick="openMpConfig()">&#128273; Token MP</button><button class="bkp-save" onclick="openFidelidadeConfig()">&#127881; Fidelidade</button><button class="bkp-save" onclick="openCatalog()">&#128230; Cat&aacute;logo</button><button class="bkp-save" onclick="exportJSON()">&#128190; Backup</button><button class="bkp-load" onclick="importJSON()">&#128194; Migrar</button></div>'
+    +'<nav style="flex:1;padding:6px;overflow-y:auto;min-height:0">'+navBtns+'</nav>'
+    +(CURRENT_USER&&CURRENT_USER.role==="admin"?'<div class="bkp-bar"><button class="bkp-save" onclick="openPix()" title="PIX">&#128178; PIX</button><button class="bkp-save" onclick="openMpConfig()" title="Token MP">&#128273; MP</button><button class="bkp-save" onclick="openFidelidadeConfig()" title="Fidelidade">&#127881;</button><button class="bkp-save" onclick="openCatalog()" title="Cat\u00e1logo">&#128230;</button><button class="bkp-save" onclick="exportJSON()" title="Backup">&#128190;</button><button class="bkp-load" onclick="importJSON()" title="Migrar">&#128194;</button></div>'
       :(CURRENT_USER&&(CURRENT_USER.role==="recepcao"||CURRENT_USER.role==="comercial")?'<div class="bkp-bar"><button class="bkp-save" onclick="openPix()">&#128178; PIX</button><button class="bkp-save" onclick="openMpPayment()">&#128179; MP</button></div>':''))
     +'<div class="user-badge"><div><div class="nm">'+es(CURRENT_USER?CURRENT_USER.nome:"")+'</div><div class="rl"><span class="sync-dot"></span>'+es(ROLE_LABELS[CURRENT_USER?CURRENT_USER.role:""]||"")+'</div></div><button onclick="doLogout()">Sair</button></div>'
     +'<div style="padding:8px 14px;border-top:1px solid #1f1f23;font-size:10px;color:#3f3f46">Online \u00b7 Studio A R</div>';
