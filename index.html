@@ -255,9 +255,9 @@ var DURATIONS=[30,45,60,90,120,150,180];
 var APPT_STATUS=["confirmado","pendente","cancelado"];
 
 /* ─ LEADS / COMERCIAL ─ */
-var LEAD_STAGES=["lead","contato","interesse","apresentacao","agendado","convertido","perdido"];
-var LEAD_STAGE_LABELS={lead:"Lead",contato:"Contato feito",interesse:"Interesse identificado",apresentacao:"Apresenta\u00e7\u00e3o",agendado:"Agendado",convertido:"Convertido",perdido:"Perdido"};
-var LEAD_STAGE_COLOR={lead:"#71717a",contato:"#38bdf8",interesse:"#38bdf8",apresentacao:"#38bdf8",agendado:"#fbbf24",convertido:"#34d399",perdido:"#f87171"};
+var LEAD_STAGES=["lead","contato","interesse","apresentacao","agendado","convertido","perdido","arquivado"];
+var LEAD_STAGE_LABELS={lead:"Lead",contato:"Contato feito",interesse:"Interesse identificado",apresentacao:"Apresenta00e700e3o",agendado:"Agendado",convertido:"Convertido",perdido:"Perdido",arquivado:"Arquivado"};
+var LEAD_STAGE_COLOR={lead:"#71717a",contato:"#38bdf8",interesse:"#38bdf8",apresentacao:"#38bdf8",agendado:"#fbbf24",convertido:"#34d399",perdido:"#f87171",arquivado:"#3f3f46"};
 var LEAD_MOTIVOS=["Pre\u00e7o / condi\u00e7\u00e3o financeira","N\u00e3o respondeu mais","Mora longe","Achou caro","Desistiu","Fechou com concorrente","Outro"];
 var LEAD_REGUA_DEFAULT=[1,3,7];
 var LEAD_REGUA_CUSTOM=null;
@@ -334,10 +334,10 @@ var CURRENT_USER = null; // {uid, email, role, nome}
 var ROLE_TABS = {
   admin: ["dashboard","agenda","leads","services","products","expenses","advances","prolabore","dre","clients","db","requests","audit","estoque","arprof","fornecedores","mensagens"],
   recepcao: ["agenda","services","products","clients","requests","estoque","mensagens"],
-  financeiro: ["dashboard","expenses","advances","prolabore","dre","arprof","mensagens"],
-  marketing: ["clients","mensagens"],
+  financeiro: ["dashboard","agenda","expenses","advances","prolabore","dre","arprof","mensagens"],
+  marketing: ["agenda","clients","mensagens"],
   profissional: ["agenda","prolabore","mensagens"],
-  comercial: ["leads","mensagens"]
+  comercial: ["agenda","leads","mensagens"]
 };
 var ROLE_LABELS = {admin:"Administrador",recepcao:"Recep\u00e7\u00e3o",financeiro:"Financeiro",marketing:"Marketing",profissional:"Profissional",comercial:"Comercial"};
 var COL_MAP = {svc:"servicos",prd:"produtos",exp:"despesas",adv:"adiantamentos",agn:"agendamentos",contacts:"contatos"};
@@ -569,6 +569,20 @@ var SD_EXP=[
 var SD_ADV=[{id:uid(),date:"2026-06-05",colaborador:"J\u00dALIA",valor:200}];
 
 function showToast(msg,color){var t=document.getElementById("toast");t.textContent=msg;t.style.background=color||"#34d399";t.style.color=color?"#fff":"#000";t.style.opacity="1";setTimeout(function(){t.style.opacity="0";},2800);}
+function playBell(){
+  try{
+    var ctx=new(window.AudioContext||window.webkitAudioContext)();
+    function tone(freq,start,dur,vol){
+      var o=ctx.createOscillator();var g=ctx.createGain();
+      o.connect(g);g.connect(ctx.destination);
+      o.type="sine";o.frequency.setValueAtTime(freq,ctx.currentTime+start);
+      g.gain.setValueAtTime(vol||0.4,ctx.currentTime+start);
+      g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+start+dur);
+      o.start(ctx.currentTime+start);o.stop(ctx.currentTime+start+dur);
+    }
+    tone(880,0,0.4,0.5);tone(1109,0.1,0.4,0.3);tone(1318,0.2,0.6,0.2);
+  }catch(e){}
+}
 function exportJSON(){
   var payload={version:"online-1.0",exportedAt:new Date().toISOString(),svc:D.svc,prd:D.prd,exp:D.exp,adv:D.adv,agn:D.agn,contacts:D.contacts,pl:PL_CUSTOM,profs:PROFS_CUSTOM};
   var blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
@@ -1185,6 +1199,7 @@ function savAgn(){
     db.collection("leads").doc(LEAD_BOOKING_ID).update({etapa:"agendado",agendamentoId:rec.id,proximoContato:null});
     LEAD_BOOKING_ID=null;
   }
+  playBell();
   cmod();
 }
 
@@ -2447,10 +2462,12 @@ function rLeads(){
 }
 function rLeadsBoard(){
   var leads=D.leads||[];
-  var cols=LEAD_STAGES.map(function(st){
+  var stagesToShow=S.showArquivados?LEAD_STAGES:LEAD_STAGES.filter(function(s){return s!=="arquivado";});
+  var arquivadosCount=(leads.filter(function(l){return l.etapa==="arquivado";})).length;
+  var cols=stagesToShow.map(function(st){
     var items=leads.filter(function(l){return l.etapa===st;}).sort(function(a,b){return(b.dataCriacao||"").localeCompare(a.dataCriacao||"");});
     var cards=items.map(function(l){
-      var due=l.proximoContato&&l.proximoContato<=hj()&&st!=="convertido"&&st!=="perdido";
+      var due=l.proximoContato&&l.proximoContato<=hj()&&st!=="convertido"&&st!=="perdido"&&st!=="arquivado";
       return'<div class="lead-card" draggable="true" data-lead-id="'+l.id+'" style="border-left-color:'+LEAD_STAGE_COLOR[st]+'" data-lead-open="'+l.id+'">'
         +'<div class="nm">'+es(l.nome)+'</div>'
         +'<div class="it">'+es(l.interesse||"")+'</div>'
@@ -2459,7 +2476,8 @@ function rLeadsBoard(){
     return'<div class="lead-col"><div class="lead-col-hd"><span style="color:'+LEAD_STAGE_COLOR[st]+'">'+LEAD_STAGE_LABELS[st]+'</span><span style="color:#52525b">'+items.length+'</span></div>'
       +'<div class="lead-col-bd" data-lead-dropzone="'+st+'">'+(cards||'<div style="font-size:10px;color:#3f3f46;text-align:center;padding:10px 0">vazio</div>')+'</div></div>';
   }).join("");
-  return'<div class="lead-board">'+cols+'</div>';
+  var toggleArq='<button class="gb" style="font-size:10px;padding:4px 10px;'+(S.showArquivados?"color:#52525b":"")+'" onclick="S.showArquivados='+(!S.showArquivados)+';rT()">🗂 Arquivados ('+arquivadosCount+')</button>';
+  return'<div style="margin-bottom:8px;display:flex;justify-content:flex-end">'+toggleArq+'</div><div class="lead-board">'+cols+'</div>';
 }
 function rLeadsToday(){
   var dia=S.leadsDay||hj();
@@ -2514,7 +2532,8 @@ function openLead(editId){
     +'<div class="fi"><label>Nome</label><input type="text" id="ld-nome" value="'+es(l?l.nome:"")+'" placeholder="Nome do lead"></div>'
     +'<div class="g2"><div class="fi"><label>Telefone</label><input type="text" id="ld-tel" value="'+es(l?l.telefone:"")+'" placeholder="(12) 99999-9999"></div>'
     +'<div class="fi"><label>Interesse</label><input type="text" id="ld-int" list="ld-int-dl" value="'+es(l?l.interesse:"")+'" placeholder="Servi\u00e7o ou produto"><datalist id="ld-int-dl">'+allItems.map(function(s){return'<option value="'+es(s)+'">';}).join("")+'</datalist></div></div>'
-    +'<div class="fi"><label>Origem</label><select id="ld-or">'+ol(CAPS,l?l.origem:"TR\u00c1FEGO PAGO")+'</select></div>'
+    +'<div class="g2"><div class="fi"><label>Origem</label><select id="ld-or">'+ol(CAPS,l?l.origem:"TR\u00c1FEGO PAGO")+'</select></div>'
+    +'<div class="fi"><label>Divulgador</label><select id="ld-div-new"><option value="">Nenhum</option>'+getLeadDivulgadores().map(function(n){return'<option value="'+n+'"'+(l&&l.divulgador===n?' selected':'')+'>'+n+'</option>';}).join("")+'</select></div></div>'
     +'<input type="hidden" id="ld-id" value="'+(editId||"")+'">'
     +'<button class="pb" onclick="saveLead()">Salvar Lead</button>');
 }
@@ -2522,12 +2541,14 @@ function saveLead(){
   var nome=document.getElementById("ld-nome").value.trim();
   if(!nome)return alert("Preencha o nome do lead.");
   var editId=document.getElementById("ld-id").value;
+  var existing=editId?(D.leads.find(function(x){return x.id===editId;})||{}):null;
   var rec={id:editId||uid(),nome:nome,telefone:document.getElementById("ld-tel").value.trim(),
     interesse:document.getElementById("ld-int").value.trim(),origem:document.getElementById("ld-or").value,
-    etapa:editId?(D.leads.find(function(x){return x.id===editId;})||{}).etapa||"lead":"lead",
-    responsavel:CURRENT_USER?CURRENT_USER.nome:"",dataCriacao:editId?(D.leads.find(function(x){return x.id===editId;})||{}).dataCriacao||hj():hj(),
-    historico:editId?(D.leads.find(function(x){return x.id===editId;})||{}).historico||[]:[],
-    proximoContato:editId?(D.leads.find(function(x){return x.id===editId;})||{}).proximoContato||null:null,
+    divulgador:(document.getElementById("ld-div-new")||{}).value||"",
+    etapa:editId?(existing.etapa||"lead"):"lead",
+    responsavel:CURRENT_USER?CURRENT_USER.nome:"",dataCriacao:editId?(existing.dataCriacao||hj()):hj(),
+    historico:editId?(existing.historico||[]):[],
+    proximoContato:editId?(existing.proximoContato||null):null,
     createdBy:CURRENT_USER?CURRENT_USER.role:""};
   db.collection("leads").doc(rec.id).set(rec,{merge:true});
   showToast("\u2705 Lead salvo!");cmod();
@@ -2549,7 +2570,7 @@ function openLeadDetail(id){
   var convertidoHtml=convertido?'<div style="background:#34d39920;border:1px solid #34d39940;color:#34d399;padding:6px 10px;border-radius:6px;font-size:11px;font-weight:600;margin-bottom:10px">\u2713 Convertido em cliente</div>':'';
   var botoesAcao=(!perdido&&!convertido)?'<div class="g2"><button class="gb" onclick="openLead(\''+l.id+'\')">Editar dados</button><button class="gb" data-lead-agendar="'+l.id+'">Agendar</button></div>'
     +'<div class="g2" style="margin-top:8px"><button class="gb" style="color:#34d399" onclick="leadConvert(\''+l.id+'\')">\u2713 Converter em cliente</button><button class="gb" style="color:#f87171" data-lead-perdido="'+l.id+'">\u2717 Marcar perdido</button></div>'
-    :(perdido?'<div class="g2"><button class="gb" onclick="retomar(\''+l.id+'\')">Retomar lead</button></div>':'');
+    :(perdido?'<div class="g2"><button class="gb" onclick="retomar(\''+l.id+'\')">↩ Retomar lead</button><button class="gb" style="color:#52525b;border-color:#3f3f46" onclick="openLeadArquivar(\''+l.id+'\')">🗂 Arquivar definitivamente</button></div>':'');
   omod(mhdr(es(l.nome))
     +convertidoHtml+motivoHtml
     +'<div class="com-info">'+es(l.telefone||"sem telefone")+' &middot; '+es(l.interesse||"")+' &middot; <span style="color:'+LEAD_STAGE_COLOR[l.etapa]+'">'+LEAD_STAGE_LABELS[l.etapa]+'</span>'+(l.responsavel?' &middot; '+es(l.responsavel):'')+'</div>'
@@ -2601,6 +2622,20 @@ function saveLeadLost(){
   var mot=document.getElementById("ld-mot").value;
   db.collection("leads").doc(id).update({etapa:"perdido",motivoPerda:mot,proximoContato:null});
   showToast("Lead marcado como perdido","#f87171");cmod();
+}
+var LEAD_MOTIVOS_ARQUIVO=["Mora em outro estado","Número inválido / não existe","Pediu para não contatar","Concorrente fidelizado","Fora do perfil do salão","Outro motivo definitivo"];
+function openLeadArquivar(id){
+  omod(mhdr("🗂 Arquivar definitivamente")
+    +'<div style="background:#f8717120;border:1px solid #f8717140;border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:11px;color:#f87171">Este lead não aparecerá mais no Kanban. Ação irreversível — use apenas para leads que definitivamente não voltarão.</div>'
+    +'<div class="fi"><label>Motivo do arquivamento</label><select id="ld-arq-mot">'+LEAD_MOTIVOS_ARQUIVO.map(function(m){return'<option value="'+m+'">'+m+'</option>';}).join("")+'</select></div>'
+    +'<input type="hidden" id="ld-arq-id" value="'+id+'">'
+    +'<button class="pb" style="background:#52525b" onclick="saveLeadArquivar()">🗂 Confirmar arquivamento</button>');
+}
+function saveLeadArquivar(){
+  var id=document.getElementById("ld-arq-id").value;
+  var mot=document.getElementById("ld-arq-mot").value;
+  db.collection("leads").doc(id).update({etapa:"arquivado",motivoArquivamento:mot,proximoContato:null});
+  showToast("Lead arquivado","#52525b");cmod();
 }
 function leadConvert(id){
   var l=(D.leads||[]).find(function(x){return x.id===id;});
@@ -3391,6 +3426,7 @@ function enviarMsg(){
     texto:texto,
     ts:firebase.firestore.FieldValue.serverTimestamp()
   }).then(function(){
+    playBell();
     setTimeout(function(){var f=document.getElementById("msg-feed");if(f)f.scrollTop=f.scrollHeight;},200);
   });
 }
