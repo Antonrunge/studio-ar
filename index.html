@@ -832,7 +832,7 @@ function openS(editId){
       ?('<div class="g2"><div class="fi"><label>Forma de Pagamento</label><select id="ms-f">'+ol(PGTOS,r?r.formaPagamento:"PIX")+'</select></div>'
         +(CURRENT_USER&&(CURRENT_USER.role==="recepcao"||CURRENT_USER.role==="admin")?'<div class="fi"><label>Desconto</label><select id="ms-desc"><option value="0">Sem desconto</option><option value="0.03">3%</option><option value="0.05">5%</option></select></div>':"")
         +'</div>')
-      :'<div id="ms-pgtos"></div>'
+      :'<div id="ms-pgtos"><div style="display:flex;gap:6px;align-items:center;margin-bottom:6px"><select id="ms-pgto-forma-0" style="flex:1;font-size:11px">'+PGTOS.map(function(f){return'<option value="'+es(f)+'">'+es(f)+'</option>';}).join("")+'</select><input type="number" id="ms-pgto-val-0" placeholder="Valor R$" style="width:90px;font-size:11px"></div><button class="gb" onclick="addPgItem()" style="margin-top:2px;font-size:11px">\uFF0B Outra forma</button></div>'
       +(CURRENT_USER&&(CURRENT_USER.role==="recepcao"||CURRENT_USER.role==="admin")?'<div class="fi" style="margin-top:8px"><label>Desconto</label><select id="ms-desc"><option value="0">Sem desconto</option><option value="0.03">3%</option><option value="0.05">5%</option></select></div>':""))
 
     // ── SINAL ──
@@ -874,11 +874,13 @@ function openS(editId){
     var msDesc=document.getElementById("ms-desc");if(msDesc&&r&&r.desconto)msDesc.value=String(r.desconto);
     upCom();
   } else {
-    // modo novo: renderizar itens e pgtos dinâmicos após DOM estar pronto
-    setTimeout(function(){
-      renderMsItems();
-      renderPgItems();
-    },0);
+    // modo novo: renderizar itens e pgtos após DOM estar completamente pronto
+    requestAnimationFrame(function(){
+      requestAnimationFrame(function(){
+        renderMsItems();
+        renderPgItems();
+      });
+    });
     // sinal checkbox toggle
     var ehSinal=document.getElementById("ms-eh-sinal");
     if(ehSinal)ehSinal.onchange=function(){
@@ -3360,14 +3362,24 @@ function getTabLastSeen(tab){
 }
 function hasTabNotif(tab){
   var seen=getTabLastSeen(tab);
+  if(!seen)return false;
   var now=Date.now();
-  if(now-seen<3000)return false; // acabou de ver
-  function latestTs(arr){return arr.reduce(function(mx,r){var t=r._ts||(r.dataCriacao?new Date(r.dataCriacao).getTime():0);return t>mx?t:mx;},0);}
-  if(tab==="mensagens")return latestTs(D.msgs)>seen;
-  if(tab==="requests")return latestTs(D.requests)>seen;
-  if(tab==="leads")return latestTs(D.leads)>seen;
-  if(tab==="services")return latestTs(D.svc)>seen;
-  if(tab==="agenda")return latestTs(D.agn)>seen;
+  if(now-seen<5000)return false;
+  // usa apenas dados já carregados localmente, sem query extra
+  function latestLocal(arr){
+    return arr.reduce(function(mx,r){
+      var t=0;
+      if(r.ts&&r.ts.toMillis)t=r.ts.toMillis();
+      else if(r.dataCriacao)t=new Date(r.dataCriacao).getTime();
+      else if(r.date)t=new Date(r.date).getTime();
+      return t>mx?t:mx;
+    },0);
+  }
+  if(tab==="mensagens")return latestLocal(D.msgs)>seen;
+  if(tab==="requests")return latestLocal(D.requests)>seen;
+  if(tab==="leads")return latestLocal(D.leads)>seen;
+  if(tab==="services")return latestLocal(D.svc)>seen;
+  if(tab==="agenda")return latestLocal(D.agn)>seen;
   return false;
 }
 
