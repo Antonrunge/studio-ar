@@ -80,7 +80,8 @@ td.hi{color:#f43f5e;font-weight:500}td.gr{color:#34d399;font-weight:500}
 .agn-time{background:#111115;padding:6px 10px;font-size:10px;color:#52525b;border-right:1px solid #27272a;border-bottom:1px solid #1f1f23;text-align:right;min-width:52px;white-space:nowrap}
 .agn-slot{border-right:1px solid #1f1f23;border-bottom:1px solid #1f1f23;min-height:38px;padding:2px;cursor:pointer}
 .agn-slot:hover{background:#1f1f23}
-.agn-appt{border-radius:5px;padding:3px 6px;font-size:10px;font-weight:500;line-height:1.3;cursor:pointer;overflow:hidden}
+.agn-slot.drag-over-agn{background:#f43f5e20;box-shadow:inset 0 0 0 2px #f43f5e}
+.agn-appt{border-radius:5px;padding:3px 6px;font-size:10px;font-weight:500;line-height:1.3;cursor:grab;overflow:hidden}
 .agn-empty{font-size:9px;color:#3f3f46;text-align:center;padding-top:10px}
 .status-conf{background:rgba(52,211,153,.15);border-left:3px solid #34d399;color:#34d399}
 .status-pend{background:rgba(251,191,36,.12);border-left:3px solid #fbbf24;color:#fbbf24}
@@ -505,8 +506,18 @@ function gmy(s){var d=new Date(s+"T12:00:00");return{m:d.getMonth(),y:d.getFullY
 function fmy(a,m,y){return a.filter(function(r){var g=gmy(r.date);return g.m===m&&g.y===y;});}
 function fday(a,d){return a.filter(function(r){return r.date===d;});}
 function es(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
-function fl(v,f){return v*(1-(TAXAS[f]||0));}
-function cm(v,f,t){return fl(v,f)*(t||0.1);}
+function fl(v,f){return v*(1-((TAXAS_CUSTOM||TAXAS)[f]||0));}
+function cm(v,f,t,captacao,trabalho){
+  var liq=fl(v,f);
+  if(captacao==="CLIENTE DO PROFISSIONAL"){
+    var svcLower=(trabalho||"").toLowerCase();
+    var isCorte=svcLower.indexOf("corte")>=0&&svcLower.indexOf("escova")<0;
+    return liq*(isCorte?0.5:0.4);
+  }
+  return liq*(t||0.1);
+}
+var TAXAS_CUSTOM=null;
+function getTaxas(){return TAXAS_CUSTOM||TAXAS;}
 function autoTax(n){return n<=1?0.10:n===2?0.05:n===3?0.03:0.025;}
 function sg(k){try{var v=localStorage.getItem(k);return v?JSON.parse(v):null;}catch(e){return null;}}
 function ss(k,d){try{localStorage.setItem(k,JSON.stringify(d));}catch(e){}}
@@ -624,7 +635,8 @@ function setupListeners(){
   var u4=db.collection("config").doc("leadsRegua").onSnapshot(function(doc){LEAD_REGUA_CUSTOM=doc.exists&&doc.data().dias?doc.data().dias:null;rT();});
   var u5=db.collection("config").doc("fidelidade").onSnapshot(function(doc){if(doc.exists&&doc.data().visitas)FIDELIDADE_CONFIG=doc.data();rT();});
   var u6=db.collection("config").doc("divulgadores").onSnapshot(function(doc){DIVULGADORES_CUSTOM=doc.exists&&doc.data().list?doc.data().list:null;rT();});
-  _listeners.push(u1,u2,u3,u4,u5,u6);
+  var u7=db.collection("config").doc("taxasMaq").onSnapshot(function(doc){if(doc.exists&&doc.data().taxas)TAXAS_CUSTOM=doc.data().taxas;rT();});
+  _listeners.push(u1,u2,u3,u4,u5,u6,u7);
   rAll();
 }
 
@@ -734,7 +746,8 @@ function rSb(){
   var allowed=ROLE_TABS[CURRENT_USER?CURRENT_USER.role:""]||[];
   var hasLowStock=(D.estoque||[]).some(function(i){return(i.quantidadeAtual||0)<300;});
   var navBtns=NAV.filter(function(n){return allowed.indexOf(n[0])>=0;}).map(function(n){
-    var dot=(n[0]==="estoque"&&hasLowStock)?'<span style="width:6px;height:6px;border-radius:50%;background:#f87171;margin-left:auto"></span>':'';
+    var dot=(n[0]==="estoque"&&hasLowStock)?'<span style="width:7px;height:7px;border-radius:50%;background:#f87171;margin-left:auto;flex-shrink:0"></span>'
+      :(hasTabNotif(n[0])?'<span style="width:7px;height:7px;border-radius:50%;background:#f43f5e;margin-left:auto;flex-shrink:0;animation:pulse 1.5s infinite"></span>':'');
     return'<button class="nb'+(S.tab===n[0]?' on':'')+'" data-tab="'+n[0]+'"><span class="ni">'+n[1]+'</span>'+n[2]+dot+'</button>';
   }).join("");
   document.getElementById("sb").innerHTML=
@@ -747,7 +760,7 @@ function rSb(){
     +'<select id="sl-y" style="margin-bottom:4px">'+yOpts+'</select>'
     +'<select id="sl-d">'+dOpts+'</select></div>'
     +'<nav style="flex:1;padding:6px;overflow-y:auto;min-height:0">'+navBtns+'</nav>'
-    +(CURRENT_USER&&CURRENT_USER.role==="admin"?'<div class="bkp-bar"><button class="bkp-save" onclick="openPix()" title="PIX">&#128178; PIX</button><button class="bkp-save" onclick="openMpConfig()" title="Token MP">&#128273; MP</button><button class="bkp-save" onclick="openFidelidadeConfig()" title="Fidelidade">&#127881;</button><button class="bkp-save" onclick="openCatalog()" title="Cat\u00e1logo">&#128230;</button><button class="bkp-save" onclick="exportJSON()" title="Backup">&#128190;</button><button class="bkp-load" onclick="importJSON()" title="Migrar">&#128194;</button></div>'
+    +(CURRENT_USER&&CURRENT_USER.role==="admin"?'<div class="bkp-bar"><button class="bkp-save" onclick="openPix()" title="PIX">&#128178; PIX</button><button class="bkp-save" onclick="openMpConfig()" title="Token MP">&#128273; MP</button><button class="bkp-save" onclick="openTaxasConfig()" title="Taxas">&#128179; Taxas</button><button class="bkp-save" onclick="openFidelidadeConfig()" title="Fidelidade">&#127881;</button><button class="bkp-save" onclick="openCatalog()" title="Cat\u00e1logo">&#128230;</button><button class="bkp-save" onclick="exportJSON()" title="Backup">&#128190;</button><button class="bkp-load" onclick="importJSON()" title="Migrar">&#128194;</button></div>'
       :(CURRENT_USER&&(CURRENT_USER.role==="recepcao"||CURRENT_USER.role==="comercial")?'<div class="bkp-bar"><button class="bkp-save" onclick="openPix()">&#128178; PIX</button><button class="bkp-save" onclick="openMpPayment()">&#128179; MP</button></div>':''))
     +'<div class="user-badge"><div><div class="nm">'+es(CURRENT_USER?CURRENT_USER.nome:"")+'</div><div class="rl"><span class="sync-dot"></span>'+es(ROLE_LABELS[CURRENT_USER?CURRENT_USER.role:""]||"")+'</div></div><button onclick="doLogout()">Sair</button></div>'
     +'<div style="padding:8px 14px;border-top:1px solid #1f1f23;font-size:10px;color:#3f3f46">Online \u00b7 Studio A R</div>';
@@ -1088,7 +1101,8 @@ function openAgn(date,time,prof,editId){
     +'</div>'
     +'<div class="fi"><label>Observa\u00e7\u00f5es</label><textarea id="ag-obs">'+es(r?r.obs:"")+'</textarea></div>'
     +'<div class="fi"><label>Divulgador (quem agendou)</label><select id="ag-div"><option value="">Nenhum / Cliente direta</option>'+getDivulgadores().map(function(n){return'<option value="'+n+'"'+(r&&r.divulgador===n?' selected':'')+'>'+n+'</option>';}).join("")+'</select></div>'
-    +'<input type="hidden" id="ag-id" value="'+(editId||"")+'"><button class="pb" onclick="savAgn()">Salvar Agendamento</button>');
+    +'<input type="hidden" id="ag-id" value="'+(editId||"")+'"><button class="pb" onclick="savAgn()">Salvar Agendamento</button>'
+    +(editId&&CURRENT_USER&&CURRENT_USER.role==="admin"?'<button class="db" style="width:100%;margin-top:8px;padding:9px" onclick="delAgn(\''+editId+'\')">&#128465; Excluir este agendamento</button>':''));
 }
 function savAgn(){
   var c=document.getElementById("ag-c").value.trim();if(!c)return alert("Preencha o nome da cliente.");
@@ -1109,6 +1123,17 @@ function savAgn(){
     LEAD_BOOKING_ID=null;
   }
   cmod();
+}
+
+function delAgn(id){
+  if(!confirm("Excluir este agendamento? N\u00e3o pode ser desfeito."))return;
+  var appt=D.agn.find(function(a){return a.id===id;});
+  db.collection("agendamentos").doc(id).delete();
+  if(appt){
+    var slotId=appt.date+"_"+appt.time.replace(":","")+"_"+slug(appt.professional);
+    db.collection("horariosPublicos").doc(slotId).delete();
+  }
+  showToast("\u2705 Agendamento exclu\u00eddo!");cmod();
 }
 
 /* PRO-LABORE SETTINGS */
@@ -1798,7 +1823,7 @@ function rAgenda(){
       var key=p+"|"+t,appt=apptsByPT[key];
       if(appt){
         var div=appt.divulgador?'<div style="font-size:8px;color:#38bdf8;margin-top:2px">\u{1F464} '+es(appt.divulgador)+'</div>':'';
-        return'<div class="agn-slot"><div class="agn-appt status-'+appt.status+'" data-edit-agn="'+appt.id+'">'+es(appt.client)+'<br><span style="font-size:9px;opacity:.8">'+es(appt.service)+'</span>'+div+'</div></div>';
+        return'<div class="agn-slot"><div class="agn-appt status-'+appt.status+'" draggable="true" data-edit-agn="'+appt.id+'">'+es(appt.client)+'<br><span style="font-size:9px;opacity:.8">'+es(appt.service)+'</span>'+div+'</div></div>';
       }
       return'<div class="agn-slot" data-new-agn="'+d+'|'+t+'|'+p+'"><div class="agn-empty">+</div></div>';
     }).join("");
@@ -1839,7 +1864,8 @@ function rSvc(fs){
     {k:"formaPagamento",l:"Pgto",fn:function(r){return es(r.formaPagamento);}},
     {k:"obs",l:"Observa\u00e7\u00f5es",fn:function(r){var o=r.observacoes||"";return o?'<span title="'+es(o)+'" style="color:#fbbf24;cursor:help">\uD83D\uDCDD '+es(o.slice(0,20))+(o.length>20?"...":"")+'</span>':"\u2014";}},
     {k:"pgstatus",l:"Pagamento",fn:function(r){
-      if(r.ehSinal)return'<span style="color:#fbbf24;font-weight:600">&#128176; Sinal'+(r.sinalUsado?' &#10003;':' (dispon\u00edvel)')+'</span>';
+      if(r.ehSinal&&!r.sinalRealizado)return'<button class="gb" style="font-size:10px;padding:4px 8px;color:#fbbf24;border-color:#fbbf2440" onclick="realizarSinal(\''+r.id+'\')">&#128176; Sinal &mdash; Realizar servi\u00e7o</button>';
+      if(r.ehSinal&&r.sinalRealizado)return'<span style="color:#34d399;font-weight:600">&#10003; Realizado</span>';
       if(r.pagamento==="realizado")return'<span style="color:#34d399;font-weight:600">\u2714 Pago</span>';
       return'<button class="pb" style="font-size:10px;padding:4px 8px;background:#fbbf24;color:#000;border:none;border-radius:4px;cursor:pointer" data-venda-realizada="'+r.id+'">Venda Realizada</button>';
     }}
@@ -2629,7 +2655,7 @@ function rAll(){rSb();rT();}
 
 /* EVENTS */
 document.addEventListener("click",function(e){
-  var nb=e.target.closest("[data-tab]");if(nb){S.tab=nb.dataset.tab;rSb();rT();closeMobileSidebar();return;}
+  var nb=e.target.closest("[data-tab]");if(nb){S.tab=nb.dataset.tab;markTabSeen(nb.dataset.tab);rSb();rT();closeMobileSidebar();return;}
   var db=e.target.closest("[data-del]");if(db){delR(db.dataset.del,db.dataset.id);return;}
   var eb=e.target.closest("[data-edit]");if(eb){var t=eb.dataset.edit,id=eb.dataset.id;
     if(t==="svc")openS(id);else if(t==="prd")openP(id);else if(t==="exp")openE(id);else if(t==="adv")openA(id);
@@ -3291,6 +3317,124 @@ function enviarMsg(){
   }).then(function(){
     setTimeout(function(){var f=document.getElementById("msg-feed");if(f)f.scrollTop=f.scrollHeight;},200);
   });
+}
+
+/* ─ CONFIG TAXAS DE MAQUININHA ─ */
+function openTaxasConfig(){
+  var taxas=getTaxas();
+  var rows=Object.keys(TAXAS).map(function(k){
+    var val=((taxas[k]||0)*100).toFixed(2);
+    return'<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">'
+      +'<span style="flex:1;font-size:12px;color:#d4d4d8">'+es(k)+'</span>'
+      +'<div style="display:flex;align-items:center;gap:4px">'
+      +'<input type="number" id="tx-'+k.replace(/[^a-z0-9]/gi,"_")+'" value="'+val+'" step="0.01" min="0" max="100" style="width:80px;font-size:12px">'
+      +'<span style="font-size:11px;color:#71717a">%</span>'
+      +'</div></div>';
+  }).join("");
+  omod(mhdr("\uD83D\uDCB3 Taxas de Maquininha / Gateway")
+    +'<div style="font-size:11px;color:#a1a1aa;margin-bottom:12px">Configure as taxas de cada forma de pagamento. Afeta o c\u00e1lculo do faturamento l\u00edquido em todos os lan\u00e7amentos.</div>'
+    +rows
+    +'<button class="pb" style="margin-top:12px" onclick="saveTaxasConfig()">&#128190; Salvar Taxas</button>');
+}
+function saveTaxasConfig(){
+  var novas={};
+  Object.keys(TAXAS).forEach(function(k){
+    var el=document.getElementById("tx-"+k.replace(/[^a-z0-9]/gi,"_"));
+    if(el)novas[k]=parseFloat(el.value||"0")/100;
+    else novas[k]=TAXAS[k];
+  });
+  db.collection("config").doc("taxasMaq").set({taxas:novas});
+  showToast("\u2705 Taxas salvas com sucesso!");cmod();
+}
+
+/* ─ NOTIFICAÇÕES NAS ABAS ─ */
+var _tabLastSeen={};
+function markTabSeen(tab){
+  if(!CURRENT_USER)return;
+  _tabLastSeen[tab]=Date.now();
+  try{localStorage.setItem("seen_"+tab+"_"+(CURRENT_USER.uid||CURRENT_USER.nome),Date.now());}catch(e){}
+}
+function getTabLastSeen(tab){
+  if(_tabLastSeen[tab])return _tabLastSeen[tab];
+  try{return parseInt(localStorage.getItem("seen_"+tab+"_"+(CURRENT_USER?(CURRENT_USER.uid||CURRENT_USER.nome):"x"))||"0");}catch(e){return 0;}
+}
+function hasTabNotif(tab){
+  var seen=getTabLastSeen(tab);
+  var now=Date.now();
+  if(now-seen<3000)return false; // acabou de ver
+  function latestTs(arr){return arr.reduce(function(mx,r){var t=r._ts||(r.dataCriacao?new Date(r.dataCriacao).getTime():0);return t>mx?t:mx;},0);}
+  if(tab==="mensagens")return latestTs(D.msgs)>seen;
+  if(tab==="requests")return latestTs(D.requests)>seen;
+  if(tab==="leads")return latestTs(D.leads)>seen;
+  if(tab==="services")return latestTs(D.svc)>seen;
+  if(tab==="agenda")return latestTs(D.agn)>seen;
+  return false;
+}
+
+/* ─ DRAG-AND-DROP NA AGENDA (muda profissional) ─ */
+document.addEventListener("dragstart",function(e){
+  var appt=e.target.closest("[data-edit-agn]");
+  if(!appt)return;
+  e.dataTransfer.setData("agn-id",appt.dataset.editAgn);
+  e.dataTransfer.effectAllowed="move";
+  appt.style.opacity="0.4";
+});
+document.addEventListener("dragend",function(e){
+  var appt=e.target.closest("[data-edit-agn]");
+  if(appt)appt.style.opacity="";
+  document.querySelectorAll(".agn-slot.drag-over-agn").forEach(function(s){s.classList.remove("drag-over-agn");});
+});
+document.addEventListener("dragover",function(e){
+  var slot=e.target.closest("[data-new-agn]");
+  if(!slot)return;
+  e.preventDefault();
+  slot.classList.add("drag-over-agn");
+});
+document.addEventListener("dragleave",function(e){
+  var slot=e.target.closest("[data-new-agn]");
+  if(slot&&!slot.contains(e.relatedTarget))slot.classList.remove("drag-over-agn");
+});
+document.addEventListener("drop",function(e){
+  var slot=e.target.closest("[data-new-agn]");
+  if(!slot)return;
+  e.preventDefault();
+  slot.classList.remove("drag-over-agn");
+  var id=e.dataTransfer.getData("agn-id");if(!id)return;
+  var pts=slot.dataset.newAgn.split("|");
+  var novaData=pts[0],novoHorario=pts[1],novoProfissional=pts[2];
+  var appt=D.agn.find(function(a){return a.id===id;});
+  if(!appt)return;
+  if(appt.professional===novoProfissional&&appt.date===novaData&&appt.time===novoHorario)return;
+  // libera slot antigo
+  var oldSlot=appt.date+"_"+appt.time.replace(":","")+"_"+slug(appt.professional);
+  db.collection("horariosPublicos").doc(oldSlot).delete();
+  // salva no novo slot
+  db.collection("agendamentos").doc(id).update({professional:novoProfissional,date:novaData,time:novoHorario});
+  var newSlot=novaData+"_"+novoHorario.replace(":","")+"_"+slug(novoProfissional);
+  db.collection("horariosPublicos").doc(newSlot).set({date:novaData,time:novoHorario,professional:novoProfissional,status:"ocupado",agendamentoId:id});
+  showToast("\u2705 Agendamento movido para "+novoProfissional+" \u00e0s "+novoHorario);
+});
+
+/* ─ SINAL: REALIZAR SERVIÇO ─ */
+function realizarSinal(id){
+  var r=D.svc.find(function(x){return x.id===id;});
+  if(!r)return;
+  omod(mhdr("&#127881; Realizar Servi\u00e7o \u2014 "+es(r.cliente))
+    +'<div style="background:#34d39914;border:1px solid #34d39930;padding:8px 12px;border-radius:7px;margin-bottom:12px;font-size:11px">'
+    +'Sinal registrado em '+fdt(r.date)+' &mdash; valor pago: <strong style="color:#34d399">'+fmt(r.valor)+'</strong></div>'
+    +'<div class="fi"><label>Data de realiza\u00e7\u00e3o</label><input type="date" id="rs-data" value="'+hj()+'"></div>'
+    +'<div class="fi"><label>Observa\u00e7\u00f5es (opcional)</label><input type="text" id="rs-obs" placeholder="Ex: progressiva realizada, cliente satisfeita..."></div>'
+    +'<button class="pb" onclick="confirmarRealizarSinal(\''+id+'\')">\u2713 Confirmar realiza\u00e7\u00e3o do servi\u00e7o</button>');
+}
+function confirmarRealizarSinal(id){
+  var data=document.getElementById("rs-data").value;
+  var obs=document.getElementById("rs-obs").value;
+  db.collection("servicos").doc(id).update({
+    ehSinal:false,sinalUsado:true,sinalRealizado:true,
+    dataRealizacao:data,pagamento:"realizado",
+    observacoes:obs||""
+  });
+  showToast("\uD83C\uDF89 Servi\u00e7o realizado! Pagamento confirmado.");cmod();
 }
 
 /* MOBILE SIDEBAR TOGGLE */
