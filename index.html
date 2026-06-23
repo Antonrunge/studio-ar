@@ -1936,8 +1936,9 @@ function rSvc(fs){
       return'<button class="pb" style="font-size:10px;padding:4px 8px;background:#fbbf24;color:#000;border:none;border-radius:4px;cursor:pointer" data-venda-realizada="'+r.id+'">Venda Realizada</button>';
     }}
   ];
+  var perLabel=S.day>0?("Dia "+S.day+" de "+MESES[S.month]+" "+S.year):(MESES[S.month]+" "+S.year);
   // tabela com linha colorida pra pendentes
-  if(!fs.length)return'<div class="pg"><div class="ph"><h2>Servi\u00e7os &mdash; '+MESES[S.month]+' '+S.year+'</h2><button class="ab" onclick="openS()">&#xFF0B; Novo Servi\u00e7o</button></div><div class="cd"><div class="emp">Nenhum registro neste per\u00edodo</div></div></div>';
+  if(!fs.length)return'<div class="pg"><div class="ph"><h2>Servi\u00e7os &mdash; '+perLabel+'</h2><button class="ab" onclick="openS()">&#xFF0B; Novo Servi\u00e7o</button></div><div class="cd"><div class="emp">Nenhum registro neste per\u00edodo</div></div></div>';
   var hds=cols.map(function(c){return'<th>'+c.l+'</th>';}).join("")+'<th></th>';
   var trs=fs.map(function(r){
     var isPend=r.pagamento==="pendente";
@@ -1946,7 +1947,7 @@ function rSvc(fs){
     return'<tr '+rowStyle+'>'+tds+'<td><button class="eb" data-edit="svc" data-id="'+r.id+'">ed</button> <button class="db" data-del="svc" data-id="'+r.id+'">\u00d7</button></td></tr>';
   }).join("");
   var tableHtml='<div class="ox"><table><thead><tr>'+hds+'</tr></thead><tbody>'+trs+'</tbody></table></div>';
-  return'<div class="pg"><div class="ph"><h2>Servi\u00e7os &mdash; '+MESES[S.month]+' '+S.year+'</h2>'
+  return'<div class="pg"><div class="ph"><h2>Servi\u00e7os &mdash; '+perLabel+'</h2>'
     +'<div class="ph-btns"><button class="ab" onclick="openS()">\uFF0B Novo Servi\u00e7o</button>'
     +'<button class="gb" onclick="openRelDia()">&#128200; Relat\u00f3rio do Dia</button></div></div>'
     +'<div class="kg">'+kp("Fat. Bruto",fmt(tB),fs.length+" atend.")+kp("Fat. L\u00edquido",fmt(tL),"Taxa maq.: "+fmt(tB-tL))+kp("Total Comiss\u00f5es",fmt(tC))+kp("Custo Material",fmt(tM))+kp("Descontos",fmt(tDesc))+(pendentes?kp('\uD83D\uDFE1 Pend. Pagamento',pendentes,"aguardando"):'')+'</div>'
@@ -2698,6 +2699,13 @@ function rT(){
   var fp=fmy(D.prd,S.month,S.year);
   var fe=fmy(D.exp,S.month,S.year);
   var fa=fmy(D.adv,S.month,S.year);
+  /* Se um dia específico está selecionado, filtra também por dia */
+  if(S.day>0){
+    var dd=S.day<10?"0"+S.day:String(S.day);
+    var mm=(S.month+1)<10?"0"+(S.month+1):String(S.month+1);
+    var dayStr=S.year+"-"+mm+"-"+dd;
+    fs=fday(fs,dayStr);fp=fday(fp,dayStr);fe=fday(fe,dayStr);fa=fday(fa,dayStr);
+  }
   var h="";
   if(S.tab==="dashboard")h=rDash(fs,fp,fe,fa);
   else if(S.tab==="agenda")h=rAgenda();
