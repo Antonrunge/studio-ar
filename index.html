@@ -3590,63 +3590,97 @@ function rCaixa(){
   var hoje=S.caixaDate||hj();
   var dateFmt=hoje.slice(8,10)+"/"+hoje.slice(5,7)+"/"+hoje.slice(0,4);
   var html='<div class="pg">'
-    +'<div class="ph"><h2>\uD83C\uDFE6 Caixa Banc\u00e1rio — '+dateFmt+'</h2>'
+    +'<div class="ph"><h2>\uD83C\uDFE6 Caixa Banc\u00e1rio \u2014 '+dateFmt+'</h2>'
     +'<div class="ph-btns">'
     +'<input type="date" value="'+hoje+'" onchange="S.caixaDate=this.value;_mpCaixaData=null;rT();loadCaixaMP()" style="background:#27272a;border:1px solid #3f3f46;color:#e4e4e7;border-radius:6px;padding:4px 8px;font-size:12px">'
     +'<button class="gb" onclick="_mpCaixaData=null;rT();loadCaixaMP()">\u21bb Atualizar</button>'
     +'</div></div>';
 
-  /* Totais do sistema para o dia */
-  var dd=hoje.slice(8,10);var mm=hoje.slice(5,7);var yy=hoje.slice(0,4);
-  var dayKey=yy+"-"+mm+"-"+dd;
+  /* ── Serviços do dia por forma de pagamento ── */
+  var dayKey=hoje;
   var svcDia=(D.svc||[]).filter(function(r){return r.date===dayKey;});
-  var totalSistema=svcDia.reduce(function(a,r){return a+(parseFloat(r.faturamento||r.valor||0));},0);
-  var totalMP=0;var totalPIX=0;
 
+  /* Agrupa pagamentos — um serviço pode ter múltiplos pagamentos */
+  var totalDinheiro=0,totalPixSis=0,totalCredito=0,totalDebito=0,totalOutros=0;
+  svcDia.forEach(function(r){
+    var pgtos=r.pagamentos||[];
+    if(!pgtos.length&&r.pagamento){
+      pgtos=[{forma:r.pagamento,valor:parseFloat(r.faturamento||r.valor||0)}];
+    }
+    pgtos.forEach(function(pg){
+      var forma=(pg.forma||"").toLowerCase();
+      var val=parseFloat(pg.valor||0);
+      if(forma.indexOf("dinheiro")>=0)totalDinheiro+=val;
+      else if(forma.indexOf("pix")>=0)totalPixSis+=val;
+      else if(forma.indexOf("cr\u00e9dito")>=0||forma.indexOf("credito")>=0)totalCredito+=val;
+      else if(forma.indexOf("d\u00e9bito")>=0||forma.indexOf("debito")>=0)totalDebito+=val;
+      else totalOutros+=val;
+    });
+  });
+  var totalSistema=totalDinheiro+totalPixSis+totalCredito+totalDebito+totalOutros;
+
+  /* ── Maquininha MP ── */
   if(!_mpCaixaData){
-    /* Ainda carregando */
     html+='<div class="cd" id="caixa-content"><div style="padding:40px;text-align:center;color:#52525b">Carregando extrato do Mercado Pago...</div></div></div>';
     loadCaixaMP();
     return html;
   }
 
   var pagamentos=_mpCaixaData||[];
+  var totalMP=0,totalPIXmp=0;
   pagamentos.forEach(function(p){
     if(p.status==="approved"){
       totalMP+=parseFloat(p.transaction_amount||0);
-      if(p.payment_type_id==="bank_transfer"||p.payment_type_id==="pix")totalPIX+=parseFloat(p.transaction_amount||0);
+      if(p.payment_type_id==="bank_transfer"||p.payment_type_id==="pix")totalPIXmp+=parseFloat(p.transaction_amount||0);
     }
   });
 
-  var diff=totalMP-totalSistema;
-  var diffColor=Math.abs(diff)<1?"#34d399":(diff>0?"#fbbf24":"#f87171");
-  var diffLabel=Math.abs(diff)<1?"✅ Batendo":"⚠️ Diferença de "+fmt(Math.abs(diff));
+  /* ── Total geral (MP + Dinheiro do sistema) ── */
+  var totalGeral=totalMP+totalDinheiro+totalPixSis;
+  var diff=totalGeral-totalSistema;
+  var diffColor=Math.abs(diff)<1?"#34d399":"#fbbf24";
+  var diffLabel=Math.abs(diff)<1?"\u2705 Tudo conferindo":"\u26a0 Diferen\u00e7a de "+fmt(Math.abs(diff));
 
   html+='<div class="kg">'
-    +kp("💳 Maquininha MP",fmt(totalMP),pagamentos.filter(function(p){return p.status==="approved";}).length+" transações")
-    +kp("🏦 Via PIX",fmt(totalPIX),"transferências")
-    +kp("📋 Lançado no sistema",fmt(totalSistema),svcDia.length+" serviços")
-    +'<div class="kc" style="border-left:3px solid '+diffColor+'"><div class="kv" style="color:'+diffColor+'">'+diffLabel+'</div><div class="kl">banco vs. sistema</div></div>'
+    +kp("💳 Maquininha MP",fmt(totalMP),pagamentos.filter(function(p){return p.status==="approved";}).length+" transa\u00e7\u00f5es")
+    +kp("💵 Dinheiro (sistema)",fmt(totalDinheiro),svcDia.filter(function(r){var f=(r.pagamento||"").toLowerCase();return f.indexOf("dinheiro")>=0;}).length+" servi\u00e7os")
+    +kp("🏦 PIX (sistema)",fmt(totalPixSis),svcDia.filter(function(r){var f=(r.pagamento||"").toLowerCase();return f.indexOf("pix")>=0;}).length+" servi\u00e7os")
+    +kp("💳 Crédito/Débito",fmt(totalCredito+totalDebito),"via maquininha")
+    +'<div class="kc" style="border-left:3px solid '+diffColor+'"><div class="kv" style="color:'+diffColor+'">'+diffLabel+'</div><div class="kl">total geral vs. sistema</div></div>'
     +'</div>';
 
-  /* Lista de transações */
-  var aprovadas=pagamentos.filter(function(p){return p.status==="approved";});
-  var pendentes=pagamentos.filter(function(p){return p.status==="pending"||p.status==="in_process";});
+  /* ── Seção Dinheiro — lista dos serviços ── */
+  if(totalDinheiro>0){
+    var svcDinheiro=svcDia.filter(function(r){
+      var f=(r.pagamento||"").toLowerCase();
+      return f.indexOf("dinheiro")>=0;
+    });
+    html+='<div class="ct" style="margin:16px 0 8px;color:#34d399">💵 Pagamentos em Dinheiro do dia</div>'
+      +'<div class="cd"><div class="ox"><table>'
+      +'<thead><tr><th>Cliente</th><th>Serviço</th><th>Profissional</th><th class="hi">Valor</th></tr></thead><tbody>'
+      +svcDinheiro.map(function(r){
+        return'<tr><td style="color:#f1f5f9;font-weight:600">'+es(r.cliente)+'</td>'
+          +'<td>'+es(r.trabalho||"")+'</td>'
+          +'<td>'+es((r.profissionais||[r.profissional||""]).join(", "))+'</td>'
+          +'<td class="hi">'+fmt(parseFloat(r.faturamento||r.valor||0))+'</td></tr>';
+      }).join("")
+      +'<tr style="background:#1c1c1e"><td colspan="3" style="font-weight:700;color:#34d399">Total Dinheiro</td><td class="hi" style="color:#34d399;font-weight:700">'+fmt(totalDinheiro)+'</td></tr>'
+      +'</tbody></table></div></div>';
+  }
 
+  /* ── Transações MP ── */
+  var aprovadas=pagamentos.filter(function(p){return p.status==="approved";});
+  html+='<div class="ct" style="margin:16px 0 8px;color:#38bdf8">💳 Transações Maquininha MP ('+aprovadas.length+')</div>';
   html+='<div class="cd">';
-  if(!pagamentos.length){
-    html+='<div class="emp">Nenhuma transação encontrada para esta data</div>';
+  if(!aprovadas.length){
+    html+='<div class="emp">Nenhuma transa\u00e7\u00e3o via maquininha neste dia</div>';
   }else{
-    html+='<div class="ct" style="margin-bottom:8px">Transações aprovadas ('+aprovadas.length+')</div>';
-    html+='<div class="ox"><table><thead><tr><th>Horário</th><th>Descrição</th><th>Tipo</th><th class="hi">Valor</th><th>Status</th></tr></thead><tbody>';
-    aprovadas.concat(pendentes).forEach(function(p){
+    html+='<div class="ox"><table><thead><tr><th>Hor\u00e1rio</th><th>Descri\u00e7\u00e3o</th><th>Tipo</th><th class="hi">Valor</th><th>Status</th></tr></thead><tbody>';
+    aprovadas.forEach(function(p){
       var hora=p.date_approved||p.date_created||"";
       if(hora)hora=new Date(hora).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
-      var tipo=p.payment_type_id==="pix"?"PIX":p.payment_type_id==="credit_card"?"Crédito":p.payment_type_id==="debit_card"?"Débito":"Outro";
-      var desc=p.description||p.statement_descriptor||"Pagamento";
-      var stColor=p.status==="approved"?"#34d399":p.status==="pending"?"#fbbf24":"#f87171";
-      var stLabel=p.status==="approved"?"Aprovado":p.status==="pending"?"Pendente":"Outro";
-      html+='<tr><td>'+hora+'</td><td>'+es(desc)+'</td><td>'+tipo+'</td><td class="hi">'+fmt(p.transaction_amount||0)+'</td><td style="color:'+stColor+'">'+stLabel+'</td></tr>';
+      var tipo=p.payment_type_id==="pix"?"PIX":p.payment_type_id==="credit_card"?"Cr\u00e9dito":p.payment_type_id==="debit_card"?"D\u00e9bito":"Outro";
+      html+='<tr><td>'+hora+'</td><td>'+es(p.description||p.statement_descriptor||"Pagamento")+'</td><td>'+tipo+'</td><td class="hi">'+fmt(p.transaction_amount||0)+'</td><td style="color:#34d399">Aprovado</td></tr>';
     });
     html+='</tbody></table></div>';
   }
