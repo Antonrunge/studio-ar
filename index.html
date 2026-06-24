@@ -3546,6 +3546,7 @@ function rMensagens(){
 var _mpReadToken=null;
 var _mpCaixaData=null;
 var _mpCaixaDate=null;
+var _mpSaldo=null;
 
 function loadMpReadToken(cb){
   if(_mpReadToken){cb(_mpReadToken);return;}
@@ -3559,15 +3560,52 @@ function loadMpReadToken(cb){
   }).catch(function(){cb(null);});
 }
 
+function loadMpSaldo(){
+  loadMpReadToken(function(token){
+    if(!token)return;
+    fetch("https://api.mercadopago.com/v1/account/settlement_report/config",{
+      headers:{"Authorization":"Bearer "+token}
+    }).then(function(r){return r.json();}).catch(function(){return null;});
+
+    /* Endpoint correto para saldo disponível */
+    fetch("https://api.mercadopago.com/v1/account/balance",{
+      headers:{"Authorization":"Bearer "+token,"Content-Type":"application/json"}
+    }).then(function(r){return r.json();}).then(function(data){
+      if(data&&data.available_balance!==undefined){
+        _mpSaldo={disponivel:data.available_balance,total:data.total_amount,pendente:(data.total_amount||0)-(data.available_balance||0)};
+      }else if(data&&data.accounts){
+        /* Formato alternativo */
+        var mp=data.accounts.find(function(a){return a.currency_id==="BRL";});
+        if(mp)_mpSaldo={disponivel:mp.amount||0,total:mp.amount||0,pendente:0};
+      }
+      rT();
+    }).catch(function(e){console.log("Saldo MP erro:",e);});
+  });
+}
+
 function rCaixa(){
   var hoje=S.caixaDate||hj();
   var dateFmt=hoje.slice(8,10)+"/"+hoje.slice(5,7)+"/"+hoje.slice(0,4);
+
+  /* Saldo card */
+  var saldoCard='';
+  if(_mpSaldo){
+    saldoCard='<div class="kg" style="margin-bottom:14px">'
+      +kp("💰 Saldo Disponível",fmt(_mpSaldo.disponivel),"disponível para saque agora")
+      +(_mpSaldo.pendente>0?kp("⏳ A Liberar",fmt(_mpSaldo.pendente),"em processamento (crédito/parcelas)"):"")
+      +'</div>';
+  }else{
+    saldoCard='<div style="background:#27272a;border:1px solid #3f3f46;border-radius:8px;padding:12px 16px;margin-bottom:14px;font-size:11px;color:#71717a">Carregando saldo...</div>';
+    loadMpSaldo();
+  }
+
   var html='<div class="pg">'
     +'<div class="ph"><h2>🏦 Caixa Bancário — '+dateFmt+'</h2>'
     +'<div class="ph-btns">'
     +'<input type="date" value="'+hoje+'" onchange="S.caixaDate=this.value;_mpCaixaData=null;rT();loadCaixaMP()" style="background:#27272a;border:1px solid #3f3f46;color:#e4e4e7;border-radius:6px;padding:4px 8px;font-size:12px">'
-    +'<button class="gb" onclick="_mpCaixaData=null;rT();loadCaixaMP()">↻ Atualizar</button>'
-    +'</div></div>';
+    +'<button class="gb" onclick="_mpCaixaData=null;_mpSaldo=null;rT();loadCaixaMP()">↻ Atualizar</button>'
+    +'</div></div>'
+    +saldoCard;
 
   /* Totais do sistema para o dia */
   var dd=hoje.slice(8,10);var mm=hoje.slice(5,7);var yy=hoje.slice(0,4);
