@@ -332,9 +332,9 @@ function openAdminAuthModal(onSuccess){
 
 var CURRENT_USER = null; // {uid, email, role, nome}
 var ROLE_TABS = {
-  admin: ["dashboard","agenda","leads","services","products","expenses","advances","prolabore","dre","clients","db","requests","audit","estoque","arprof","fornecedores","mensagens"],
+  admin: ["dashboard","agenda","leads","services","products","expenses","advances","prolabore","dre","clients","db","requests","audit","estoque","arprof","fornecedores","caixa","mensagens"],
   recepcao: ["agenda","services","products","clients","requests","estoque","mensagens"],
-  financeiro: ["dashboard","agenda","expenses","advances","prolabore","dre","arprof","mensagens"],
+  financeiro: ["dashboard","agenda","expenses","advances","prolabore","dre","arprof","caixa","mensagens"],
   marketing: ["agenda","clients","mensagens"],
   profissional: ["agenda","prolabore","mensagens"],
   comercial: ["agenda","leads","mensagens"]
@@ -654,8 +654,15 @@ function loadTabData(tab){
 }
 
 function loadConfig(){
+  /* Catálogo usa onSnapshot pois muda com frequência e afeta todos os usuários
+     em tempo real (dropdowns de serviços e produtos em formulários) */
+  var uCat=db.collection("config").doc("catalogo").onSnapshot(function(doc){
+    if(doc.exists){if(doc.data().servicos)CAT_SVCS=doc.data().servicos;if(doc.data().produtos)CAT_PRODS=doc.data().produtos;}
+  });
+  _listeners.push(uCat);
+
+  /* Demais configs: get() único na inicialização — mudam raramente */
   var cfgs=[
-    {id:"catalogo",   fn:function(d){if(d.servicos)CAT_SVCS=d.servicos;if(d.produtos)CAT_PRODS=d.produtos;}},
     {id:"prolabore",  fn:function(d){PL_CUSTOM=d.values||null;}},
     {id:"profissionais",fn:function(d){PROFS_CUSTOM=d.list||null;}},
     {id:"rankingExcluidos",fn:function(d){RANKING_EXCLUDED=d.nomes||null;}},
@@ -809,7 +816,7 @@ function tbl(rows,cols,type){
 function kp(l,v,s){return'<div class="kp"><div class="kl">'+l+'</div><div class="kv">'+v+'</div>'+(s?'<div class="ks">'+s+'</div>':'')+'</div>';}
 
 /* SIDEBAR */
-var NAV=[["dashboard","\uD83D\uDCCA","Dashboard"],["agenda","\uD83D\uDCC5","Agenda"],["services","\u2702\uFE0F","Servi\u00e7os"],["products","\uD83E\uDDF4","Produtos"],["expenses","\uD83D\uDCB8","Despesas"],["advances","\uD83D\uDCB5","Adiantamentos"],["prolabore","\uD83D\uDC65","Pr\u00f3-Labore"],["dre","\uD83D\uDCC8","DRE / DFC"],["clients","\uD83D\uDC69","Clientes"],["leads","\uD83C\uDFAF","Leads"],["db","\uD83D\uDDC4\uFE0F","Banco de Dados"],["requests","\uD83D\uDCE5","Solicita\u00e7\u00f5es Online"],["audit","\uD83D\uDD0D","Auditoria"],["estoque","\uD83E\uDDF4","Estoque"],["arprof","\uD83C\uDFF7\uFE0F","A R Professional"],["fornecedores","\uD83D\uDE9A","Fornecedores"],["mensagens","\uD83D\uDCAC","Mensagens"]];
+var NAV=[["dashboard","\uD83D\uDCCA","Dashboard"],["agenda","\uD83D\uDCC5","Agenda"],["services","\u2702\uFE0F","Servi\u00e7os"],["products","\uD83E\uDDF4","Produtos"],["expenses","\uD83D\uDCB8","Despesas"],["advances","\uD83D\uDCB5","Adiantamentos"],["prolabore","\uD83D\uDC65","Pr\u00f3-Labore"],["dre","\uD83D\uDCC8","DRE / DFC"],["clients","\uD83D\uDC69","Clientes"],["leads","\uD83C\uDFAF","Leads"],["db","\uD83D\uDDC4\uFE0F","Banco de Dados"],["requests","\uD83D\uDCE5","Solicita\u00e7\u00f5es Online"],["audit","\uD83D\uDD0D","Auditoria"],["estoque","\uD83E\uDDF4","Estoque"],["arprof","\uD83C\uDFF7\uFE0F","A R Professional"],["fornecedores","\uD83D\uDE9A","Fornecedores"],["caixa","🏦","Caixa Bancário"],["mensagens","\uD83D\uDCAC","Mensagens"]];
 var DIVULGADORES_CUSTOM=null;
 var DIVULGADORES_DEFAULT=["Lorran","Isabela","Diane","Anton"];
 function getDivulgadores(){return DIVULGADORES_CUSTOM||DIVULGADORES_DEFAULT;}
@@ -1643,7 +1650,22 @@ function saveCatalog(){
   var svcs=getSvcs(),prods=getProds();
   CAT_SVCS=svcs;CAT_PRODS=prods;
   db.collection("config").doc("catalogo").set({servicos:svcs,produtos:prods})
-    .then(function(){showToast("\u2705 Cat\u00e1logo salvo!");cmod();})
+    .then(function(){
+      /* Sincroniza estoque: cria doc vazio para produtos do catálogo
+         que ainda não existem no estoque, sem sobrescrever os que já têm entrada */
+      var estoqueExistentes=(D.estoque||[]).map(function(i){return i.nome.toUpperCase();});
+      prods.forEach(function(p){
+        if(estoqueExistentes.indexOf(p.toUpperCase())<0){
+          var docId=slug(p.toUpperCase());
+          db.collection("estoque").doc(docId).set({
+            nome:p.toUpperCase(),unidade:"ml",
+            quantidadeAtual:0,capacidadeReferencia:0,
+            valorTotalInvestido:0
+          },{merge:true});
+        }
+      });
+      showToast("\u2705 Cat\u00e1logo salvo!");cmod();
+    })
     .catch(function(e){showToast("\u274c Erro: "+e.message,"#f43f5e");});
 }
 function delR(type,id){
@@ -2758,6 +2780,7 @@ function rT(){
   else if(S.tab==="estoque")h=rEstoque();
   else if(S.tab==="arprof")h=rArProf();
   else if(S.tab==="fornecedores")h=rFornecedores();
+  else if(S.tab==="caixa")h=rCaixa();
   else if(S.tab==="mensagens")h=rMensagens();
   document.getElementById("ct").innerHTML=h;
 }
@@ -3415,6 +3438,114 @@ function rMensagens(){
     +'<button onclick="enviarMsg()" style="flex-shrink:0;width:44px;height:44px;border-radius:50%;background:#f43f5e;border:none;color:#fff;font-size:20px;cursor:pointer">\u27A4</button>'
     +'</div></div>';
 }
+/* ─ CAIXA BANCÁRIO — MERCADO PAGO ─────────────────────────────────────── */
+var _mpReadToken=null;
+var _mpCaixaData=null;
+var _mpCaixaDate=null;
+
+function loadMpReadToken(cb){
+  if(_mpReadToken){cb(_mpReadToken);return;}
+  db.collection("config").doc("mpToken").get().then(function(doc){
+    if(doc.exists&&doc.data().tokenleitura){
+      _mpReadToken=doc.data().tokenleitura;
+      cb(_mpReadToken);
+    }else{
+      cb(null);
+    }
+  }).catch(function(){cb(null);});
+}
+
+function rCaixa(){
+  var hoje=S.caixaDate||hj();
+  var dateFmt=hoje.slice(8,10)+"/"+hoje.slice(5,7)+"/"+hoje.slice(0,4);
+  var html='<div class="pg">'
+    +'<div class="ph"><h2>🏦 Caixa Bancário — '+dateFmt+'</h2>'
+    +'<div class="ph-btns">'
+    +'<input type="date" value="'+hoje+'" onchange="S.caixaDate=this.value;_mpCaixaData=null;rT();loadCaixaMP()" style="background:#27272a;border:1px solid #3f3f46;color:#e4e4e7;border-radius:6px;padding:4px 8px;font-size:12px">'
+    +'<button class="gb" onclick="_mpCaixaData=null;rT();loadCaixaMP()">↻ Atualizar</button>'
+    +'</div></div>';
+
+  /* Totais do sistema para o dia */
+  var dd=hoje.slice(8,10);var mm=hoje.slice(5,7);var yy=hoje.slice(0,4);
+  var dayKey=yy+"-"+mm+"-"+dd;
+  var svcDia=(D.svc||[]).filter(function(r){return r.date===dayKey;});
+  var totalSistema=svcDia.reduce(function(a,r){return a+(parseFloat(r.faturamento||r.valor||0));},0);
+  var totalMP=0;var totalPIX=0;
+
+  if(!_mpCaixaData){
+    /* Ainda carregando */
+    html+='<div class="cd" id="caixa-content"><div style="padding:40px;text-align:center;color:#52525b">Carregando extrato do Mercado Pago...</div></div></div>';
+    loadCaixaMP();
+    return html;
+  }
+
+  var pagamentos=_mpCaixaData||[];
+  pagamentos.forEach(function(p){
+    if(p.status==="approved"){
+      totalMP+=parseFloat(p.transaction_amount||0);
+      if(p.payment_type_id==="bank_transfer"||p.payment_type_id==="pix")totalPIX+=parseFloat(p.transaction_amount||0);
+    }
+  });
+
+  var diff=totalMP-totalSistema;
+  var diffColor=Math.abs(diff)<1?"#34d399":(diff>0?"#fbbf24":"#f87171");
+  var diffLabel=Math.abs(diff)<1?"✅ Batendo":"⚠️ Diferença de "+fmt(Math.abs(diff));
+
+  html+='<div class="kg">'
+    +kp("💳 Maquininha MP",fmt(totalMP),pagamentos.filter(function(p){return p.status==="approved";}).length+" transações")
+    +kp("🏦 Via PIX",fmt(totalPIX),"transferências")
+    +kp("📋 Lançado no sistema",fmt(totalSistema),svcDia.length+" serviços")
+    +'<div class="kc" style="border-left:3px solid '+diffColor+'"><div class="kv" style="color:'+diffColor+'">'+diffLabel+'</div><div class="kl">banco vs. sistema</div></div>'
+    +'</div>';
+
+  /* Lista de transações */
+  var aprovadas=pagamentos.filter(function(p){return p.status==="approved";});
+  var pendentes=pagamentos.filter(function(p){return p.status==="pending"||p.status==="in_process";});
+
+  html+='<div class="cd">';
+  if(!pagamentos.length){
+    html+='<div class="emp">Nenhuma transação encontrada para esta data</div>';
+  }else{
+    html+='<div class="ct" style="margin-bottom:8px">Transações aprovadas ('+aprovadas.length+')</div>';
+    html+='<div class="ox"><table><thead><tr><th>Horário</th><th>Descrição</th><th>Tipo</th><th class="hi">Valor</th><th>Status</th></tr></thead><tbody>';
+    aprovadas.concat(pendentes).forEach(function(p){
+      var hora=p.date_approved||p.date_created||"";
+      if(hora)hora=new Date(hora).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
+      var tipo=p.payment_type_id==="pix"?"PIX":p.payment_type_id==="credit_card"?"Crédito":p.payment_type_id==="debit_card"?"Débito":"Outro";
+      var desc=p.description||p.statement_descriptor||"Pagamento";
+      var stColor=p.status==="approved"?"#34d399":p.status==="pending"?"#fbbf24":"#f87171";
+      var stLabel=p.status==="approved"?"Aprovado":p.status==="pending"?"Pendente":"Outro";
+      html+='<tr><td>'+hora+'</td><td>'+es(desc)+'</td><td>'+tipo+'</td><td class="hi">'+fmt(p.transaction_amount||0)+'</td><td style="color:'+stColor+'">'+stLabel+'</td></tr>';
+    });
+    html+='</tbody></table></div>';
+  }
+  html+='</div></div>';
+  return html;
+}
+
+function loadCaixaMP(){
+  loadMpReadToken(function(token){
+    if(!token){
+      var el=document.getElementById("caixa-content");
+      if(el)el.innerHTML='<div style="padding:20px;color:#f87171">Token de leitura não encontrado. Configure em config → mpToken → tokenleitura no Firestore.</div>';
+      return;
+    }
+    var hoje=S.caixaDate||hj();
+    var inicio=hoje+"T00:00:00.000-03:00";
+    var fim=hoje+"T23:59:59.999-03:00";
+    fetch("https://api.mercadopago.com/v1/payments/search?sort=date_created&criteria=desc&range=date_created&begin_date="+encodeURIComponent(inicio)+"&end_date="+encodeURIComponent(fim)+"&limit=50",{
+      headers:{"Authorization":"Bearer "+token,"Content-Type":"application/json"}
+    }).then(function(r){return r.json();}).then(function(data){
+      _mpCaixaData=(data.results||[]);
+      _mpCaixaDate=hoje;
+      rT();
+    }).catch(function(err){
+      var el=document.getElementById("caixa-content");
+      if(el)el.innerHTML='<div style="padding:20px;color:#f87171">Erro ao consultar Mercado Pago: '+err.message+'</div>';
+    });
+  });
+}
+
 function enviarMsg(){
   var inp=document.getElementById("msg-input");
   if(!inp||!inp.value.trim())return;
