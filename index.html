@@ -332,12 +332,12 @@ function openAdminAuthModal(onSuccess){
 
 var CURRENT_USER = null; // {uid, email, role, nome}
 var ROLE_TABS = {
-  admin: ["dashboard","agenda","leads","services","products","expenses","advances","prolabore","dre","clients","db","requests","audit","estoque","arprof","fornecedores","caixa","mensagens"],
-  recepcao: ["agenda","services","products","clients","requests","estoque","mensagens"],
+  admin: ["dashboard","agenda","followup","leads","services","products","expenses","advances","prolabore","dre","clients","db","requests","audit","estoque","arprof","fornecedores","caixa","mensagens"],
+  recepcao: ["agenda","followup","services","products","clients","requests","estoque","mensagens"],
   financeiro: ["dashboard","agenda","expenses","advances","prolabore","dre","arprof","caixa","mensagens"],
   marketing: ["agenda","clients","mensagens"],
   profissional: ["agenda","prolabore","mensagens"],
-  comercial: ["agenda","leads","mensagens"]
+  comercial: ["agenda","followup","leads","mensagens"]
 };
 var ROLE_LABELS = {admin:"Administrador",recepcao:"Recep\u00e7\u00e3o",financeiro:"Financeiro",marketing:"Marketing",profissional:"Profissional",comercial:"Comercial"};
 var COL_MAP = {svc:"servicos",prd:"produtos",exp:"despesas",adv:"adiantamentos",agn:"agendamentos",contacts:"contatos"};
@@ -816,7 +816,7 @@ function tbl(rows,cols,type){
 function kp(l,v,s){return'<div class="kp"><div class="kl">'+l+'</div><div class="kv">'+v+'</div>'+(s?'<div class="ks">'+s+'</div>':'')+'</div>';}
 
 /* SIDEBAR */
-var NAV=[["dashboard","\uD83D\uDCCA","Dashboard"],["agenda","\uD83D\uDCC5","Agenda"],["services","\u2702\uFE0F","Servi\u00e7os"],["products","\uD83E\uDDF4","Produtos"],["expenses","\uD83D\uDCB8","Despesas"],["advances","\uD83D\uDCB5","Adiantamentos"],["prolabore","\uD83D\uDC65","Pr\u00f3-Labore"],["dre","\uD83D\uDCC8","DRE / DFC"],["clients","\uD83D\uDC69","Clientes"],["leads","\uD83C\uDFAF","Leads"],["db","\uD83D\uDDC4\uFE0F","Banco de Dados"],["requests","\uD83D\uDCE5","Solicita\u00e7\u00f5es Online"],["audit","\uD83D\uDD0D","Auditoria"],["estoque","\uD83E\uDDF4","Estoque"],["arprof","\uD83C\uDFF7\uFE0F","A R Professional"],["fornecedores","\uD83D\uDE9A","Fornecedores"],["caixa","🏦","Caixa Bancário"],["mensagens","\uD83D\uDCAC","Mensagens"]];
+var NAV=[["dashboard","\uD83D\uDCCA","Dashboard"],["agenda","\uD83D\uDCC5","Agenda"],["followup","\uD83D\uDCCB","Follow-up"],["services","\u2702\uFE0F","Servi\u00e7os"],["products","\uD83E\uDDF4","Produtos"],["expenses","\uD83D\uDCB8","Despesas"],["advances","\uD83D\uDCB5","Adiantamentos"],["prolabore","\uD83D\uDC65","Pr\u00f3-Labore"],["dre","\uD83D\uDCC8","DRE / DFC"],["clients","\uD83D\uDC69","Clientes"],["leads","\uD83C\uDFAF","Leads"],["db","\uD83D\uDDC4\uFE0F","Banco de Dados"],["requests","\uD83D\uDCE5","Solicita\u00e7\u00f5es Online"],["audit","\uD83D\uDD0D","Auditoria"],["estoque","\uD83E\uDDF4","Estoque"],["arprof","\uD83C\uDFF7\uFE0F","A R Professional"],["fornecedores","\uD83D\uDE9A","Fornecedores"],["caixa","\uD83C\uDFE6","Caixa Banc\u00e1rio"],["mensagens","\uD83D\uDCAC","Mensagens"]];
 var DIVULGADORES_CUSTOM=null;
 var DIVULGADORES_DEFAULT=["Lorran","Isabela","Diane","Anton"];
 function getDivulgadores(){return DIVULGADORES_CUSTOM||DIVULGADORES_DEFAULT;}
@@ -2780,6 +2780,7 @@ function rT(){
   else if(S.tab==="estoque")h=rEstoque();
   else if(S.tab==="arprof")h=rArProf();
   else if(S.tab==="fornecedores")h=rFornecedores();
+  else if(S.tab==="followup")h=rFollowup();
   else if(S.tab==="caixa")h=rCaixa();
   else if(S.tab==="mensagens")h=rMensagens();
   document.getElementById("ct").innerHTML=h;
@@ -2990,32 +2991,135 @@ function openRelDia(){
     +'<button class="gb" style="margin-top:12px" onclick="window.print()">&#128438; Imprimir</button>');
 }
 
-/* ─ AVISOS PÓS-ATENDIMENTO ─ */
-function getAvisosPosAtendimento(){
+/* ─ AVISOS PÓS-ATENDIMENTO — RÉGUA 1/7/15/30 DIAS ─────────────────────── */
+var FOLLOWUP_MARCOS={
+  1:{label:"Pesquisa de satisfação",       icon:"📋",cor:"#38bdf8"},
+  7:{label:"Acompanhamento do resultado",  icon:"💬",cor:"#a78bfa"},
+  15:{label:"Oferecer serviço / produto",  icon:"🛍",cor:"#fbbf24"},
+  30:{label:"Convidar para retorno",       icon:"🎯",cor:"#34d399"}
+};
+function addDias(dateStr,n){
+  var d=new Date(dateStr+"T12:00:00");d.setDate(d.getDate()+n);return d.toISOString().slice(0,10);
+}
+function getFollowupsPendentes(){
   var hoje=hj();
-  var avisos=[];
-  var marcos={1:"Pesquisa de satisfação",7:"Acompanhamento do resultado",15:"Oferecer servi\u00e7o ou produto",30:"Convidar para retorno"};
-  var diasChave=Object.keys(marcos).map(Number);
+  var pendentes=[];
   D.svc.forEach(function(r){
     if(!r.cliente||!r.date)return;
-    var d=ds(r.date);
-    diasChave.forEach(function(meta){
-      if(d===meta)avisos.push({nome:r.cliente,tel:r.telefone||"",servico:r.trabalho,data:r.date,diasAtras:meta,acao:marcos[meta]});
+    var st=r.followupStatus||{};
+    [1,7,15,30].forEach(function(dia){
+      var due=addDias(r.date,dia);
+      if(due<=hoje&&!(st[dia]&&st[dia].concluido)){
+        pendentes.push({svc:r,dia:dia,due:due,atrasado:due<hoje});
+      }
     });
   });
-  return avisos;
+  pendentes.sort(function(a,b){return a.due.localeCompare(b.due)||a.dia-b.dia;});
+  return pendentes;
 }
-function rAvisosPosAtendimento(){
-  var av=getAvisosPosAtendimento();
-  if(!av.length)return"";
-  return'<div class="cd" style="border-left:3px solid #38bdf8;margin-bottom:14px">'
-    +'<div class="ct" style="color:#38bdf8">\uD83D\uDCC5 Follow-up Pós-atendimento ('+av.length+')</div>'
-    +av.map(function(a){
-      return'<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #27272a;font-size:11px">'
-        +'<div><strong style="color:#f1f5f9">'+es(a.nome)+'</strong><span style="color:#71717a;margin-left:6px">'+es(a.servico)+'</span></div>'
-        +'<div style="text-align:right"><div style="color:#38bdf8">'+a.acao+'</div><div style="color:#71717a">'+es(a.tel||"sem telefone")+' &bull; '+fdt(a.data)+'</div></div></div>';
-    }).join("")+'</div>';
+function marcarFollowup(svcId,dia){
+  var hoje=hj();
+  var campo="followupStatus."+dia;
+  var upd={};
+  upd[campo]={concluido:true,por:CURRENT_USER?CURRENT_USER.nome:"",em:hoje};
+  db.collection("servicos").doc(svcId).update(upd)
+    .then(function(){
+      var svc=D.svc.find(function(s){return s.id===svcId;});
+      if(svc){if(!svc.followupStatus)svc.followupStatus={};svc.followupStatus[dia]={concluido:true};}
+      playBell();showToast("✅ Follow-up dia "+dia+" concluído!");rT();
+    })
+    .catch(function(e){showToast("❌ Erro: "+e.message,"#f43f5e");});
 }
+function rFollowup(){
+  var pendentes=getFollowupsPendentes();
+  var hoje=hj();
+
+  /* Clientes no dia 30 — lista para remarketing */
+  var rem30=D.svc.filter(function(r){
+    if(!r.cliente||!r.date)return false;
+    var due=addDias(r.date,30);
+    return due<=hoje;
+  });
+  /* Remove duplicatas por cliente (pega o mais recente) */
+  var remMap={};
+  rem30.forEach(function(r){
+    if(!remMap[r.cliente]||r.date>remMap[r.cliente].date)remMap[r.cliente]=r;
+  });
+  var remList=Object.values(remMap).sort(function(a,b){return a.cliente.localeCompare(b.cliente);});
+
+  var html='<div class="pg">'
+    +'<div class="ph"><h2>📋 Follow-up Pós-atendimento</h2>'
+    +'<button class="gb" onclick="gerarRelatorio30()">📄 Relatório 30 dias ('+remList.length+')</button>'
+    +'</div>';
+
+  if(!pendentes.length){
+    html+='<div class="cd"><div class="emp">✅ Nenhum follow-up pendente hoje!</div></div>';
+  }else{
+    /* Agrupa por cliente+serviço para mostrar todos os dias juntos */
+    var grupos={};
+    pendentes.forEach(function(p){
+      var key=p.svc.id;
+      if(!grupos[key])grupos[key]={svc:p.svc,dias:[]};
+      grupos[key].dias.push(p);
+    });
+    html+='<div style="font-size:11px;color:#71717a;margin-bottom:10px">'+pendentes.length+' ação(ões) pendente(s)</div>';
+    html+=Object.values(grupos).map(function(g){
+      var r=g.svc;
+      var diasHtml=g.dias.map(function(p){
+        var m=FOLLOWUP_MARCOS[p.dia];
+        var tag=p.atrasado?'<span style="color:#f87171;font-size:9px;margin-left:4px">ATRASADO</span>':'';
+        return'<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid #27272a">'
+          +'<div style="display:flex;align-items:center;gap:8px">'
+          +'<span style="width:28px;height:28px;border-radius:50%;background:'+m.cor+'22;border:1px solid '+m.cor+'44;display:flex;align-items:center;justify-content:center;font-size:14px">'+m.icon+'</span>'
+          +'<div><div style="font-size:11px;font-weight:600;color:'+m.cor+'">Dia '+p.dia+' — '+m.label+'</div>'
+          +'<div style="font-size:10px;color:#71717a">Previsto: '+fdt(p.due)+tag+'</div></div>'
+          +'</div>'
+          +'<button class="pb" style="padding:4px 12px;font-size:10px;background:'+m.cor+';color:#000" onclick="marcarFollowup(\''+r.id+'\','+p.dia+')">✓ Concluído</button>'
+          +'</div>';
+      }).join("");
+      return'<div class="cd" style="margin-bottom:8px">'
+        +'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">'
+        +'<div><div style="font-size:13px;font-weight:700;color:#f1f5f9">'+es(r.cliente)+'</div>'
+        +'<div style="font-size:11px;color:#71717a">'+es(r.trabalho||"")+'  &bull;  '+fdt(r.date)+'</div></div>'
+        +(r.telefone?'<a href="https://wa.me/55'+r.telefone.replace(/\D/g,"")+'" target="_blank" style="background:#25d36622;border:1px solid #25d36644;color:#25d366;padding:4px 10px;border-radius:6px;font-size:10px;text-decoration:none">💬 WhatsApp</a>':'')
+        +'</div>'
+        +diasHtml+'</div>';
+    }).join("");
+  }
+  html+='</div>';
+
+  /* Esconde relatório de id para gerarRelatorio30 */
+  html+='<div id="rem30-data" style="display:none">'+JSON.stringify(remList.map(function(r){return{nome:r.cliente,tel:r.telefone||"",servico:r.trabalho||"",data:r.date};}))+'</div>';
+  return html;
+}
+function gerarRelatorio30(){
+  var el=document.getElementById("rem30-data");
+  var lista=el?JSON.parse(el.textContent):[];
+  var linhas=lista.map(function(c,i){
+    return'<tr><td>'+(i+1)+'</td><td><strong>'+c.nome+'</strong></td><td>'+c.tel+'</td><td>'+c.servico+'</td><td>'+fdt(c.data)+'</td></tr>';
+  }).join("");
+  var hoje=new Date().toLocaleDateString("pt-BR");
+  var win=window.open("","_blank","width=800,height=600");
+  win.document.write('<!DOCTYPE html><html><head><title>Remarketing 30 dias — Studio A R</title>'
+    +'<style>body{font-family:Arial,sans-serif;padding:30px;color:#111}'
+    +'h1{font-size:20px;margin-bottom:4px}p{color:#555;font-size:12px;margin-bottom:20px}'
+    +'table{width:100%;border-collapse:collapse;font-size:12px}'
+    +'th{background:#111;color:#fff;padding:8px 10px;text-align:left}'
+    +'td{padding:7px 10px;border-bottom:1px solid #eee}'
+    +'tr:nth-child(even)td{background:#f9f9f9}'
+    +'@media print{button{display:none}}'
+    +'</style></head><body>'
+    +'<h1>📋 Lista de Remarketing — Clientes 30+ dias sem retorno</h1>'
+    +'<p>Gerado em '+hoje+' &nbsp;|&nbsp; Studio A R — Jacareí SP &nbsp;|&nbsp; '+lista.length+' clientes</p>'
+    +'<button onclick="window.print()" style="margin-bottom:16px;padding:8px 18px;background:#111;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px">🖨 Imprimir / Salvar PDF</button>'
+    +'<table><thead><tr><th>#</th><th>Cliente</th><th>Telefone</th><th>Último Serviço</th><th>Data</th></tr></thead>'
+    +'<tbody>'+linhas+'</tbody></table>'
+    +'</body></html>');
+  win.document.close();
+}
+/* Remove old single-card follow-up from dashboard */
+function getAvisosPosAtendimento(){return[];}
+function rAvisosPosAtendimento(){return"";}
 
 /* ─ DIVULGADOR NO LEAD ─ */
 function getLeadDivulgadores(){return["Lorran","Isabela","Diane","Anton"];}
