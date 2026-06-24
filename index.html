@@ -332,9 +332,9 @@ function openAdminAuthModal(onSuccess){
 
 var CURRENT_USER = null; // {uid, email, role, nome}
 var ROLE_TABS = {
-  admin: ["dashboard","agenda","followup","leads","services","products","expenses","advances","prolabore","dre","clients","db","requests","audit","estoque","arprof","fornecedores","caixa","mensagens"],
-  recepcao: ["agenda","followup","services","products","clients","requests","estoque","mensagens"],
-  financeiro: ["dashboard","agenda","expenses","advances","prolabore","dre","arprof","caixa","mensagens"],
+  admin: ["dashboard","agenda","followup","leads","services","products","expenses","advances","prolabore","dre","clients","db","requests","audit","estoque","arprof","fornecedores","caixa","caixamanual","mensagens"],
+  recepcao: ["agenda","followup","services","products","clients","requests","estoque","caixamanual","mensagens"],
+  financeiro: ["dashboard","agenda","expenses","advances","prolabore","dre","arprof","caixa","caixamanual","mensagens"],
   marketing: ["agenda","clients","mensagens"],
   profissional: ["agenda","prolabore","mensagens"],
   comercial: ["agenda","followup","leads","mensagens"]
@@ -529,7 +529,7 @@ function fdtLong(s){var days=["Dom","Seg","Ter","Qua","Qui","Sex","S\u00e1b"];va
 function timeSlots(){var s=[];for(var h=9;h<19;h++){s.push((h<10?"0":"")+h+":00");s.push((h<10?"0":"")+h+":30");}s.push("19:00");return s;}
 
 var S={tab:"dashboard",month:5,year:2026,day:0,cliSearch:"",cliSort:"dias",cliSvcFilter:"",bdTab:"clientes",bdSearch:"",agnDate:hj(),leadsView:"funil"};
-var D={svc:[],prd:[],exp:[],adv:[],agn:[],contacts:[],requests:[],audit:[],estoque:[],leads:[],arEntradas:[],arSaidas:[],arProdutos:[],fornecedores:[],msgs:[]};
+var D={svc:[],prd:[],exp:[],adv:[],agn:[],contacts:[],requests:[],audit:[],estoque:[],leads:[],arEntradas:[],arSaidas:[],arProdutos:[],fornecedores:[],msgs:[],caixaManual:[]};
 var PL_CUSTOM=null,PROFS_CUSTOM=null;
 var RANKING_EXCLUDED_DEFAULT=["ANTON","DIANE","ISABELA","MATHEUS"];
 var RANKING_EXCLUDED=null;
@@ -630,12 +630,14 @@ var TAB_COLLECTIONS={
   estoque:  ["estoque"],
   arprof:   ["arEntradas","arSaidas","arProdutos"],
   fornecedores: ["fornecedores"],
-  audit:    ["auditoria"]
+  audit:    ["auditoria"],
+  caixamanual: ["caixaManual"]
 };
 var COL_KEY_MAP={
   contatos:"contacts", leads:"leads", solicitacoes:"requests",
   estoque:"estoque", arEntradas:"arEntradas", arSaidas:"arSaidas",
-  arProdutos:"arProdutos", fornecedores:"fornecedores", auditoria:"audit"
+  arProdutos:"arProdutos", fornecedores:"fornecedores", auditoria:"audit",
+  caixaManual:"caixaManual"
 };
 
 function loadTabData(tab){
@@ -816,7 +818,7 @@ function tbl(rows,cols,type){
 function kp(l,v,s){return'<div class="kp"><div class="kl">'+l+'</div><div class="kv">'+v+'</div>'+(s?'<div class="ks">'+s+'</div>':'')+'</div>';}
 
 /* SIDEBAR */
-var NAV=[["dashboard","\uD83D\uDCCA","Dashboard"],["agenda","\uD83D\uDCC5","Agenda"],["followup","\uD83D\uDCCB","Follow-up"],["services","\u2702\uFE0F","Servi\u00e7os"],["products","\uD83E\uDDF4","Produtos"],["expenses","\uD83D\uDCB8","Despesas"],["advances","\uD83D\uDCB5","Adiantamentos"],["prolabore","\uD83D\uDC65","Pr\u00f3-Labore"],["dre","\uD83D\uDCC8","DRE / DFC"],["clients","\uD83D\uDC69","Clientes"],["leads","\uD83C\uDFAF","Leads"],["db","\uD83D\uDDC4\uFE0F","Banco de Dados"],["requests","\uD83D\uDCE5","Solicita\u00e7\u00f5es Online"],["audit","\uD83D\uDD0D","Auditoria"],["estoque","\uD83E\uDDF4","Estoque"],["arprof","\uD83C\uDFF7\uFE0F","A R Professional"],["fornecedores","\uD83D\uDE9A","Fornecedores"],["caixa","\uD83C\uDFE6","Caixa Banc\u00e1rio"],["mensagens","\uD83D\uDCAC","Mensagens"]];
+var NAV=[["dashboard","\uD83D\uDCCA","Dashboard"],["agenda","\uD83D\uDCC5","Agenda"],["followup","\uD83D\uDCCB","Follow-up"],["services","\u2702\uFE0F","Servi\u00e7os"],["products","\uD83E\uDDF4","Produtos"],["expenses","\uD83D\uDCB8","Despesas"],["advances","\uD83D\uDCB5","Adiantamentos"],["prolabore","\uD83D\uDC65","Pr\u00f3-Labore"],["dre","\uD83D\uDCC8","DRE / DFC"],["clients","\uD83D\uDC69","Clientes"],["leads","\uD83C\uDFAF","Leads"],["db","\uD83D\uDDC4\uFE0F","Banco de Dados"],["requests","\uD83D\uDCE5","Solicita\u00e7\u00f5es Online"],["audit","\uD83D\uDD0D","Auditoria"],["estoque","\uD83E\uDDF4","Estoque"],["arprof","\uD83C\uDFF7\uFE0F","A R Professional"],["fornecedores","\uD83D\uDE9A","Fornecedores"],["caixa","\uD83C\uDFE6","Caixa Banc\u00e1rio"],["caixamanual","\uD83D\uDCB5","Entradas Manuais"],["mensagens","\uD83D\uDCAC","Mensagens"]];
 var DIVULGADORES_CUSTOM=null;
 var DIVULGADORES_DEFAULT=["Lorran","Isabela","Diane","Anton"];
 function getDivulgadores(){return DIVULGADORES_CUSTOM||DIVULGADORES_DEFAULT;}
@@ -2781,6 +2783,7 @@ function rT(){
   else if(S.tab==="arprof")h=rArProf();
   else if(S.tab==="fornecedores")h=rFornecedores();
   else if(S.tab==="followup")h=rFollowup();
+  else if(S.tab==="caixamanual")h=rCaixaManual();
   else if(S.tab==="caixa")h=rCaixa();
   else if(S.tab==="mensagens")h=rMensagens();
   document.getElementById("ct").innerHTML=h;
@@ -3586,26 +3589,12 @@ function loadMpSaldo(){
 function rCaixa(){
   var hoje=S.caixaDate||hj();
   var dateFmt=hoje.slice(8,10)+"/"+hoje.slice(5,7)+"/"+hoje.slice(0,4);
-
-  /* Saldo card */
-  var saldoCard='';
-  if(_mpSaldo){
-    saldoCard='<div class="kg" style="margin-bottom:14px">'
-      +kp("💰 Saldo Disponível",fmt(_mpSaldo.disponivel),"disponível para saque agora")
-      +(_mpSaldo.pendente>0?kp("⏳ A Liberar",fmt(_mpSaldo.pendente),"em processamento (crédito/parcelas)"):"")
-      +'</div>';
-  }else{
-    saldoCard='<div style="background:#27272a;border:1px solid #3f3f46;border-radius:8px;padding:12px 16px;margin-bottom:14px;font-size:11px;color:#71717a">Carregando saldo...</div>';
-    loadMpSaldo();
-  }
-
   var html='<div class="pg">'
-    +'<div class="ph"><h2>🏦 Caixa Bancário — '+dateFmt+'</h2>'
+    +'<div class="ph"><h2>\uD83C\uDFE6 Caixa Banc\u00e1rio — '+dateFmt+'</h2>'
     +'<div class="ph-btns">'
     +'<input type="date" value="'+hoje+'" onchange="S.caixaDate=this.value;_mpCaixaData=null;rT();loadCaixaMP()" style="background:#27272a;border:1px solid #3f3f46;color:#e4e4e7;border-radius:6px;padding:4px 8px;font-size:12px">'
-    +'<button class="gb" onclick="_mpCaixaData=null;_mpSaldo=null;rT();loadCaixaMP()">↻ Atualizar</button>'
-    +'</div></div>'
-    +saldoCard;
+    +'<button class="gb" onclick="_mpCaixaData=null;rT();loadCaixaMP()">\u21bb Atualizar</button>'
+    +'</div></div>';
 
   /* Totais do sistema para o dia */
   var dd=hoje.slice(8,10);var mm=hoje.slice(5,7);var yy=hoje.slice(0,4);
@@ -3688,6 +3677,100 @@ function loadCaixaMP(){
   });
 }
 
+/* ─ ENTRADAS MANUAIS (DINHEIRO / PIX OUTRAS CONTAS) ──────────────────── */
+var CONTAS_MANUAL=[
+  "Bradesco PJ — Anton",
+  "Nubank — Anton",
+  "Itaú — Anton",
+  "Bradesco — Josiane",
+  "Nubank — Josiane",
+  "Itaú — Josiane",
+  "Outra conta"
+];
+function rCaixaManual(){
+  var hoje=S.cmDate||hj();
+  var entradas=(D.caixaManual||[]).filter(function(e){return e.date===hoje;});
+  entradas.sort(function(a,b){return(b.ts||"").localeCompare(a.ts||"");});
+
+  var totalDinheiro=entradas.filter(function(e){return e.tipo==="Dinheiro";}).reduce(function(a,e){return a+(e.valor||0);},0);
+  var totalPix=entradas.filter(function(e){return e.tipo==="PIX";}).reduce(function(a,e){return a+(e.valor||0);},0);
+  var totalGeral=totalDinheiro+totalPix;
+
+  var dateFmt=hoje.slice(8,10)+"/"+hoje.slice(5,7)+"/"+hoje.slice(0,4);
+  var html='<div class="pg">'
+    +'<div class="ph"><h2>\uD83D\uDCB5 Entradas Manuais \u2014 '+dateFmt+'</h2>'
+    +'<div class="ph-btns">'
+    +'<input type="date" value="'+hoje+'" onchange="S.cmDate=this.value;rT()" style="background:#27272a;border:1px solid #3f3f46;color:#e4e4e7;border-radius:6px;padding:4px 8px;font-size:12px">'
+    +'<button class="ab" onclick="openCaixaManual()">\uFF0B Nova Entrada</button>'
+    +'</div></div>';
+
+  if(totalGeral>0){
+    html+='<div class="kg">'
+      +kp("💵 Dinheiro",fmt(totalDinheiro),entradas.filter(function(e){return e.tipo==="Dinheiro";}).length+" entrada(s)")
+      +kp("🏦 PIX",fmt(totalPix),entradas.filter(function(e){return e.tipo==="PIX";}).length+" entrada(s)")
+      +kp("💰 Total do dia",fmt(totalGeral),entradas.length+" entrada(s)")
+      +'</div>';
+  }
+
+  if(!entradas.length){
+    html+='<div class="cd"><div class="emp">Nenhuma entrada registrada neste dia.</div></div>';
+  }else{
+    html+='<div class="cd"><div class="ox"><table>'
+      +'<thead><tr><th>Horário</th><th>Cliente</th><th>Conta</th><th>Tipo</th><th>Observação</th><th class="hi">Valor</th><th></th></tr></thead><tbody>'
+      +entradas.map(function(e){
+        var hora=e.ts?e.ts.slice(11,16):"";
+        return'<tr>'
+          +'<td style="color:#71717a">'+hora+'</td>'
+          +'<td style="color:#f1f5f9;font-weight:600">'+es(e.cliente||"—")+'</td>'
+          +'<td style="color:#a1a1aa;font-size:10px">'+es(e.conta||"")+'</td>'
+          +'<td><span style="background:'+(e.tipo==="PIX"?"#38bdf822":"#34d39922")+';color:'+(e.tipo==="PIX"?"#38bdf8":"#34d399")+';padding:2px 8px;border-radius:4px;font-size:10px">'+es(e.tipo)+'</span></td>'
+          +'<td style="color:#71717a;font-size:11px">'+es(e.obs||"")+'</td>'
+          +'<td class="hi">'+fmt(e.valor||0)+'</td>'
+          +'<td><button class="db" onclick="delCaixaManual(\''+e.id+'\')">×</button></td>'
+          +'</tr>';
+      }).join("")
+      +'</tbody></table></div></div>';
+  }
+  html+='</div>';
+  return html;
+}
+function openCaixaManual(){
+  var hoje=S.cmDate||hj();
+  omod(mhdr("Nova Entrada Manual")
+    +'<div class="g2">'
+    +'<div class="fi"><label>Data</label><input type="date" id="cm-d" value="'+hoje+'"></div>'
+    +'<div class="fi"><label>Tipo</label><select id="cm-tipo"><option value="Dinheiro">💵 Dinheiro</option><option value="PIX">🏦 PIX</option></select></div>'
+    +'</div>'
+    +'<div class="fi"><label>Valor (R$)</label><input type="number" id="cm-valor" placeholder="0,00" step="0.01"></div>'
+    +'<div class="fi"><label>Cliente / Descrição</label><input type="text" id="cm-cliente" placeholder="Nome do cliente ou descrição"></div>'
+    +'<div class="fi"><label>Conta que recebeu</label><select id="cm-conta">'+CONTAS_MANUAL.map(function(c){return'<option value="'+c+'">'+c+'</option>';}).join("")+'</select></div>'
+    +'<div class="fi"><label>Observação</label><input type="text" id="cm-obs" placeholder="Opcional"></div>'
+    +'<button class="pb" onclick="saveCaixaManual()">Salvar Entrada</button>');
+}
+function saveCaixaManual(){
+  var valor=parseFloat(document.getElementById("cm-valor").value);
+  if(!valor||valor<=0)return alert("Informe um valor válido.");
+  var rec={
+    id:uid(),
+    date:document.getElementById("cm-d").value,
+    tipo:document.getElementById("cm-tipo").value,
+    valor:valor,
+    cliente:document.getElementById("cm-cliente").value.trim(),
+    conta:document.getElementById("cm-conta").value,
+    obs:document.getElementById("cm-obs").value.trim(),
+    registradoPor:CURRENT_USER?CURRENT_USER.nome:"",
+    ts:new Date().toISOString()
+  };
+  db.collection("caixaManual").doc(rec.id).set(rec)
+    .then(function(){showToast("\u2705 Entrada registrada!");cmod();})
+    .catch(function(e){showToast("\u274c Erro: "+e.message,"#f43f5e");});
+}
+function delCaixaManual(id){
+  if(!confirm("Excluir esta entrada?"))return;
+  db.collection("caixaManual").doc(id).delete()
+    .then(function(){showToast("Entrada removida.","#71717a");})
+    .catch(function(e){showToast("\u274c Erro: "+e.message,"#f43f5e");});
+}
 function enviarMsg(){
   var inp=document.getElementById("msg-input");
   if(!inp||!inp.value.trim())return;
