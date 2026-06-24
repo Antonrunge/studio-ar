@@ -332,9 +332,9 @@ function openAdminAuthModal(onSuccess){
 
 var CURRENT_USER = null; // {uid, email, role, nome}
 var ROLE_TABS = {
-  admin: ["dashboard","agenda","followup","leads","services","products","expenses","advances","prolabore","dre","clients","db","requests","audit","estoque","arprof","fornecedores","caixa","caixamanual","mensagens"],
-  recepcao: ["agenda","followup","services","products","clients","requests","estoque","caixamanual","mensagens"],
-  financeiro: ["dashboard","agenda","expenses","advances","prolabore","dre","arprof","caixa","caixamanual","mensagens"],
+  admin: ["dashboard","agenda","followup","leads","services","products","expenses","advances","prolabore","dre","clients","db","requests","audit","estoque","arprof","fornecedores","caixa","mensagens"],
+  recepcao: ["agenda","followup","services","products","clients","requests","estoque","mensagens"],
+  financeiro: ["dashboard","agenda","expenses","advances","prolabore","dre","arprof","caixa","mensagens"],
   marketing: ["agenda","clients","mensagens"],
   profissional: ["agenda","prolabore","mensagens"],
   comercial: ["agenda","followup","leads","mensagens"]
@@ -818,7 +818,7 @@ function tbl(rows,cols,type){
 function kp(l,v,s){return'<div class="kp"><div class="kl">'+l+'</div><div class="kv">'+v+'</div>'+(s?'<div class="ks">'+s+'</div>':'')+'</div>';}
 
 /* SIDEBAR */
-var NAV=[["dashboard","\uD83D\uDCCA","Dashboard"],["agenda","\uD83D\uDCC5","Agenda"],["followup","\uD83D\uDCCB","Follow-up"],["services","\u2702\uFE0F","Servi\u00e7os"],["products","\uD83E\uDDF4","Produtos"],["expenses","\uD83D\uDCB8","Despesas"],["advances","\uD83D\uDCB5","Adiantamentos"],["prolabore","\uD83D\uDC65","Pr\u00f3-Labore"],["dre","\uD83D\uDCC8","DRE / DFC"],["clients","\uD83D\uDC69","Clientes"],["leads","\uD83C\uDFAF","Leads"],["db","\uD83D\uDDC4\uFE0F","Banco de Dados"],["requests","\uD83D\uDCE5","Solicita\u00e7\u00f5es Online"],["audit","\uD83D\uDD0D","Auditoria"],["estoque","\uD83E\uDDF4","Estoque"],["arprof","\uD83C\uDFF7\uFE0F","A R Professional"],["fornecedores","\uD83D\uDE9A","Fornecedores"],["caixa","\uD83C\uDFE6","Caixa Banc\u00e1rio"],["caixamanual","\uD83D\uDCB5","Entradas Manuais"],["mensagens","\uD83D\uDCAC","Mensagens"]];
+var NAV=[["dashboard","\uD83D\uDCCA","Dashboard"],["agenda","\uD83D\uDCC5","Agenda"],["followup","\uD83D\uDCCB","Follow-up"],["services","\u2702\uFE0F","Servi\u00e7os"],["products","\uD83E\uDDF4","Produtos"],["expenses","\uD83D\uDCB8","Despesas"],["advances","\uD83D\uDCB5","Adiantamentos"],["prolabore","\uD83D\uDC65","Pr\u00f3-Labore"],["dre","\uD83D\uDCC8","DRE / DFC"],["clients","\uD83D\uDC69","Clientes"],["leads","\uD83C\uDFAF","Leads"],["db","\uD83D\uDDC4\uFE0F","Banco de Dados"],["requests","\uD83D\uDCE5","Solicita\u00e7\u00f5es Online"],["audit","\uD83D\uDD0D","Auditoria"],["estoque","\uD83E\uDDF4","Estoque"],["arprof","\uD83C\uDFF7\uFE0F","A R Professional"],["fornecedores","\uD83D\uDE9A","Fornecedores"],["caixa","\uD83C\uDFE6","Caixa Banc\u00e1rio"],["mensagens","\uD83D\uDCAC","Mensagens"]];
 var DIVULGADORES_CUSTOM=null;
 var DIVULGADORES_DEFAULT=["Lorran","Isabela","Diane","Anton"];
 function getDivulgadores(){return DIVULGADORES_CUSTOM||DIVULGADORES_DEFAULT;}
@@ -2783,7 +2783,6 @@ function rT(){
   else if(S.tab==="arprof")h=rArProf();
   else if(S.tab==="fornecedores")h=rFornecedores();
   else if(S.tab==="followup")h=rFollowup();
-  else if(S.tab==="caixamanual")h=rCaixaManual();
   else if(S.tab==="caixa")h=rCaixa();
   else if(S.tab==="mensagens")h=rMensagens();
   document.getElementById("ct").innerHTML=h;
@@ -3589,105 +3588,99 @@ function loadMpSaldo(){
 function rCaixa(){
   var hoje=S.caixaDate||hj();
   var dateFmt=hoje.slice(8,10)+"/"+hoje.slice(5,7)+"/"+hoje.slice(0,4);
-  var html='<div class="pg">'
-    +'<div class="ph"><h2>\uD83C\uDFE6 Caixa Banc\u00e1rio \u2014 '+dateFmt+'</h2>'
-    +'<div class="ph-btns">'
-    +'<input type="date" value="'+hoje+'" onchange="S.caixaDate=this.value;_mpCaixaData=null;rT();loadCaixaMP()" style="background:#27272a;border:1px solid #3f3f46;color:#e4e4e7;border-radius:6px;padding:4px 8px;font-size:12px">'
-    +'<button class="gb" onclick="_mpCaixaData=null;rT();loadCaixaMP()">\u21bb Atualizar</button>'
-    +'</div></div>';
 
-  /* ── Serviços do dia por forma de pagamento ── */
-  var dayKey=hoje;
-  var svcDia=(D.svc||[]).filter(function(r){return r.date===dayKey;});
+  /* ── Serviços do dia filtrados por forma de pagamento ── */
+  var svcDia=(D.svc||[]).filter(function(r){return r.date===hoje;});
 
-  /* Agrupa pagamentos — um serviço pode ter múltiplos pagamentos */
-  var totalDinheiro=0,totalPixSis=0,totalCredito=0,totalDebito=0,totalOutros=0;
-  svcDia.forEach(function(r){
-    var pgtos=r.pagamentos||[];
-    if(!pgtos.length&&r.pagamento){
-      pgtos=[{forma:r.pagamento,valor:parseFloat(r.faturamento||r.valor||0)}];
-    }
-    pgtos.forEach(function(pg){
-      var forma=(pg.forma||"").toLowerCase();
-      var val=parseFloat(pg.valor||0);
-      if(forma.indexOf("dinheiro")>=0)totalDinheiro+=val;
-      else if(forma.indexOf("pix")>=0)totalPixSis+=val;
-      else if(forma.indexOf("cr\u00e9dito")>=0||forma.indexOf("credito")>=0)totalCredito+=val;
-      else if(forma.indexOf("d\u00e9bito")>=0||forma.indexOf("debito")>=0)totalDebito+=val;
-      else totalOutros+=val;
-    });
+  function isPgto(r,palavra){
+    var p=(r.pagamento||r.formaPagamento||"").toUpperCase();
+    return p.indexOf(palavra.toUpperCase())>=0;
+  }
+  function valorSvc(r){return parseFloat(r.faturamento||r.valor||r.total||0);}
+
+  var svcDinheiro=svcDia.filter(function(r){return isPgto(r,"DINHEIRO");});
+  var svcPix=svcDia.filter(function(r){return isPgto(r,"PIX");});
+  var svcCredito=svcDia.filter(function(r){
+    var p=(r.pagamento||"").toUpperCase();
+    return p.indexOf("CR")>=0||p.indexOf("CRED")>=0;
   });
-  var totalSistema=totalDinheiro+totalPixSis+totalCredito+totalDebito+totalOutros;
+  var svcDebito=svcDia.filter(function(r){
+    var p=(r.pagamento||"").toUpperCase();
+    return p.indexOf("D\u00c9B")>=0||p.indexOf("DEB")>=0;
+  });
 
-  /* ── Maquininha MP ── */
+  var totalDinheiro=svcDinheiro.reduce(function(a,r){return a+valorSvc(r);},0);
+  var totalPixSis=svcPix.reduce(function(a,r){return a+valorSvc(r);},0);
+  var totalSistema=svcDia.reduce(function(a,r){return a+valorSvc(r);},0);
+
+  /* ── Maquininha MP — seção separada, pode ainda estar carregando ── */
+  var totalMP=0,mpSection="";
   if(!_mpCaixaData){
-    html+='<div class="cd" id="caixa-content"><div style="padding:40px;text-align:center;color:#52525b">Carregando extrato do Mercado Pago...</div></div></div>';
+    mpSection='<div class="ct" style="margin:16px 0 8px;color:#38bdf8">\uD83D\uDCB3 Transa\u00e7\u00f5es Maquininha MP</div>'
+      +'<div class="cd" id="caixa-content"><div style="padding:20px;text-align:center;color:#52525b">Carregando extrato do Mercado Pago...</div></div>';
     loadCaixaMP();
-    return html;
+  }else{
+    var pagamentos=_mpCaixaData||[];
+    pagamentos.forEach(function(p){
+      if(p.status==="approved")totalMP+=parseFloat(p.transaction_amount||0);
+    });
+    var aprovadas=pagamentos.filter(function(p){return p.status==="approved";});
+    mpSection='<div class="ct" style="margin:16px 0 8px;color:#38bdf8">\uD83D\uDCB3 Transa\u00e7\u00f5es Maquininha MP ('+aprovadas.length+')</div>'
+      +'<div class="cd">';
+    if(!aprovadas.length){
+      mpSection+='<div class="emp">Nenhuma transa\u00e7\u00e3o via maquininha neste dia</div>';
+    }else{
+      mpSection+='<div class="ox"><table><thead><tr><th>Hor\u00e1rio</th><th>Descri\u00e7\u00e3o</th><th>Tipo</th><th class="hi">Valor</th><th>Status</th></tr></thead><tbody>';
+      aprovadas.forEach(function(p){
+        var hora=p.date_approved||p.date_created||"";
+        if(hora)hora=new Date(hora).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
+        var tipo=p.payment_type_id==="pix"?"PIX":p.payment_type_id==="credit_card"?"Cr\u00e9dito":p.payment_type_id==="debit_card"?"D\u00e9bito":"Outro";
+        mpSection+='<tr><td>'+hora+'</td><td>'+es(p.description||"Pagamento")+'</td><td>'+tipo+'</td><td class="hi">'+fmt(p.transaction_amount||0)+'</td><td style="color:#34d399">Aprovado</td></tr>';
+      });
+      mpSection+='</tbody></table></div>';
+    }
+    mpSection+='</div>';
   }
 
-  var pagamentos=_mpCaixaData||[];
-  var totalMP=0,totalPIXmp=0;
-  pagamentos.forEach(function(p){
-    if(p.status==="approved"){
-      totalMP+=parseFloat(p.transaction_amount||0);
-      if(p.payment_type_id==="bank_transfer"||p.payment_type_id==="pix")totalPIXmp+=parseFloat(p.transaction_amount||0);
-    }
-  });
-
-  /* ── Total geral (MP + Dinheiro do sistema) ── */
+  /* ── Resumo ── */
   var totalGeral=totalMP+totalDinheiro+totalPixSis;
   var diff=totalGeral-totalSistema;
   var diffColor=Math.abs(diff)<1?"#34d399":"#fbbf24";
   var diffLabel=Math.abs(diff)<1?"\u2705 Tudo conferindo":"\u26a0 Diferen\u00e7a de "+fmt(Math.abs(diff));
 
-  html+='<div class="kg">'
-    +kp("💳 Maquininha MP",fmt(totalMP),pagamentos.filter(function(p){return p.status==="approved";}).length+" transa\u00e7\u00f5es")
-    +kp("💵 Dinheiro (sistema)",fmt(totalDinheiro),svcDia.filter(function(r){var f=(r.pagamento||"").toLowerCase();return f.indexOf("dinheiro")>=0;}).length+" servi\u00e7os")
-    +kp("🏦 PIX (sistema)",fmt(totalPixSis),svcDia.filter(function(r){var f=(r.pagamento||"").toLowerCase();return f.indexOf("pix")>=0;}).length+" servi\u00e7os")
-    +kp("💳 Crédito/Débito",fmt(totalCredito+totalDebito),"via maquininha")
+  var html='<div class="pg">'
+    +'<div class="ph"><h2>\uD83C\uDFE6 Caixa Banc\u00e1rio \u2014 '+dateFmt+'</h2>'
+    +'<div class="ph-btns">'
+    +'<input type="date" value="'+hoje+'" onchange="S.caixaDate=this.value;_mpCaixaData=null;rT();loadCaixaMP()" style="background:#27272a;border:1px solid #3f3f46;color:#e4e4e7;border-radius:6px;padding:4px 8px;font-size:12px">'
+    +'<button class="gb" onclick="_mpCaixaData=null;rT();loadCaixaMP()">\u21bb Atualizar</button>'
+    +'</div></div>'
+    +'<div class="kg">'
+    +kp("\uD83D\uDCB3 Maquininha MP",fmt(totalMP),(_mpCaixaData?_mpCaixaData.filter(function(p){return p.status==="approved";}).length+" transa\u00e7\u00f5es":"carregando..."))
+    +kp("\uD83D\uDCB5 Dinheiro",fmt(totalDinheiro),svcDinheiro.length+" servi\u00e7o(s)")
+    +kp("\uD83C\uDFE6 PIX",fmt(totalPixSis),svcPix.length+" servi\u00e7o(s)")
+    +kp("\uD83D\uDCCB Total no sistema",fmt(totalSistema),svcDia.length+" servi\u00e7o(s)")
     +'<div class="kc" style="border-left:3px solid '+diffColor+'"><div class="kv" style="color:'+diffColor+'">'+diffLabel+'</div><div class="kl">total geral vs. sistema</div></div>'
     +'</div>';
 
-  /* ── Seção Dinheiro — lista dos serviços ── */
-  if(totalDinheiro>0){
-    var svcDinheiro=svcDia.filter(function(r){
-      var f=(r.pagamento||"").toLowerCase();
-      return f.indexOf("dinheiro")>=0;
-    });
-    html+='<div class="ct" style="margin:16px 0 8px;color:#34d399">💵 Pagamentos em Dinheiro do dia</div>'
+  /* ── Lista de pagamentos em Dinheiro ── */
+  if(svcDinheiro.length){
+    html+='<div class="ct" style="margin:16px 0 8px;color:#34d399">\uD83D\uDCB5 Pagamentos em Dinheiro — '+dateFmt+'</div>'
       +'<div class="cd"><div class="ox"><table>'
-      +'<thead><tr><th>Cliente</th><th>Serviço</th><th>Profissional</th><th class="hi">Valor</th></tr></thead><tbody>'
+      +'<thead><tr><th>Cliente</th><th>Servi\u00e7o</th><th>Profissional</th><th class="hi">Valor</th></tr></thead><tbody>'
       +svcDinheiro.map(function(r){
-        return'<tr><td style="color:#f1f5f9;font-weight:600">'+es(r.cliente)+'</td>'
-          +'<td>'+es(r.trabalho||"")+'</td>'
-          +'<td>'+es((r.profissionais||[r.profissional||""]).join(", "))+'</td>'
-          +'<td class="hi">'+fmt(parseFloat(r.faturamento||r.valor||0))+'</td></tr>';
+        return'<tr><td style="color:#f1f5f9;font-weight:600">'+es(r.cliente||"")+'</td>'
+          +'<td>'+es(r.trabalho||r.servico||"")+'</td>'
+          +'<td>'+es((r.profissionais&&r.profissionais.length?r.profissionais.join(", "):r.profissional)||"")+'</td>'
+          +'<td class="hi">'+fmt(valorSvc(r))+'</td></tr>';
       }).join("")
-      +'<tr style="background:#1c1c1e"><td colspan="3" style="font-weight:700;color:#34d399">Total Dinheiro</td><td class="hi" style="color:#34d399;font-weight:700">'+fmt(totalDinheiro)+'</td></tr>'
+      +'<tr style="background:#1c1c1e"><td colspan="3" style="font-weight:700;color:#34d399">Total Dinheiro</td>'
+      +'<td class="hi" style="color:#34d399;font-weight:700">'+fmt(totalDinheiro)+'</td></tr>'
       +'</tbody></table></div></div>';
   }
 
-  /* ── Transações MP ── */
-  var aprovadas=pagamentos.filter(function(p){return p.status==="approved";});
-  html+='<div class="ct" style="margin:16px 0 8px;color:#38bdf8">💳 Transações Maquininha MP ('+aprovadas.length+')</div>';
-  html+='<div class="cd">';
-  if(!aprovadas.length){
-    html+='<div class="emp">Nenhuma transa\u00e7\u00e3o via maquininha neste dia</div>';
-  }else{
-    html+='<div class="ox"><table><thead><tr><th>Hor\u00e1rio</th><th>Descri\u00e7\u00e3o</th><th>Tipo</th><th class="hi">Valor</th><th>Status</th></tr></thead><tbody>';
-    aprovadas.forEach(function(p){
-      var hora=p.date_approved||p.date_created||"";
-      if(hora)hora=new Date(hora).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
-      var tipo=p.payment_type_id==="pix"?"PIX":p.payment_type_id==="credit_card"?"Cr\u00e9dito":p.payment_type_id==="debit_card"?"D\u00e9bito":"Outro";
-      html+='<tr><td>'+hora+'</td><td>'+es(p.description||p.statement_descriptor||"Pagamento")+'</td><td>'+tipo+'</td><td class="hi">'+fmt(p.transaction_amount||0)+'</td><td style="color:#34d399">Aprovado</td></tr>';
-    });
-    html+='</tbody></table></div>';
-  }
-  html+='</div></div>';
+  html+=mpSection+'</div>';
   return html;
 }
-
 function loadCaixaMP(){
   loadMpReadToken(function(token){
     if(!token){
