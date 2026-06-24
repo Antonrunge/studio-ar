@@ -3598,13 +3598,42 @@ function rCaixa(){
     :"Caixa Banc\u00e1rio \u2014 "+fmtD(dataInicio)+" a "+fmtD(dataFim);
 
   var svcPer=(D.svc||[]).filter(function(r){return r.date>=dataInicio&&r.date<=dataFim;});
-  function isPgto(r,p){return(r.pagamento||r.formaPagamento||"").toUpperCase().indexOf(p)>=0;}
-  function valorSvc(r){return parseFloat(r.faturamento||r.valor||r.total||0);}
+  function isPgto(r,p){
+    /* Verifica campo simples */
+    var pg=(r.pagamento||r.formaPagamento||"").toUpperCase();
+    if(pg.indexOf(p)>=0)return true;
+    /* Verifica array de múltiplos pagamentos */
+    if(r.pagamentos&&r.pagamentos.length){
+      return r.pagamentos.some(function(x){
+        return(x.forma||x.tipo||x.metodo||x.name||"").toUpperCase().indexOf(p)>=0;
+      });
+    }
+    return false;
+  }
+  function valorDinheiro(r){
+    /* Se tem array, soma só as parcelas em dinheiro */
+    if(r.pagamentos&&r.pagamentos.length){
+      var soma=r.pagamentos.filter(function(x){
+        return(x.forma||x.tipo||x.metodo||"").toUpperCase().indexOf("DINHEIRO")>=0;
+      }).reduce(function(a,x){return a+parseFloat(x.valor||0);},0);
+      if(soma>0)return soma;
+    }
+    return parseFloat(r.faturamento||r.valor||r.total||0);
+  }
+  function valorPix(r){
+    if(r.pagamentos&&r.pagamentos.length){
+      var soma=r.pagamentos.filter(function(x){
+        return(x.forma||x.tipo||x.metodo||"").toUpperCase().indexOf("PIX")>=0;
+      }).reduce(function(a,x){return a+parseFloat(x.valor||0);},0);
+      if(soma>0)return soma;
+    }
+    return parseFloat(r.faturamento||r.valor||r.total||0);
+  }
   var svcDinheiro=svcPer.filter(function(r){return isPgto(r,"DINHEIRO");});
   var svcPix=svcPer.filter(function(r){return isPgto(r,"PIX");});
-  var totalDinheiro=svcDinheiro.reduce(function(a,r){return a+valorSvc(r);},0);
-  var totalPixSis=svcPix.reduce(function(a,r){return a+valorSvc(r);},0);
-  var totalSistema=svcPer.reduce(function(a,r){return a+valorSvc(r);},0);
+  var totalDinheiro=svcDinheiro.reduce(function(a,r){return a+valorDinheiro(r);},0);
+  var totalPixSis=svcPix.reduce(function(a,r){return a+valorPix(r);},0);
+  var totalSistema=svcPer.reduce(function(a,r){return a+parseFloat(r.faturamento||r.valor||r.total||0);},0);
 
   function modeBtn(m,label){
     var ativo=modo===m;
@@ -3689,7 +3718,7 @@ function rCaixa(){
         +svcDinheiro.map(function(r){
           return'<tr><td style="color:#f1f5f9;font-weight:600">'+es(r.cliente||"")+'</td><td>'+es(r.trabalho||"")+'</td>'
             +'<td>'+es((r.profissionais&&r.profissionais.length?r.profissionais.join(", "):r.profissional)||"")+'</td>'
-            +'<td class="hi">'+fmt(valorSvc(r))+'</td></tr>';
+            +'<td class="hi">'+fmt(valorDinheiro(r))+'</td></tr>';
         }).join("")
         +'<tr style="background:#1c1c1e"><td colspan="3" style="font-weight:700;color:#34d399">Total Dinheiro</td><td class="hi" style="color:#34d399;font-weight:700">'+fmt(totalDinheiro)+'</td></tr>'
         +'</tbody></table></div></div>';
