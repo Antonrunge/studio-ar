@@ -1125,6 +1125,11 @@ function savAgn(){
   if(LEAD_BOOKING_ID){
     db.collection("leads").doc(LEAD_BOOKING_ID).update({etapa:"agendado",agendamentoId:rec.id,proximoContato:null});
     LEAD_BOOKING_ID=null;
+    cmod();
+    S.tab="agenda";S.agnDate=rec.date;
+    showToast("\u2705 Lead agendado! Abrindo a agenda…");
+    rAll();
+    return;
   }
   cmod();
 }
@@ -1789,7 +1794,6 @@ function rDash(fsOrig,fpOrig,feOrig,faOrig){
   return'<div class="pg">'
     +'<div class="ph"><h2>'+titulo+badge+'</h2></div>'
     +rAvisosHoje()
-    +rAvisosPosAtendimento()
     +'<div class="kg">'
     +kp(isDay?"Fat. Bruto (Dia)":"Fat. Bruto M\u00eas",fms(rB),fs.length+" atend.")
     +kp("Fat. L\u00edquido",fms(rL),"-"+fms(rB-rL)+" maq.")
@@ -1834,6 +1838,7 @@ function rAgenda(){
     return timeTd+cells;
   }).join("");
   var prevD=dateAddDays(d,-1),nextD=dateAddDays(d,1);
+  var avisosAgenda=rAvisosHoje();
   return'<div class="pg"><div class="ph"><h2>Agenda</h2><div class="ph-btns">'
     +(CURRENT_USER&&CURRENT_USER.role==="admin"?'<button class="gb" onclick="openAgendaConfig()">&#9881; Configurar</button>':'')
     +'<button class="ab" onclick="openAgn()">+ Agendamento</button></div></div>'
@@ -1841,6 +1846,7 @@ function rAgenda(){
     +'<span class="agn-date">'+fdtLong(d)+'</span>'
     +'<button class="gb" data-agn-nav="'+nextD+'">Pr\u00f3ximo →</button>'
     +'<button class="gb" data-agn-nav="'+hj()+'" style="color:#f43f5e;border-color:#f43f5e44">Hoje</button></div>'
+    +avisosAgenda
     +'<div class="agn-wrap"><div class="agn-grid" style="grid-template-columns:'+gridCols+'">'
     +'<div class="agn-th"></div>'+profCols+rows+'</div></div>'
     +'<div style="margin-top:10px;display:flex;gap:12px;font-size:11px">'
@@ -1848,7 +1854,7 @@ function rAgenda(){
     +'<span style="color:#38bdf8;margin-left:8px">\u{1F464} = divulgador</span></div></div>';
 }
 
-function rSvc(fs){
+function rSvc(fs,dayLabel){
   var tB=fs.reduce(function(s,r){return s+effVal(r);},0);
   var tL=fs.reduce(function(s,r){return s+fl(effVal(r),r.formaPagamento);},0);
   var tC=fs.reduce(function(s,r){return s+cm(effVal(r),r.formaPagamento,r.taxaComissao);},0);
@@ -1875,7 +1881,8 @@ function rSvc(fs){
     }}
   ];
   // tabela com linha colorida pra pendentes
-  if(!fs.length)return'<div class="pg"><div class="ph"><h2>Servi\u00e7os &mdash; '+MESES[S.month]+' '+S.year+'</h2><button class="ab" onclick="openS()">&#xFF0B; Novo Servi\u00e7o</button></div><div class="cd"><div class="emp">Nenhum registro neste per\u00edodo</div></div></div>';
+  var svcTitulo=dayLabel?("Servi\u00e7os \u2014 "+dayLabel):("Servi\u00e7os \u2014 "+MESES[S.month]+" "+S.year);
+  if(!fs.length)return'<div class="pg"><div class="ph"><h2>'+svcTitulo+'</h2><button class="ab" onclick="openS()">&#xFF0B; Novo Servi\u00e7o</button></div><div class="cd"><div class="emp">Nenhum registro neste per\u00edodo</div></div></div>';
   var hds=cols.map(function(c){return'<th>'+c.l+'</th>';}).join("")+'<th></th>';
   var trs=fs.map(function(r){
     var isPend=r.pagamento==="pendente";
@@ -1884,7 +1891,7 @@ function rSvc(fs){
     return'<tr '+rowStyle+'>'+tds+'<td><button class="eb" data-edit="svc" data-id="'+r.id+'">ed</button> <button class="db" data-del="svc" data-id="'+r.id+'">\u00d7</button></td></tr>';
   }).join("");
   var tableHtml='<div class="ox"><table><thead><tr>'+hds+'</tr></thead><tbody>'+trs+'</tbody></table></div>';
-  return'<div class="pg"><div class="ph"><h2>Servi\u00e7os &mdash; '+MESES[S.month]+' '+S.year+'</h2>'
+  return'<div class="pg"><div class="ph"><h2>'+svcTitulo+'</h2>'
     +'<div class="ph-btns"><button class="ab" onclick="openS()">\uFF0B Novo Servi\u00e7o</button>'
     +'<button class="gb" onclick="openRelDia()">&#128200; Relat\u00f3rio do Dia</button></div></div>'
     +'<div class="kg">'+kp("Fat. Bruto",fmt(tB),fs.length+" atend.")+kp("Fat. L\u00edquido",fmt(tL),"Taxa maq.: "+fmt(tB-tL))+kp("Total Comiss\u00f5es",fmt(tC))+kp("Custo Material",fmt(tM))+kp("Descontos",fmt(tDesc))+(pendentes?kp('\uD83D\uDFE1 Pend. Pagamento',pendentes,"aguardando"):'')+'</div>'
@@ -2364,6 +2371,15 @@ function cancelRequest(id){
 }
 
 /* ─ LEADS / COMERCIAL ─ */
+function onLeadSearch(el){
+  var _v=el.value,_p=el.selectionStart;
+  S.leadSearch=_v;
+  rT();
+  requestAnimationFrame(function(){
+    var _el=document.getElementById("lead-search");
+    if(_el){_el.value=S.leadSearch||"";_el.focus();_el.setSelectionRange(_p,_p);}
+  });
+}
 function rLeads(){
   var isAdmin=CURRENT_USER&&CURRENT_USER.role==="admin";
   var tabs=[["funil","Funil"],["hoje","Contatos do Dia"],["painel","Painel"]];
@@ -2377,7 +2393,7 @@ function rLeads(){
       +'<button class="gb" onclick="S.leadsDay=\''+hj()+'\';rT()">Hoje</button></div>';
   }
   var searchBar='<div style="display:flex;gap:8px;margin-bottom:10px">'
-    +'<input type="text" id="lead-search" placeholder="&#128269; Buscar por nome ou telefone..." value="'+(S.leadSearch||"")+'" oninput="S.leadSearch=this.value;rT()" style="flex:1;font-size:12px">'
+    +'<input type="text" id="lead-search" placeholder="&#128269; Buscar por nome ou telefone..." value="'+(S.leadSearch||"")+'" oninput="onLeadSearch(this)" style="flex:1;font-size:12px">'
     +(S.leadSearch?'<button class="gb" onclick="S.leadSearch=\'\';rT()">&times; Limpar</button>':'')
     +'</div>';
   var body=S.leadsView==="hoje"?dateFilter+rLeadsToday():S.leadsView==="painel"?rLeadsPanel():searchBar+rLeadsBoard();
@@ -2597,6 +2613,81 @@ function saveLeadRegua(){
 }
 
 /* ─ ESTOQUE TAB ─ */
+
+function gerarRelatorioEstoque(){
+  var mes=S.month,ano=S.year;
+  var nomeMes=MESES[mes];
+  var mm=String(mes+1).padStart(2,"0");
+  var prefixo=ano+"-"+mm;
+  // Busca entradas e saídas (dos serviços) do mês
+  Promise.all([
+    db.collection("estoqueEntradas").where("date",">=",prefixo+"-01").where("date","<=",prefixo+"-31").get(),
+    db.collection("servicos").where("date",">=",prefixo+"-01").where("date","<=",prefixo+"-31").get()
+  ]).then(function(results){
+    var entradas=[];
+    results[0].forEach(function(d){entradas.push(d.data());});
+    entradas.sort(function(a,b){return(a.date||"").localeCompare(b.date||"");});
+
+    // Calcular saídas por produto a partir das receitas dos serviços
+    var saidasMap={};
+    results[1].forEach(function(d){
+      var svc=d.data();
+      var receita=svc.receitaProdutos||svc.produtos||[];
+      receita.forEach(function(p){
+        var nm=(p.produto||p.nome||"").toUpperCase();
+        if(!nm)return;
+        if(!saidasMap[nm])saidasMap[nm]={qtd:0,servicos:0};
+        saidasMap[nm].qtd+=parseFloat(p.quantidade||0);
+        saidasMap[nm].servicos++;
+      });
+    });
+
+    // Agrupar entradas por produto
+    var entradasMap={};
+    entradas.forEach(function(e){
+      var nm=(e.produtoNome||"").toUpperCase();
+      if(!entradasMap[nm])entradasMap[nm]={qtd:0,valor:0,entradas:[]};
+      entradasMap[nm].qtd+=parseFloat(e.quantidade||0);
+      entradasMap[nm].valor+=parseFloat(e.valorPago||0);
+      entradasMap[nm].entradas.push(e);
+    });
+
+    // Montar HTML do relatório
+    var dataHoje=new Date().toLocaleDateString("pt-BR");
+    var allProds=Array.from(new Set(Object.keys(entradasMap).concat(Object.keys(saidasMap)))).sort();
+
+    var linhasTabela=allProds.map(function(nm){
+      var en=entradasMap[nm]||{qtd:0,valor:0};
+      var sa=saidasMap[nm]||{qtd:0};
+      var atual=(D.estoque||[]).find(function(x){return x.nome===nm;})||{};
+      return'<tr><td>'+nm+'</td><td>'+Math.round(en.qtd)+(atual.unidade?" "+(atual.unidade):"")+'</td><td>R$ '+en.valor.toFixed(2).replace(".",",")+'</td><td>'+Math.round(sa.qtd)+(atual.unidade?" "+(atual.unidade):"")+'</td><td>'+(atual.quantidadeAtual!==undefined?Math.round(atual.quantidadeAtual)+(atual.unidade?" "+atual.unidade:""):"—")+'</td></tr>';
+    }).join("");
+
+    var totalEntradas=Object.values(entradasMap).reduce(function(s,v){return s+v.valor;},0);
+
+    var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Relatório Estoque '+nomeMes+"/"+ano+'</title>'
+      +'<style>body{font-family:Arial,sans-serif;font-size:12px;color:#111;padding:20px}h1{font-size:16px;margin-bottom:4px}h2{font-size:13px;color:#555;font-weight:normal;margin-top:0}table{width:100%;border-collapse:collapse;margin-top:16px}th{background:#1e1e1e;color:#fff;padding:7px 10px;text-align:left;font-size:11px}td{padding:6px 10px;border-bottom:1px solid #e5e7eb;font-size:11px}tr:nth-child(even){background:#f9fafb}.tot{font-weight:700;background:#f0fdf4}.label{font-size:10px;color:#6b7280;margin-top:2px}.footer{margin-top:20px;font-size:10px;color:#9ca3af}</style>'
+      +'</head><body>'
+      +'<h1>\uD83E\uDDF4 Relatório Mensal de Estoque — '+nomeMes+" "+ano+'</h1>'
+      +'<h2>Studio A R • Gerado em '+dataHoje+'</h2>'
+      +'<table><thead><tr><th>Produto</th><th>Qtd. Entradas</th><th>Valor Investido</th><th>Qtd. Usada (serviços)</th><th>Estoque Atual</th></tr></thead><tbody>'
+      +(allProds.length?linhasTabela:'<tr><td colspan="5" style="text-align:center;color:#6b7280">Nenhuma movimentação neste mês</td></tr>')
+      +'<tr class="tot"><td>TOTAL</td><td>—</td><td>R$ '+totalEntradas.toFixed(2).replace(".",",")+'</td><td>—</td><td>—</td></tr>'
+      +'</tbody></table>'
+      +'<div class="footer">Este relatório foi gerado automaticamente pelo sistema Studio A R.</div>'
+      +'</body></html>';
+
+    var blob=new Blob([html],{type:"text/html"});
+    var url=URL.createObjectURL(blob);
+    var a=document.createElement("a");
+    a.href=url;a.download="estoque_"+nomeMes+"_"+ano+".html";a.click();
+    URL.revokeObjectURL(url);
+    showToast("\uD83D\uDCCB Relatório gerado! Abra o arquivo e use Ctrl+P para imprimir como PDF.");
+  }).catch(function(err){
+    showToast("\u274c Erro ao gerar relatório: "+err.message,"#f43f5e");
+  });
+}
+
 function rEstoque(){
   var items=(D.estoque||[]).slice().sort(function(a,b){return a.nome.localeCompare(b.nome);});
   var low=items.filter(function(i){return(i.quantidadeAtual||0)<300;});
@@ -2614,7 +2705,7 @@ function rEstoque(){
       +'<div style="font-size:10px;color:#52525b;margin-top:1px">Investido: '+fmt(i.valorTotalInvestido||0)+'</div>'
       +'</div></div>';
   }).join("");
-  return'<div class="pg"><div class="ph"><h2>Estoque</h2><button class="ab" onclick="openStockEntry()">\uFF0B Nova Entrada</button></div>'
+  return'<div class="pg"><div class="ph"><h2>Estoque</h2><div class="ph-btns"><button class="gb" onclick="gerarRelatorioEstoque()">\uD83D\uDCCB PDF Mensal</button><button class="ab" onclick="openStockEntry()">\uFF0B Nova Entrada</button></div></div>'
     +(low.length?'<div style="background:#f43f5e18;border:1px solid #f43f5e44;color:#f87171;padding:11px 15px;border-radius:8px;font-size:12px;margin-bottom:16px"><strong>\u26a0 '+low.length+' produto(s) precisam de reposi\u00e7\u00e3o (abaixo de 300):</strong> '+low.map(function(i){return es(i.nome);}).join(", ")+'</div>':"")
     +'<div class="cg" style="grid-template-columns:repeat(auto-fill,minmax(270px,1fr));margin-bottom:0">'+(cards||'<div class="emp">Nenhum produto cadastrado no estoque ainda. Clique em "Nova Entrada" para come\u00e7ar.</div>')+'</div></div>';
 }
@@ -2661,8 +2752,18 @@ function rT(){
   if(S.tab==="dashboard")h=rDash(fs,fp,fe,fa);
   else if(S.tab==="agenda")h=rAgenda();
   else if(S.tab==="followup")h=rFollowup();
-  else if(S.tab==="services")h=rSvc(fs);
-  else if(S.tab==="products")h=rPrd(fp);
+  else if(S.tab==="services"){
+    var fsSvc=fs;
+    if(S.day>0){var dd2=String(S.day).padStart(2,"0"),mm2=String(S.month+1).padStart(2,"0");var dayStr2=S.year+"-"+mm2+"-"+dd2;fsSvc=fday(D.svc,dayStr2);}
+    fsSvc=fsSvc.slice().sort(function(a,b){return a.date.localeCompare(b.date);});
+    h=rSvc(fsSvc,(S.day>0?String(S.day).padStart(2,"0")+"/"+String(S.month+1).padStart(2,"0")+"/"+S.year:null));
+  }
+  else if(S.tab==="products"){
+    var fpPrd=fp;
+    if(S.day>0){var dd3=String(S.day).padStart(2,"0"),mm3=String(S.month+1).padStart(2,"0");var dayStr3=S.year+"-"+mm3+"-"+dd3;fpPrd=fday(D.prd,dayStr3);}
+    fpPrd=fpPrd.slice().sort(function(a,b){return a.date.localeCompare(b.date);});
+    h=rPrd(fpPrd);
+  }
   else if(S.tab==="expenses")h=rExp(fe);
   else if(S.tab==="advances")h=rAdv(fa);
   else if(S.tab==="prolabore")h=rPL(fs,fp,fa);
