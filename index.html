@@ -332,8 +332,8 @@ function openAdminAuthModal(onSuccess){
 
 var CURRENT_USER = null; // {uid, email, role, nome}
 var ROLE_TABS = {
-  admin: ["dashboard","agenda","leads","services","products","expenses","advances","prolabore","dre","clients","db","requests","audit","estoque","arprof","fornecedores","mensagens"],
-  recepcao: ["agenda","services","products","clients","requests","estoque","mensagens"],
+  admin: ["dashboard","agenda","followup","leads","services","products","expenses","advances","prolabore","dre","clients","db","requests","audit","estoque","arprof","fornecedores","mensagens"],
+  recepcao: ["agenda","followup","services","products","clients","requests","estoque","mensagens"],
   financeiro: ["dashboard","expenses","advances","prolabore","dre","arprof","mensagens"],
   marketing: ["clients","mensagens"],
   profissional: ["agenda","prolabore","mensagens"],
@@ -734,7 +734,7 @@ function tbl(rows,cols,type){
 function kp(l,v,s){return'<div class="kp"><div class="kl">'+l+'</div><div class="kv">'+v+'</div>'+(s?'<div class="ks">'+s+'</div>':'')+'</div>';}
 
 /* SIDEBAR */
-var NAV=[["dashboard","\uD83D\uDCCA","Dashboard"],["agenda","\uD83D\uDCC5","Agenda"],["services","\u2702\uFE0F","Servi\u00e7os"],["products","\uD83E\uDDF4","Produtos"],["expenses","\uD83D\uDCB8","Despesas"],["advances","\uD83D\uDCB5","Adiantamentos"],["prolabore","\uD83D\uDC65","Pr\u00f3-Labore"],["dre","\uD83D\uDCC8","DRE / DFC"],["clients","\uD83D\uDC69","Clientes"],["leads","\uD83C\uDFAF","Leads"],["db","\uD83D\uDDC4\uFE0F","Banco de Dados"],["requests","\uD83D\uDCE5","Solicita\u00e7\u00f5es Online"],["audit","\uD83D\uDD0D","Auditoria"],["estoque","\uD83E\uDDF4","Estoque"],["arprof","\uD83C\uDFF7\uFE0F","A R Professional"],["fornecedores","\uD83D\uDE9A","Fornecedores"],["mensagens","\uD83D\uDCAC","Mensagens"]];
+var NAV=[["dashboard","\uD83D\uDCCA","Dashboard"],["agenda","\uD83D\uDCC5","Agenda"],["followup","\uD83D\uDCF2","Follow-up"],["services","\u2702\uFE0F","Servi\u00e7os"],["products","\uD83E\uDDF4","Produtos"],["expenses","\uD83D\uDCB8","Despesas"],["advances","\uD83D\uDCB5","Adiantamentos"],["prolabore","\uD83D\uDC65","Pr\u00f3-Labore"],["dre","\uD83D\uDCC8","DRE / DFC"],["clients","\uD83D\uDC69","Clientes"],["leads","\uD83C\uDFAF","Leads"],["db","\uD83D\uDDC4\uFE0F","Banco de Dados"],["requests","\uD83D\uDCE5","Solicita\u00e7\u00f5es Online"],["audit","\uD83D\uDD0D","Auditoria"],["estoque","\uD83E\uDDF4","Estoque"],["arprof","\uD83C\uDFF7\uFE0F","A R Professional"],["fornecedores","\uD83D\uDE9A","Fornecedores"],["mensagens","\uD83D\uDCAC","Mensagens"]];
 var DIVULGADORES_CUSTOM=null;
 var DIVULGADORES_DEFAULT=["Lorran","Isabela","Diane","Anton"];
 function getDivulgadores(){return DIVULGADORES_CUSTOM||DIVULGADORES_DEFAULT;}
@@ -2658,6 +2658,7 @@ function rT(){
   var h="";
   if(S.tab==="dashboard")h=rDash(fs,fp,fe,fa);
   else if(S.tab==="agenda")h=rAgenda();
+  else if(S.tab==="followup")h=rFollowup();
   else if(S.tab==="services")h=rSvc(fs);
   else if(S.tab==="products")h=rPrd(fp);
   else if(S.tab==="expenses")h=rExp(fe);
@@ -3469,6 +3470,53 @@ function confirmarRealizarSinal(id){
     observacoes:obs||""
   });
   showToast("\uD83C\uDF89 Servi\u00e7o realizado! Pagamento confirmado.");cmod();
+}
+
+/* ─ ABA FOLLOW-UP PÓS-ATENDIMENTO ─ */
+function rFollowup(){
+  var hoje=hj();
+  var marcos={1:{label:"1 dia",acao:"Pesquisa de satisfa\u00e7\u00e3o",cor:"#38bdf8",emoji:"\uD83D\uDE0A"},7:{label:"7 dias",acao:"Acompanhamento do resultado",cor:"#a78bfa",emoji:"\uD83D\uDC87"},15:{label:"15 dias",acao:"Oferecer servi\u00e7o ou produto",cor:"#fbbf24",emoji:"\uD83D\uDCB0"},30:{label:"30 dias",acao:"Convidar para retorno",cor:"#34d399",emoji:"\uD83D\uDCC5"}};
+  // coleta todos os atendimentos e verifica quantos dias atrás foram
+  var porDia={1:[],7:[],15:[],30:[]};
+  D.svc.forEach(function(r){
+    if(!r.cliente||!r.date||r.ehSinal)return;
+    var d=ds(r.date);
+    if(porDia[d]!==undefined)porDia[d].push(r);
+  });
+  // remove duplicatas (mesma cliente mesmo dia)
+  var seen={};
+  [1,7,15,30].forEach(function(m){
+    porDia[m]=porDia[m].filter(function(r){
+      var k=r.cliente.toUpperCase()+"_"+m;
+      if(seen[k])return false;seen[k]=true;return true;
+    });
+  });
+  var totalHoje=[1,7,15,30].reduce(function(s,m){return s+porDia[m].length;},0);
+  var html='<div class="pg"><div class="ph"><h2>\uD83D\uDCF2 Follow-up P\u00f3s-Atendimento</h2>'
+    +'<div style="font-size:11px;color:#71717a">Clientes para contato hoje \u2014 '+hoje+'</div></div>';
+  if(!totalHoje){
+    html+='<div class="cd"><div class="emp">\uD83C\uDF89 Nenhum follow-up para hoje! Todos os contatos est\u00e3o em dia.</div></div></div>';
+    return html;
+  }
+  [1,7,15,30].forEach(function(m){
+    var itens=porDia[m];
+    if(!itens.length)return;
+    var marco=marcos[m];
+    html+='<div class="cd" style="border-left:3px solid '+marco.cor+';margin-bottom:14px">'
+      +'<div class="ct" style="color:'+marco.cor+'">'+marco.emoji+' '+marco.label+' ap\u00f3s o atendimento \u2014 '+marco.acao+' ('+itens.length+')</div>';
+    itens.forEach(function(r){
+      var tel=(r.telefone||"").replace(/\D/g,"");
+      var waLink=tel?'<a href="https://wa.me/55'+tel+'" target="_blank" style="background:#25d366;color:#fff;padding:5px 10px;border-radius:6px;font-size:11px;text-decoration:none;white-space:nowrap;flex-shrink:0">&#9993; WhatsApp</a>':'';
+      html+='<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #27272a;gap:10px;flex-wrap:wrap">'
+        +'<div><div style="font-size:13px;font-weight:600;color:#f1f5f9">'+es(r.cliente)+'</div>'
+        +'<div style="font-size:11px;color:#a1a1aa;margin-top:2px">'+es(r.trabalho)+' \u2014 atendida em '+fdt(r.date)+(r.telefone?' \u00b7 '+es(r.telefone):'')+'</div>'
+        +(r.observacoes?'<div style="font-size:10px;color:#52525b;margin-top:2px">Obs: '+es(r.observacoes.slice(0,60))+'</div>':'')
+        +'</div>'+waLink+'</div>';
+    });
+    html+='</div>';
+  });
+  html+='</div>';
+  return html;
 }
 
 /* MOBILE SIDEBAR TOGGLE */
