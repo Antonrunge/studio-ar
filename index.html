@@ -2120,7 +2120,8 @@ function rDRE(fs,fp,fe,fa){
   var plT=Object.values(getPL()).reduce(function(s,v){return s+v;},0);
   var avTotal=fa.reduce(function(s,r){return s+r.valor;},0);
   // Adiantamento já é um pagamento antecipado do pró-labore — não é encargo adicional
-  var lucroLiq=ebitda-plT;
+  // Adiantamentos já saíram do caixa durante o mês; o encargo líquido é só o saldo devedor
+  var lucroLiq=ebitda-plT+avTotal;
   function dr(l,v,ind,neg){
     return'<tr><td style="padding:6px 13px;color:'+(ind?"#a1a1aa":"#e4e4e7")+';padding-left:'+(ind?30:13)+'px">'+l+'</td>'
       +'<td style="padding:6px 13px;text-align:right;color:'+(neg?"#f87171":"#d4d4d8")+'">'+(neg&&v>0?"- ":"")+fmt(Math.abs(v))+'</td></tr>';
@@ -2157,7 +2158,10 @@ function rDRE(fs,fp,fe,fa){
     +sec("(-) DESPESAS")+dr("Comiss\u00f5es da Equipe",cE,true,true)+dr("Despesas Operacionais",despOp,true,true)+dr("Despesas Fixas",despFixas,true,true)+dr("Marketing / Tr\u00e1fego",despMkt,true,true)
     +sum("= EBITDA",ebitda,ebitda>=0?"#34d399":"#f87171")
     +sec("(-) ENCARGOS")+dr("Pr\u00f3-Labore Total",plT,true,true)
-    +'<tr><td style="padding:3px 13px 6px 36px;color:#71717a;font-size:11px">\u2514 Adiantamentos j\u00e1 pagos: <span style="color:#fbbf24">'+fmt(avTotal)+'</span> &nbsp;&bull;&nbsp; A pagar: <span style="color:#34d399">'+fmt(Math.max(0,plT-avTotal))+'</span></td><td></td></tr>'
+    +'<tr><td style="padding:3px 13px 6px 36px;color:#71717a;font-size:11px">'+
+    '\u2514 (+) Adiantamentos j\u00e1 pagos: <span style="color:#34d399">+'+fmt(avTotal)+'</span>'
+    +' &nbsp;&bull;&nbsp; Saldo a pagar: <span style="color:#fbbf24">'+fmt(Math.max(0,plT-avTotal))+'</span>'
+    +'</td><td></td></tr>'
     +'<tr class="dfin"><td style="padding:10px 13px;color:#f1f5f9">= RESULTADO L\u00cdQUIDO</td><td style="padding:10px 13px;text-align:right;font-size:15px;color:'+(lucroLiq>=0?"#34d399":"#f87171")+'">'+ fmt(lucroLiq)+'</td></tr>'
     +'</tbody></table></div>'
     +'<div>'
