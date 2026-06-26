@@ -1774,7 +1774,17 @@ function rDash(fsOrig,fpOrig,feOrig,faOrig){
   var titulo=isDay?("Dashboard \u2014 "+fdt(dayStr)):("Dashboard \u2014 "+MESES[S.month]+" "+S.year);
   var byP={};fs.forEach(function(r){(r.profissionais||[r.profissional]).forEach(function(p){if(p)byP[p]=(byP[p]||0)+effVal(r);});});
   var profD=Object.keys(byP).map(function(k){return{n:k,v:Math.round(byP[k])};}).sort(function(a,b){return b.v-a.v;}).slice(0,8);
-  var byC={};fs.forEach(function(r){if(r.captacao)byC[r.captacao]=(byC[r.captacao]||0)+1;});
+  // Captação: conta clientes ÚNICAS por canal (1ª visita no período)
+  var _cliCanal={};
+  var byC={};
+  fs.forEach(function(r){
+    if(!r.cliente)return;
+    var canal=r.captacao||"Sem canal";
+    // Se já vimos essa cliente, não conta de novo
+    if(_cliCanal[r.cliente])return;
+    _cliCanal[r.cliente]=canal;
+    byC[canal]=(byC[canal]||0)+1;
+  });
   var capD=Object.keys(byC).map(function(k){return{n:k,v:byC[k]};}).sort(function(a,b){return b.v-a.v;});
   var byS={};var bySQ={};fs.forEach(function(r){byS[r.trabalho]=(byS[r.trabalho]||0)+r.valor;bySQ[r.trabalho]=(bySQ[r.trabalho]||0)+1;});
   var svcD=Object.keys(byS).map(function(k){return{n:k,v:Math.round(byS[k]),q:bySQ[k]};}).sort(function(a,b){return b.v-a.v;}).slice(0,7);
@@ -1806,7 +1816,7 @@ function rDash(fsOrig,fpOrig,feOrig,faOrig){
     +kp("Ticket M\u00e9dio",fms(fs.length?rB/fs.length:0),"por atendimento")
     +'</div>'
     +'<div class="cg"><div class="cd"><div class="ct">Faturamento por Profissional (R$)</div>'+bvC(profD,"#f43f5e")+'</div>'
-    +'<div class="cd"><div class="ct">Capta\u00e7\u00e3o \u2014 Qtd. de Clientes</div>'+piC(capD)+'</div></div>'
+    +'<div class="cd"><div class="ct">Capta\u00e7\u00e3o \u2014 Clientes \u00danicas por Canal</div>'+piC(capD)+'</div></div>'
     +'<div class="cg"><div class="cd"><div class="ct">Top Servi\u00e7os \u2014 Valor + Qtd.</div>'+bhC(svcD,"#fb923c",true)+'</div>'
     +bottomRight+'</div></div>';
 }
@@ -1926,9 +1936,51 @@ function rPrd(fp){
     +'</div>';
 }
 
+var DESPESAS_FIXAS_NOMES=["ALUGUEL","SAAE","EDP","INTERNET","PASSAGEM DA EQUIPE"];
+function openDespesasFixas(){
+  // Busca últimos valores de cada despesa fixa
+  var ultimos={};
+  (D.exp||[]).forEach(function(r){
+    var n=(r.conta||"").toUpperCase();
+    if(DESPESAS_FIXAS_NOMES.indexOf(n)>=0){
+      if(!ultimos[n]||r.date>ultimos[n].date)ultimos[n]=r;
+    }
+  });
+  var linhas=DESPESAS_FIXAS_NOMES.map(function(n,i){
+    var ul=ultimos[n];
+    return'<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">'
+      +'<span style="flex:1;font-size:13px;color:#e4e4e7">'+n+'</span>'
+      +'<input type="number" id="df-v'+i+'" value="'+(ul?ul.valorPago.toFixed(2):'0')+'" step="0.01" min="0" style="width:100px;background:#18181b;border:1px solid #3f3f46;color:#e4e4e7;border-radius:6px;padding:6px 8px;font-size:13px">'
+      +'</div>';
+  }).join("");
+  omod(mhdr("\uD83D\uDCCB Despesas Fixas do M\u00eas")
+    +'<div style="font-size:11px;color:#a1a1aa;margin-bottom:12px">Confirme ou ajuste os valores. Ser\u00e3o lan\u00e7ados com a data de hoje na categoria <strong>Fixo</strong>.</div>'
+    +linhas
+    +'<button class="pb" onclick="savDespesasFixas()" style="margin-top:4px">\u2705 Lan\u00e7ar Despesas Fixas</button>');
+}
+function savDespesasFixas(){
+  var hoje=hj();
+  var batch=db.batch();
+  var count=0;
+  DESPESAS_FIXAS_NOMES.forEach(function(n,i){
+    var el=document.getElementById("df-v"+i);
+    var val=parseFloat(el?el.value:0)||0;
+    if(val<=0)return;
+    var rec={id:uid(),date:hoje,conta:n,categoria:"Fixo",valorPago:val,valorNaoPago:0,pagoPor:"Anton",observacoes:"Lan\u00e7amento autom\u00e1tico despesa fixa"};
+    batch.set(db.collection("despesas").doc(rec.id),rec);
+    count++;
+  });
+  if(!count){alert("Nenhum valor preenchido.");return;}
+  batch.commit().then(function(){showToast("\u2705 "+count+" despesa(s) fixa(s) lan\u00e7ada(s)!");cmod();}).catch(function(err){showToast("\u274c Erro: "+err.message,"#f43f5e");});
+}
 function rExp(fe){
-  var tP=fe.reduce(function(s,r){return s+r.valorPago;},0);
-  var tAP=fe.reduce(function(s,r){return s+r.valorNaoPago;},0);
+  // Aplica filtro de período interno se definido
+  var fI=S.expDe,fF=S.expAte;
+  var feF=(fI&&fF)?fe.filter(function(r){return r.date>=fI&&r.date<=fF;}):fe;
+  // Ordem crescente por data
+  feF=feF.slice().sort(function(a,b){return a.date.localeCompare(b.date);});
+  var tP=feF.reduce(function(s,r){return s+r.valorPago;},0);
+  var tAP=feF.reduce(function(s,r){return s+r.valorNaoPago;},0);
   var cols=[
     {k:"date",l:"Data",fn:function(r){return fdt(r.date);}},
     {k:"categoria",l:"Categoria",fn:function(r){return es(r.categoria||"");}},
@@ -1937,9 +1989,21 @@ function rExp(fe){
     {k:"vap",l:"A Pagar",fn:function(r){return r.valorNaoPago>0?fmt(r.valorNaoPago):"\u2014";}},
     {k:"pagoPor",l:"Pago Por",fn:function(r){return es(r.pagoPor);}}
   ];
-  return'<div class="pg"><div class="ph"><h2>Despesas \u2014 '+MESES[S.month]+' '+S.year+'</h2><button class="ab" onclick="openE()">\uFF0B Nova Despesa</button></div>'
-    +'<div class="kg">'+kp("Total Pago",fmt(tP),fe.length+" lan\u00e7amentos")+kp("A Pagar",fmt(tAP))+kp("Total Previsto",fmt(tP+tAP))+'</div>'
-    +'<div class="cd">'+tbl(fe,cols,"exp")+'</div></div>';
+  var inpSt='background:#18181b;border:1px solid #3f3f46;color:#e4e4e7;border-radius:6px;padding:5px 8px;font-size:12px';
+  var filtroAtivo=fI&&fF;
+  var filtroHtml='<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;padding:10px 12px;background:#1c1c1e;border-radius:8px;border:1px solid #27272a">'
+    +'<span style="font-size:11px;color:#71717a;white-space:nowrap">Filtrar por per\u00edodo:</span>'
+    +'<input type="date" value="'+(fI||"")+'" onchange="S.expDe=this.value;rT()" style="'+inpSt+'">'
+    +'<span style="font-size:11px;color:#71717a">at\u00e9</span>'
+    +'<input type="date" value="'+(fF||"")+'" onchange="S.expAte=this.value;rT()" style="'+inpSt+'">'
+    +(filtroAtivo?'<button onclick="S.expDe=null;S.expAte=null;rT()" style="background:#3f3f46;color:#e4e4e7;border:none;border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer">\u00d7 Limpar</button>':"")
+    +'</div>';
+  var titulo=filtroAtivo?("Despesas \u2014 "+fdt(fI)+" a "+fdt(fF)):("Despesas \u2014 "+MESES[S.month]+" "+S.year);
+  return'<div class="pg"><div class="ph"><h2>'+titulo+'</h2>'
+    +'<div class="ph-btns"><button class="gb" onclick="openDespesasFixas()">\uD83D\uDCCB Fixas</button><button class="ab" onclick="openE()">\uFF0B Nova Despesa</button></div></div>'
+    +filtroHtml
+    +'<div class="kg">'+kp("Total Pago",fmt(tP),feF.length+" lan\u00e7amentos")+kp("A Pagar",fmt(tAP))+kp("Total Previsto",fmt(tP+tAP))+'</div>'
+    +'<div class="cd">'+tbl(feF,cols,"exp")+'</div></div>';
 }
 
 function rAdv(fa){
@@ -2055,7 +2119,8 @@ function rDRE(fs,fp,fe,fa){
   var ebitda=margemBruta-cE-despOp-despFixas-despMkt;
   var plT=Object.values(getPL()).reduce(function(s,v){return s+v;},0);
   var avTotal=fa.reduce(function(s,r){return s+r.valor;},0);
-  var lucroLiq=ebitda-plT-avTotal;
+  // Adiantamento já é um pagamento antecipado do pró-labore — não é encargo adicional
+  var lucroLiq=ebitda-plT;
   function dr(l,v,ind,neg){
     return'<tr><td style="padding:6px 13px;color:'+(ind?"#a1a1aa":"#e4e4e7")+';padding-left:'+(ind?30:13)+'px">'+l+'</td>'
       +'<td style="padding:6px 13px;text-align:right;color:'+(neg?"#f87171":"#d4d4d8")+'">'+(neg&&v>0?"- ":"")+fmt(Math.abs(v))+'</td></tr>';
@@ -2091,8 +2156,9 @@ function rDRE(fs,fp,fe,fa){
     +sec("(-) CMV")+dr("Custo Material Servi\u00e7os",cmvS,true,true)+dr("Custo Produtos Vendidos",cmvP,true,true)+sum("= MARGEM BRUTA",margemBruta,margemBruta>=0?"#34d399":"#f87171")
     +sec("(-) DESPESAS")+dr("Comiss\u00f5es da Equipe",cE,true,true)+dr("Despesas Operacionais",despOp,true,true)+dr("Despesas Fixas",despFixas,true,true)+dr("Marketing / Tr\u00e1fego",despMkt,true,true)
     +sum("= EBITDA",ebitda,ebitda>=0?"#34d399":"#f87171")
-    +sec("(-) ENCARGOS")+dr("Pr\u00f3-Labore (prev.)",plT,true,true)+dr("Adiantamentos",avTotal,true,true)
-    +'<tr class="dfin"><td style="padding:10px 13px;color:#f1f5f9">= RESULTADO L\u00cdQUIDO</td><td style="padding:10px 13px;text-align:right;font-size:15px;color:'+(lucroLiq>=0?"#34d399":"#f87171")+'">'+fmt(lucroLiq)+'</td></tr>'
+    +sec("(-) ENCARGOS")+dr("Pr\u00f3-Labore Total",plT,true,true)
+    +'<tr><td style="padding:3px 13px 6px 36px;color:#71717a;font-size:11px">\u2514 Adiantamentos j\u00e1 pagos: <span style="color:#fbbf24">'+fmt(avTotal)+'</span> &nbsp;&bull;&nbsp; A pagar: <span style="color:#34d399">'+fmt(Math.max(0,plT-avTotal))+'</span></td><td></td></tr>'
+    +'<tr class="dfin"><td style="padding:10px 13px;color:#f1f5f9">= RESULTADO L\u00cdQUIDO</td><td style="padding:10px 13px;text-align:right;font-size:15px;color:'+(lucroLiq>=0?"#34d399":"#f87171")+'">'+ fmt(lucroLiq)+'</td></tr>'
     +'</tbody></table></div>'
     +'<div>'
     +'<div class="cd"><div class="ct">Fluxo de Caixa (DFC)</div>'+dfcSvg
