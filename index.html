@@ -3850,6 +3850,9 @@ function slugFu(str){return(str||"").toUpperCase().replace(/[^A-Z0-9]/g,"_");}
 function marcarFollowupFeito(slug,dias){
   var hoje=hj();
   var docId=slug+"_"+dias+"_"+hoje;
+  // Atualização otimista: some da lista imediatamente, sem esperar Firestore
+  D.followupContatos[docId]=true;
+  rT();
   db.collection("followupContatos").doc(docId).set({cliente:slug,dias:dias,data:hoje,ts:new Date().toISOString()});
   showToast("\u2705 Contato registrado!");
 }
