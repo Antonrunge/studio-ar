@@ -2625,9 +2625,12 @@ function saveLeadContact(){
     autor:CURRENT_USER?CURRENT_USER.nome:"",
     divulgador:document.getElementById("ld-div")?document.getElementById("ld-div").value:""
   };
+  var divEl=document.getElementById("ld-div");
+  var divVal=divEl?divEl.value:"";
   db.collection("leads").doc(id).update({
     historico:firebase.firestore.FieldValue.arrayUnion(entry),
-    etapa:etapa,proximoContato:prox||null
+    etapa:etapa,proximoContato:prox||null,
+    responsavel:divVal||firebase.firestore.FieldValue.delete()
   });
   showToast("\u2705 Contato registrado!");cmod();
 }
@@ -2662,6 +2665,11 @@ function leadToAgenda(id){
   var tEl=document.getElementById("ag-tel");if(tEl)tEl.value=l.telefone||"";
   var sEl=document.getElementById("ag-s");
   if(sEl){var match=getSvcs().indexOf(l.interesse)>=0?l.interesse:null;if(match)sEl.value=match;}
+  // Pré-preenche divulgador do lead no campo da agenda
+  var dEl=document.getElementById("ag-div");
+  if(dEl&&l.responsavel){
+    for(var i=0;i<dEl.options.length;i++){if(dEl.options[i].value===l.responsavel){dEl.selectedIndex=i;break;}}
+  }
 }
 function openLeadReguaSettings(){
   var dias=getLeadRegua();
