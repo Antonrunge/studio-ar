@@ -507,17 +507,30 @@ function fmy(a,m,y){return a.filter(function(r){var g=gmy(r.date);return g.m===m
 function fday(a,d){return a.filter(function(r){return r.date===d;});}
 function es(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
 function fl(v,f){return v*(1-((TAXAS_CUSTOM||TAXAS)[f]||0));}
-function cm(v,f,t,captacao,trabalho){
+function getFreelancers(){return(FREELANCERS_CUSTOM||[]).map(function(n){return n.toUpperCase();});}
+function cm(v,f,t,captacao,trabalho,profissionais){
   var liq=fl(v,f);
+  // Verifica freelancers na equipe do atendimento
+  var fl_list=getFreelancers();
+  if(fl_list.length&&profissionais&&profissionais.length){
+    var temFree=profissionais.some(function(p){return fl_list.indexOf((p||"").toUpperCase())>=0;});
+    var temComis=profissionais.some(function(p){return fl_list.indexOf((p||"").toUpperCase())<0;});
+    if(temFree&&!temComis)return 0;          // só freelancers: sem comissão
+    if(temFree&&temComis)return liq*0.05;    // mista: comissionado recebe 5%
+  }
+  // Cliente do Profissional: 50% corte/escova, 40% demais
   if(captacao==="CLIENTE DO PROFISSIONAL"){
     var svcLower=(trabalho||"").toLowerCase();
-    var isCorte=svcLower.indexOf("corte")>=0&&svcLower.indexOf("escova")<0;
+    var isCorte=svcLower.indexOf("corte")>=0||svcLower.indexOf("escova")>=0;
     return liq*(isCorte?0.5:0.4);
   }
+  // Sobrancelhas: 80%
+  if((trabalho||"").toUpperCase().indexOf("SOBRANCELHA")>=0)return liq*0.80;
   return liq*(t||0.1);
 }
 var TAXAS_CUSTOM=null;
 function getTaxas(){return TAXAS_CUSTOM||TAXAS;}
+var FREELANCERS_CUSTOM=null;
 function autoTax(n){return n<=1?0.10:n===2?0.05:n===3?0.03:0.025;}
 function sg(k){try{var v=localStorage.getItem(k);return v?JSON.parse(v):null;}catch(e){return null;}}
 function ss(k,d){try{localStorage.setItem(k,JSON.stringify(d));}catch(e){}}
@@ -638,7 +651,8 @@ function setupListeners(){
   var u6=db.collection("config").doc("divulgadores").onSnapshot(function(doc){DIVULGADORES_CUSTOM=doc.exists&&doc.data().list?doc.data().list:null;rT();});
   var u7=db.collection("config").doc("taxasMaq").onSnapshot(function(doc){if(doc.exists&&doc.data().taxas)TAXAS_CUSTOM=doc.data().taxas;rT();});
   var u8=db.collection("followupContatos").onSnapshot(function(snap){D.followupContatos={};snap.forEach(function(d){D.followupContatos[d.id]=true;});rT();});
-  _listeners.push(u1,u2,u3,u4,u5,u6,u7,u8);
+  var u9=db.collection("config").doc("freelancers").onSnapshot(function(doc){FREELANCERS_CUSTOM=doc.exists&&doc.data().list?doc.data().list:null;rT();});
+  _listeners.push(u1,u2,u3,u4,u5,u6,u7,u8,u9);
   rAll();
 }
 
@@ -1768,7 +1782,7 @@ function rDash(fsOrig,fpOrig,feOrig,faOrig){
   var cS=fpSal.reduce(function(s,r){return s+fl(r.valorUnitario*r.quantidade,r.formaPagamento||"PIX")*r.comissaoSalao;},0);
   var tD=fe.reduce(function(s,r){return s+r.valorPago;},0);
   var tA=fa.reduce(function(s,r){return s+r.valor;},0);
-  var tC=fs.reduce(function(s,r){return s+cm(effVal(r),r.formaPagamento,r.taxaComissao);},0);
+  var tC=fs.reduce(function(s,r){return s+cm(effVal(r),r.formaPagamento,r.taxaComissao,r.captacao,r.trabalho,r.profissionais||[r.profissional]);},0);
   var uniqCli=new Set(fs.map(function(r){return r.cliente;})).size;
   var uniqCliHj=new Set(fsToday.map(function(r){return r.cliente;})).size;
   var titulo=isDay?("Dashboard \u2014 "+fdt(dayStr)):("Dashboard \u2014 "+MESES[S.month]+" "+S.year);
@@ -1867,19 +1881,30 @@ function rAgenda(){
 function rSvc(fs,dayLabel){
   var tB=fs.reduce(function(s,r){return s+effVal(r);},0);
   var tL=fs.reduce(function(s,r){return s+fl(effVal(r),r.formaPagamento);},0);
-  var tC=fs.reduce(function(s,r){return s+cm(effVal(r),r.formaPagamento,r.taxaComissao);},0);
+  var tC=fs.reduce(function(s,r){return s+cm(effVal(r),r.formaPagamento,r.taxaComissao,r.captacao,r.trabalho,r.profissionais||[r.profissional]);},0);
   var tM=fs.reduce(function(s,r){return s+(r.custoMaterial||0);},0);
   var tDesc=fs.reduce(function(s,r){return s+r.valor*(r.desconto||0);},0);
   var pendentes=fs.filter(function(r){return r.pagamento==="pendente";}).length;
   var cols=[
     {k:"date",l:"Data",fn:function(r){return fdt(r.date);}},
-    {k:"cliente",l:"Cliente",fn:function(r){return es(r.cliente);}},
+    {k:"cliente",l:"Cliente",fn:function(r){
+      var nm=es(r.cliente);
+      if(r.captacao==="CLIENTE DO PROFISSIONAL")nm='<span style="background:#7c3aed30;color:#a78bfa;padding:1px 5px;border-radius:3px;font-size:9px;margin-right:4px;font-weight:700">\uD83D\uDC64 CLI.PROF</span>'+nm;
+      return nm;
+    }},
     {k:"trabalho",l:"Servi\u00e7o",fn:function(r){return es(r.trabalho);}},
     {k:"prof",l:"Profissional(is)",fn:function(r){return es((r.profissionais||[r.profissional]).join(", "));}},
     {k:"valor",l:"Valor",fn:function(r){return fmt(r.valor);},hi:true},
     {k:"mat",l:"Material",fn:function(r){return r.custoMaterial>0?fmt(r.custoMaterial):"\u2014";}},
     {k:"fl",l:"Fat.L\u00edq.",fn:function(r){return fmt(fl(r.valor,r.formaPagamento));}},
-    {k:"fc",l:"Comiss\u00e3o",fn:function(r){return fmt(cm(r.valor,r.formaPagamento,r.taxaComissao));}},
+    {k:"fc",l:"Comiss\u00e3o",fn:function(r){
+      var v=cm(r.valor,r.formaPagamento,r.taxaComissao,r.captacao,r.trabalho,r.profissionais||[r.profissional]);
+      var isFree=getFreelancers().length&&(r.profissionais||[r.profissional]).some(function(p){return getFreelancers().indexOf((p||"").toUpperCase())>=0;});
+      var isSob=(r.trabalho||"").toUpperCase().indexOf("SOBRANCELHA")>=0;
+      var isCliProf=r.captacao==="CLIENTE DO PROFISSIONAL";
+      var badge=isFree?'<span style="color:#71717a;font-size:10px"> FREEL.</span>':isSob?'<span style="color:#a78bfa;font-size:10px"> 80%</span>':isCliProf?'<span style="color:#f472b6;font-size:10px"> CLI.P</span>':'';
+      return fmt(v)+badge;
+    }},
     {k:"desconto",l:"Desc.",fn:function(r){return r.desconto>0?'<span style="color:#fbbf24">-'+(r.desconto*100).toFixed(0)+"%</span>":"\u2014";}},
     {k:"formaPagamento",l:"Pgto",fn:function(r){return es(r.formaPagamento);}},
     {k:"obs",l:"Observa\u00e7\u00f5es",fn:function(r){var o=r.observacoes||"";return o?'<span title="'+es(o)+'" style="color:#fbbf24;cursor:help">\uD83D\uDCDD '+es(o.slice(0,20))+(o.length>20?"...":"")+'</span>':"\u2014";}},
@@ -1896,7 +1921,8 @@ function rSvc(fs,dayLabel){
   var hds=cols.map(function(c){return'<th>'+c.l+'</th>';}).join("")+'<th></th>';
   var trs=fs.map(function(r){
     var isPend=r.pagamento==="pendente";
-    var rowStyle=isPend?'style="background:#fbbf2410;border-left:3px solid #fbbf24"':'';
+    var isCliProf=r.captacao==="CLIENTE DO PROFISSIONAL";
+    var rowStyle=isPend?'style="background:#fbbf2410;border-left:3px solid #fbbf24"':isCliProf?'style="background:#7c3aed18;border-left:3px solid #a78bfa"':'';
     var tds=cols.map(function(c){var v=c.fn?c.fn(r):es(r[c.k]||"");return'<td'+(c.hi?' class="hi"':'')+'>'+v+'</td>';}).join("");
     return'<tr '+rowStyle+'>'+tds+'<td><button class="eb" data-edit="svc" data-id="'+r.id+'">ed</button> <button class="db" data-del="svc" data-id="'+r.id+'">\u00d7</button></td></tr>';
   }).join("");
@@ -1976,7 +2002,14 @@ function savDespesasFixas(){
 function rExp(fe){
   // Aplica filtro de período interno se definido
   var fI=S.expDe,fF=S.expAte;
-  var feF=(fI&&fF)?fe.filter(function(r){return r.date>=fI&&r.date<=fF;}):fe;
+  var feF=fe;
+  if(fI||fF){
+    feF=fe.filter(function(r){
+      if(fI&&r.date<fI)return false;
+      if(fF&&r.date>fF)return false;
+      return true;
+    }).slice().sort(function(a,b){return a.date.localeCompare(b.date);});
+  }
   // Ordem crescente por data
   feF=feF.slice().sort(function(a,b){return a.date.localeCompare(b.date);});
   var tP=feF.reduce(function(s,r){return s+r.valorPago;},0);
@@ -2842,7 +2875,7 @@ function rT(){
     fpPrd=fpPrd.slice().sort(function(a,b){return a.date.localeCompare(b.date);});
     h=rPrd(fpPrd);
   }
-  else if(S.tab==="expenses")h=rExp(fe);
+  else if(S.tab==="expenses")h=rExp((S.expDe||S.expAte)?D.exp.slice():fe);
   else if(S.tab==="advances")h=rAdv(fa);
   else if(S.tab==="prolabore")h=rPL(fs,fp,fa);
   else if(S.tab==="dre")h=rDRE(fs,fp,fe,fa);
@@ -3560,8 +3593,21 @@ function rConfig(){
     +'<button onclick="cfgSaveFidelidade()" style="cursor:pointer;background:#db2777;color:#fff;border:none;border-radius:6px;padding:8px 18px;font-size:13px;font-weight:600;margin-top:14px">\uD83D\uDCBE Salvar Fidelidade</button>'
     +'</div>';
 
+  // ── Freelancers ──────────────────────────────────────────────────────────────
+  var frees=getFreelancers();
+  html+=sec('\uD83D\uDCBC Profissionais Freelance','#fb923c');
+  html+='<div class="cd">'
+    +'<div style="font-size:11px;color:#71717a;margin-bottom:10px">Freelancers n\u00e3o recebem comiss\u00e3o de servi\u00e7os. Quando trabalham com um comissionado, o comissionado recebe 5%.</div>'
+    +'<div id="cfg-frees-list" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">'
+    +frees.map(function(n,i){return'<span style="background:#27272a;border:1px solid #3f3f46;color:#d4d4d8;padding:5px 10px;border-radius:20px;font-size:12px;display:inline-flex;align-items:center;gap:5px">'+es(n)+'<button onclick="cfgRmFree('+i+')" style="background:none;border:none;color:#f87171;cursor:pointer;font-size:14px;padding:0;line-height:1">\u00d7</button></span>';}).join("")
+    +'</div>'
+    +'<div style="display:flex;gap:8px;align-items:center">'
+    +'<div style="flex:1;min-width:0"><input type="text" id="cfg-free-new" placeholder="Nome do(a) freelancer (igual ao lançado em servi\u00e7os)" style="'+inp+'"></div>'
+    +'<button onclick="cfgAddFree()" style="'+smBtn+'">+ Adicionar</button>'
+    +'</div></div>';
+
   // ── Tokens Mercado Pago ───────────────────────────────────────────────────
-  html+=sec('\uD83D\uDD11 Tokens Mercado Pago','#fb923c');
+  html+=sec('\uD83D\uDD11 Tokens Mercado Pago','#a78bfa');
   html+='<div class="cd">'
     +'<div style="margin-bottom:12px"><label style="font-size:11px;color:#71717a;display:block;margin-bottom:4px">Access Token (pagamentos)</label>'
     +'<div style="display:flex;gap:8px;align-items:center"><div style="flex:1;min-width:0"><input type="password" id="cfg-mp-tok" placeholder="APP_USR-..." style="'+inp+'"></div>'
@@ -3649,6 +3695,22 @@ function cfgSaveTaxas(){
   TAXAS_CUSTOM=novas;
   db.collection("config").doc("taxasMaq").set({taxas:novas});
   showToast("\u2705 Taxas salvas!");
+}
+function cfgAddFree(){
+  var inp=document.getElementById("cfg-free-new");
+  if(!inp||!inp.value.trim())return;
+  var list=getFreelancers().slice();
+  list.push(inp.value.trim().toUpperCase());inp.value="";
+  cfgSaveFrees(list,true);
+}
+function cfgRmFree(i){
+  var list=getFreelancers().slice();list.splice(i,1);
+  cfgSaveFrees(list,true);
+}
+function cfgSaveFrees(list,redraw){
+  db.collection("config").doc("freelancers").set({list:list});
+  FREELANCERS_CUSTOM=list;
+  if(redraw)rT();else showToast("\u2705 Freelancers salvos!");
 }
 function cfgSaveFidelidade(){
   var v=parseInt(document.getElementById("cfg-fid-v").value)||10;
@@ -3862,10 +3924,13 @@ function slugFu(str){return(str||"").toUpperCase().replace(/[^A-Z0-9]/g,"_");}
 function marcarFollowupFeito(slug,dias){
   var hoje=hj();
   var docId=slug+"_"+dias+"_"+hoje;
-  // Atualização otimista: some da lista imediatamente, sem esperar Firestore
+  // Atualização otimista: some da lista imediatamente
   D.followupContatos[docId]=true;
+  // Backup local para persistir mesmo se Firestore falhar
+  try{localStorage.setItem("fu_"+docId,"1");}catch(e){}
   rT();
-  db.collection("followupContatos").doc(docId).set({cliente:slug,dias:dias,data:hoje,ts:new Date().toISOString()});
+  db.collection("followupContatos").doc(docId).set({cliente:slug,dias:dias,data:hoje,ts:new Date().toISOString()})
+    .catch(function(err){showToast("\u26a0\uFE0F Erro ao salvar contato: "+err.message,"#f87171");});
   showToast("\u2705 Contato registrado!");
 }
 function rFollowup(){
@@ -3884,6 +3949,8 @@ function rFollowup(){
       if(seen[k])return false;seen[k]=true;
       var docId=slugFu(r.cliente)+"_"+m+"_"+hj();
       if(D.followupContatos[docId])return false;
+      // Verifica também o backup local
+      try{if(localStorage.getItem("fu_"+docId))return false;}catch(e){}
       return true;
     });
   });
