@@ -1788,24 +1788,28 @@ function rDash(fsOrig,fpOrig,feOrig,faOrig){
   var titulo=isDay?("Dashboard \u2014 "+fdt(dayStr)):("Dashboard \u2014 "+MESES[S.month]+" "+S.year);
   var byP={};fs.forEach(function(r){(r.profissionais||[r.profissional]).forEach(function(p){if(p)byP[p]=(byP[p]||0)+effVal(r);});});
   var profD=Object.keys(byP).map(function(k){return{n:k,v:Math.round(byP[k])};}).sort(function(a,b){return b.v-a.v;}).slice(0,8);
-  // Captação: clientes únicas por canal — usa o canal mais específico encontrado no mês
-  var _cliCanal={};
-  var byC={};
+  // Captação: clientes únicas — canal mais frequente nos serviços do período
+  var _cliVotos={};   // cliente → {canal: contagem}
+  var _cliVisto={};   // cliente já contabilizada
   fs.forEach(function(r){
     if(!r.cliente)return;
-    var canal=r.captacao||"Sem canal";
-    if(!_cliCanal[r.cliente]){
-      // Primeira ocorrência desta cliente
-      _cliCanal[r.cliente]=canal;
-      byC[canal]=(byC[canal]||0)+1;
-    } else if(_cliCanal[r.cliente]==="Sem canal"&&canal!=="Sem canal"){
-      // Tinha "Sem canal" mas agora achamos o canal real → faz upgrade
-      byC["Sem canal"]=Math.max(0,(byC["Sem canal"]||1)-1);
-      if(!byC["Sem canal"])delete byC["Sem canal"];
-      _cliCanal[r.cliente]=canal;
-      byC[canal]=(byC[canal]||0)+1;
+    if(!_cliVotos[r.cliente])_cliVotos[r.cliente]={};
+    if(r.captacao){
+      var v=_cliVotos[r.cliente];
+      v[r.captacao]=(v[r.captacao]||0)+1;
     }
-    // Se já tem canal nomeado, ignora ocorrências posteriores
+    _cliVisto[r.cliente]=true;
+  });
+  var byC={};
+  Object.keys(_cliVisto).forEach(function(cli){
+    var votos=_cliVotos[cli]||{};
+    var canais=Object.keys(votos);
+    var canal="Sem canal";
+    if(canais.length){
+      // Canal com mais ocorrências para esta cliente
+      canal=canais.reduce(function(a,b){return votos[a]>=votos[b]?a:b;});
+    }
+    byC[canal]=(byC[canal]||0)+1;
   });
   var capD=Object.keys(byC).map(function(k){return{n:k,v:byC[k]};}).sort(function(a,b){return b.v-a.v;});
   var byS={};var bySQ={};fs.forEach(function(r){byS[r.trabalho]=(byS[r.trabalho]||0)+r.valor;bySQ[r.trabalho]=(bySQ[r.trabalho]||0)+1;});
