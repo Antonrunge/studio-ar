@@ -2711,6 +2711,7 @@ document.addEventListener("click",function(e){
   var ns=e.target.closest("[data-new-agn]");if(ns){var pts=ns.dataset.newAgn.split("|");openAgn(pts[0],pts[1],pts[2]);return;}
   var ea=e.target.closest("[data-edit-agn]");if(ea){openAgn(null,null,null,ea.dataset.editAgn);return;}
   var ag=e.target.closest("[data-agn-goto]");if(ag){var agp=ag.dataset.agnGoto.split("|");goToAgn(agp[0],agp[1]);return;}
+  var fc=e.target.closest("[data-followup-confirm]");if(fc){var fcp=fc.dataset.followupConfirm.split("|");confirmarFollowup(fcp[0],fcp[1]);return;}
   var dp=e.target.closest("[data-del-prof]");if(dp){delProf(dp.dataset.delProf);return;}
   var bt=e.target.closest("[data-bd-tab]");if(bt){S.bdTab=bt.dataset.bdTab;rT();return;}
   var it=e.target.closest("[data-imptab]");if(it){_impTab=it.dataset.imptab;renderImpTab();return;}
@@ -2913,10 +2914,32 @@ function getAvisosPosAtendimento(){
     if(!r.cliente||!r.date)return;
     var d=ds(r.date);
     diasChave.forEach(function(meta){
-      if(d===meta)avisos.push({nome:r.cliente,tel:r.telefone||"",servico:r.trabalho,data:r.date,diasAtras:meta,acao:marcos[meta]});
+      if(d===meta){
+        var st=r.followupStatus&&r.followupStatus[meta];
+        if(st&&st.concluido)return;
+        avisos.push({id:r.id,nome:r.cliente,tel:r.telefone||"",servico:r.trabalho,data:r.date,diasAtras:meta,acao:marcos[meta]});
+      }
     });
   });
   return avisos;
+}
+function confirmarFollowup(svcId,dia){
+  dia=parseInt(dia);
+  var campo="followupStatus."+dia;
+  var upd={};
+  upd[campo]={concluido:true,por:CURRENT_USER?CURRENT_USER.nome:"",em:hj()};
+  db.collection("servicos").doc(svcId).update(upd).then(function(){
+    var svc=D.svc.find(function(s){return s.id===svcId;});
+    if(svc){if(!svc.followupStatus)svc.followupStatus={};svc.followupStatus[dia]={concluido:true};}
+    showToast("\u2705 Contato confirmado!");
+    rT();
+  }).catch(function(err){showToast("\u274c Erro: "+err.message,"#f43f5e");});
+}
+function waLinkFollowup(tel){
+  var d=(tel||"").replace(/\D/g,"");
+  if(!d)return"";
+  if(d.length<=11)d="55"+d;
+  return"https://wa.me/"+d;
 }
 function rAvisosPosAtendimento(){
   var av=getAvisosPosAtendimento();
@@ -2924,9 +2947,14 @@ function rAvisosPosAtendimento(){
   return'<div class="cd" style="border-left:3px solid #38bdf8;margin-bottom:14px">'
     +'<div class="ct" style="color:#38bdf8">\uD83D\uDCC5 Follow-up Pós-atendimento ('+av.length+')</div>'
     +av.map(function(a){
-      return'<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #27272a;font-size:11px">'
+      var wa=waLinkFollowup(a.tel);
+      return'<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #27272a;font-size:11px;gap:8px;flex-wrap:wrap">'
         +'<div><strong style="color:#f1f5f9">'+es(a.nome)+'</strong><span style="color:#71717a;margin-left:6px">'+es(a.servico)+'</span></div>'
-        +'<div style="text-align:right"><div style="color:#38bdf8">'+a.acao+'</div><div style="color:#71717a">'+es(a.tel||"sem telefone")+' &bull; '+fdt(a.data)+'</div></div></div>';
+        +'<div style="text-align:right;display:flex;align-items:center;gap:8px">'
+        +'<div><div style="color:#38bdf8">'+a.acao+'</div><div style="color:#71717a">'+es(a.tel||"sem telefone")+' &bull; '+fdt(a.data)+'</div></div>'
+        +(wa?'<a href="'+wa+'" target="_blank" style="background:#25d366;color:#fff;padding:5px 10px;border-radius:6px;font-size:11px;text-decoration:none;white-space:nowrap">\uD83D\uDCAC WhatsApp</a>':'')
+        +'<button class="pb" style="font-size:11px;padding:5px 10px;white-space:nowrap" data-followup-confirm="'+a.id+'|'+a.diasAtras+'">\u2714 Confirmar Contato</button>'
+        +'</div></div>';
     }).join("")+'</div>';
 }
 
