@@ -19,7 +19,6 @@ html,body{height:100%;overflow:hidden;background:#09090b;color:#f1f5f9;font-fami
 .mh{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
 .mh h2{font-size:16px;font-weight:600;color:#f1f5f9}
 .xb{background:none;border:none;color:#71717a;cursor:pointer;font-size:22px;line-height:1;padding:0}
-#msg-input{flex:1;width:auto !important;min-width:0}
 input,select,textarea{width:100%;background:#27272a;border:1px solid #3f3f46;border-radius:7px;padding:8px 11px;color:#f1f5f9;font-size:12px;outline:none;box-sizing:border-box;font-family:inherit}
 textarea{min-height:60px;resize:vertical}
 input:focus,select:focus,textarea:focus{border-color:#f43f5e66}
@@ -91,8 +90,8 @@ td.hi{color:#f43f5e;font-weight:500}td.gr{color:#34d399;font-weight:500}
 .mtabs{display:flex;gap:6px;margin-bottom:14px}
 .mtab{background:#27272a;border:1px solid #3f3f46;color:#a1a1aa;border-radius:6px;padding:5px 12px;font-size:11px;cursor:pointer}
 .mtab.on{background:#f43f5e;border-color:#f43f5e;color:#fff;font-weight:600}
-.bkp-bar{padding:6px 8px;border-top:1px solid #1f1f23;background:#0f0f12;display:flex;flex-wrap:wrap;gap:3px}
-.bkp-bar button{flex:1 1 auto;padding:5px 4px;border-radius:5px;font-size:9px;font-weight:600;cursor:pointer;border:none;min-width:0}
+.bkp-bar{padding:8px 10px;border-top:1px solid #1f1f23;background:#0f0f12}
+.bkp-bar button{width:100%;padding:7px;border-radius:6px;font-size:10px;font-weight:600;cursor:pointer;margin-bottom:4px;border:none}
 .bkp-save{background:#34d39922;color:#34d399;border:1px solid #34d39944 !important}
 .bkp-load{background:#38bdf822;color:#38bdf8;border:1px solid #38bdf844 !important}
 .bkp-toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#34d399;color:#000;padding:8px 18px;border-radius:8px;font-size:12px;font-weight:600;z-index:9999;opacity:0;transition:opacity .3s}
@@ -731,8 +730,8 @@ function rSb(){
     +'<select id="sl-m" style="margin-bottom:4px">'+mOpts+'</select>'
     +'<select id="sl-y" style="margin-bottom:4px">'+yOpts+'</select>'
     +'<select id="sl-d">'+dOpts+'</select></div>'
-    +'<nav style="flex:1;padding:6px;overflow-y:auto;min-height:0">'+navBtns+'</nav>'
-    +(CURRENT_USER&&CURRENT_USER.role==="admin"?'<div class="bkp-bar"><button class="bkp-save" onclick="openPix()" title="PIX">&#128178; PIX</button><button class="bkp-save" onclick="openMpConfig()" title="Token MP">&#128273; MP</button><button class="bkp-save" onclick="openFidelidadeConfig()" title="Fidelidade">&#127881;</button><button class="bkp-save" onclick="openCatalog()" title="Cat\u00e1logo">&#128230;</button><button class="bkp-save" onclick="exportJSON()" title="Backup">&#128190;</button><button class="bkp-load" onclick="importJSON()" title="Migrar">&#128194;</button></div>'
+    +'<nav style="flex:1;padding:6px;overflow-y:auto">'+navBtns+'</nav>'
+    +(CURRENT_USER&&CURRENT_USER.role==="admin"?'<div class="bkp-bar"><button class="bkp-save" onclick="openPix()">&#128178; PIX</button><button class="bkp-save" onclick="openMpConfig()">&#128273; Token MP</button><button class="bkp-save" onclick="openFidelidadeConfig()">&#127881; Fidelidade</button><button class="bkp-save" onclick="openCatalog()">&#128230; Cat&aacute;logo</button><button class="bkp-save" onclick="exportJSON()">&#128190; Backup</button><button class="bkp-load" onclick="importJSON()">&#128194; Migrar</button></div>'
       :(CURRENT_USER&&(CURRENT_USER.role==="recepcao"||CURRENT_USER.role==="comercial")?'<div class="bkp-bar"><button class="bkp-save" onclick="openPix()">&#128178; PIX</button><button class="bkp-save" onclick="openMpPayment()">&#128179; MP</button></div>':''))
     +'<div class="user-badge"><div><div class="nm">'+es(CURRENT_USER?CURRENT_USER.nome:"")+'</div><div class="rl"><span class="sync-dot"></span>'+es(ROLE_LABELS[CURRENT_USER?CURRENT_USER.role:""]||"")+'</div></div><button onclick="doLogout()">Sair</button></div>'
     +'<div style="padding:8px 14px;border-top:1px solid #1f1f23;font-size:10px;color:#3f3f46">Online \u00b7 Studio A R</div>';
@@ -846,11 +845,9 @@ function openS(editId){
     var msDesc=document.getElementById("ms-desc");if(msDesc&&r&&r.desconto)msDesc.value=String(r.desconto);
     upCom();
   } else {
-    // modo novo: renderizar itens e pgtos dinâmicos após DOM estar pronto
-    setTimeout(function(){
-      renderMsItems();
-      renderPgItems();
-    },0);
+    // modo novo: renderizar itens e pgtos dinâmicos
+    renderMsItems();
+    renderPgItems();
     // sinal checkbox toggle
     var ehSinal=document.getElementById("ms-eh-sinal");
     if(ehSinal)ehSinal.onchange=function(){
@@ -3258,9 +3255,9 @@ function rMensagens(){
     +'<div class="ph"><h2>\uD83D\uDCAC Mensagens Internas</h2>'
     +'<div style="font-size:11px;color:#71717a">Chat em tempo real entre toda a equipe</div></div>'
     +'<div id="msg-feed" style="flex:1;overflow-y:auto;padding:12px 0;margin-bottom:10px">'+bubbles+'</div>'
-    +'<div style="display:flex;gap:8px;padding:10px 0;border-top:1px solid #27272a;align-items:center">'
-    +'<input type="text" id="msg-input" placeholder="Digite aqui e pressione Enter..." onkeydown="if(event.key===\'Enter\'&&!event.shiftKey){event.preventDefault();enviarMsg();}">'
-    +'<button onclick="enviarMsg()" style="flex-shrink:0;width:44px;height:44px;border-radius:50%;background:#f43f5e;border:none;color:#fff;font-size:20px;cursor:pointer">\u27A4</button>'
+    +'<div style="display:flex;gap:8px;padding:10px 0;border-top:1px solid #27272a">'
+    +'<input type="text" id="msg-input" placeholder="Digite sua mensagem..." style="flex:1;color:#f1f5f9;background:#27272a;border:1px solid #3f3f46" onkeydown="if(event.key===\'Enter\'&&!event.shiftKey){event.preventDefault();enviarMsg();}">'
+    +'<button class="pb" onclick="enviarMsg()" style="flex-shrink:0;padding:10px 16px">\u27A4 Enviar</button>'
     +'</div></div>';
 }
 function enviarMsg(){
