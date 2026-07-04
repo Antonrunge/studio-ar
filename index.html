@@ -2679,7 +2679,15 @@ function rT(){
   if(S.tab==="dashboard")h=rDash(fs,fp,fe,fa);
   else if(S.tab==="agenda")h=rAgenda();
   else if(S.tab==="followup")h=rFollowup();
-  else if(S.tab==="services")h=rSvc(fs);
+  else if(S.tab==="services"){
+    var svcData=fs;
+    if(S.day>0){
+      var svcDd=S.day<10?"0"+S.day:String(S.day);
+      var svcMm=(S.month+1)<10?"0"+(S.month+1):String(S.month+1);
+      svcData=fday(D.svc,S.year+"-"+svcMm+"-"+svcDd);
+    }
+    h=rSvc(svcData);
+  }
   else if(S.tab==="products")h=rPrd(fp);
   else if(S.tab==="expenses")h=rExp(fe);
   else if(S.tab==="advances")h=rAdv(fa);
