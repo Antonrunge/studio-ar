@@ -4,13 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Studio A R — Gestão Online</title>
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#f43f5e">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Studio A R">
-<link rel="apple-touch-icon" href="icon-192.png">
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
@@ -197,16 +190,8 @@ td.hi{color:#f43f5e;font-weight:500}td.gr{color:#34d399;font-weight:500}
     <h1>&#10010; Studio A R</h1>
     <div class="sub">Acesso ao sistema de gest&#227;o</div>
     <div class="login-err" id="login-err"></div>
-    <div class="fi"><label>E-mail</label><input type="email" id="lg-email" placeholder="seu-setor@studioar.com" autocomplete="email"></div>
-    <div class="fi"><label>Senha</label>
-      <div style="position:relative">
-        <input type="password" id="lg-pass" placeholder="********" autocomplete="current-password" style="padding-right:42px">
-        <button type="button" onclick="toggleSenha()" id="lg-eye" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#71717a;font-size:16px;padding:0;width:auto">&#128065;</button>
-      </div>
-    </div>
-    <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:#71717a;margin-bottom:12px;cursor:pointer">
-      <input type="checkbox" id="lg-lembrar" style="width:auto;accent-color:#f43f5e"> Lembrar meu acesso neste dispositivo
-    </label>
+    <div class="fi"><label>E-mail</label><input type="email" id="lg-email" placeholder="seu-setor@studioar.com"></div>
+    <div class="fi"><label>Senha</label><input type="password" id="lg-pass" placeholder="********"></div>
     <button class="pb" id="lg-btn">Entrar</button>
     <div id="login-loading">Conectando&#8230;</div>
   </div>
@@ -331,8 +316,8 @@ function openAdminAuthModal(onSuccess){
 
 var CURRENT_USER = null; // {uid, email, role, nome}
 var ROLE_TABS = {
-  admin: ["dashboard","agenda","followup","leads","services","products","expenses","advances","prolabore","dre","clients","db","requests","audit","estoque","arprof","fornecedores","mensagens"],
-  recepcao: ["agenda","followup","services","products","clients","requests","estoque","mensagens"],
+  admin: ["dashboard","agenda","leads","services","products","expenses","advances","prolabore","dre","clients","db","requests","audit","estoque","arprof","fornecedores","mensagens"],
+  recepcao: ["agenda","services","products","clients","requests","estoque","mensagens"],
   financeiro: ["dashboard","expenses","advances","prolabore","dre","arprof","mensagens"],
   marketing: ["clients","mensagens"],
   profissional: ["agenda","prolabore","mensagens"],
@@ -722,7 +707,7 @@ function tbl(rows,cols,type){
 function kp(l,v,s){return'<div class="kp"><div class="kl">'+l+'</div><div class="kv">'+v+'</div>'+(s?'<div class="ks">'+s+'</div>':'')+'</div>';}
 
 /* SIDEBAR */
-var NAV=[["dashboard","\uD83D\uDCCA","Dashboard"],["agenda","\uD83D\uDCC5","Agenda"],["followup","\uD83D\uDCF2","Follow-up"],["services","\u2702\uFE0F","Servi\u00e7os"],["products","\uD83E\uDDF4","Produtos"],["expenses","\uD83D\uDCB8","Despesas"],["advances","\uD83D\uDCB5","Adiantamentos"],["prolabore","\uD83D\uDC65","Pr\u00f3-Labore"],["dre","\uD83D\uDCC8","DRE / DFC"],["clients","\uD83D\uDC69","Clientes"],["leads","\uD83C\uDFAF","Leads"],["db","\uD83D\uDDC4\uFE0F","Banco de Dados"],["requests","\uD83D\uDCE5","Solicita\u00e7\u00f5es Online"],["audit","\uD83D\uDD0D","Auditoria"],["estoque","\uD83E\uDDF4","Estoque"],["arprof","\uD83C\uDFF7\uFE0F","A R Professional"],["fornecedores","\uD83D\uDE9A","Fornecedores"],["mensagens","\uD83D\uDCAC","Mensagens"]];
+var NAV=[["dashboard","\uD83D\uDCCA","Dashboard"],["agenda","\uD83D\uDCC5","Agenda"],["services","\u2702\uFE0F","Servi\u00e7os"],["products","\uD83E\uDDF4","Produtos"],["expenses","\uD83D\uDCB8","Despesas"],["advances","\uD83D\uDCB5","Adiantamentos"],["prolabore","\uD83D\uDC65","Pr\u00f3-Labore"],["dre","\uD83D\uDCC8","DRE / DFC"],["clients","\uD83D\uDC69","Clientes"],["leads","\uD83C\uDFAF","Leads"],["db","\uD83D\uDDC4\uFE0F","Banco de Dados"],["requests","\uD83D\uDCE5","Solicita\u00e7\u00f5es Online"],["audit","\uD83D\uDD0D","Auditoria"],["estoque","\uD83E\uDDF4","Estoque"],["arprof","\uD83C\uDFF7\uFE0F","A R Professional"],["fornecedores","\uD83D\uDE9A","Fornecedores"],["mensagens","\uD83D\uDCAC","Mensagens"]];
 var DIVULGADORES_CUSTOM=null;
 var DIVULGADORES_DEFAULT=["Lorran","Isabela","Diane","Anton"];
 function getDivulgadores(){return DIVULGADORES_CUSTOM||DIVULGADORES_DEFAULT;}
@@ -1760,6 +1745,7 @@ function rDash(fsOrig,fpOrig,feOrig,faOrig){
   return'<div class="pg">'
     +'<div class="ph"><h2>'+titulo+badge+'</h2></div>'
     +rAvisosHoje()
+    +rAvisosPosAtendimento()
     +'<div class="kg">'
     +kp(isDay?"Fat. Bruto (Dia)":"Fat. Bruto M\u00eas",fms(rB),fs.length+" atend.")
     +kp("Fat. L\u00edquido",fms(rL),"-"+fms(rB-rL)+" maq.")
@@ -1806,7 +1792,6 @@ function rAgenda(){
   var prevD=dateAddDays(d,-1),nextD=dateAddDays(d,1);
   return'<div class="pg"><div class="ph"><h2>Agenda</h2><div class="ph-btns">'
     +(CURRENT_USER&&CURRENT_USER.role==="admin"?'<button class="gb" onclick="openAgendaConfig()">&#9881; Configurar</button>':'')
-    +'<button class="gb" onclick="openAgnSearch()">&#128269; Buscar Cliente</button>'
     +'<button class="ab" onclick="openAgn()">+ Agendamento</button></div></div>'
     +'<div class="agn-nav"><button class="gb" data-agn-nav="'+prevD+'">← Anterior</button>'
     +'<span class="agn-date">'+fdtLong(d)+'</span>'
@@ -1819,59 +1804,6 @@ function rAgenda(){
     +'<span style="color:#38bdf8;margin-left:8px">\u{1F464} = divulgador</span></div></div>';
 }
 
-function openAgnSearch(){
-  omod(mhdr("Buscar Cliente Agendado")
-    +'<div class="fi"><input type="text" id="agn-search-q" placeholder="Digite o nome da cliente..." autocomplete="off"></div>'
-    +'<div id="agn-search-res" style="max-height:360px;overflow:auto;margin-top:6px"></div>');
-  var inp=document.getElementById("agn-search-q");
-  inp.addEventListener("input",function(){renderAgnSearchResults(inp.value);});
-  renderAgnSearchResults("");
-  setTimeout(function(){inp.focus();},50);
-}
-function renderAgnSearchResults(q){
-  var res=document.getElementById("agn-search-res");
-  if(!res)return;
-  q=(q||"").trim().toLowerCase();
-  if(!q){res.innerHTML='<div class="emp">Digite o nome da cliente para buscar.</div>';return;}
-  var list=(D.agn||[]).filter(function(a){return(a.client||"").toLowerCase().indexOf(q)>=0;})
-    .sort(function(a,b){return(b.date+b.time).localeCompare(a.date+a.time);});
-  if(!list.length){res.innerHTML='<div class="emp">Nenhum agendamento encontrado.</div>';return;}
-  var STATUS_COLOR={confirmado:"#34d399",pendente:"#fbbf24",cancelado:"#f87171"};
-  res.innerHTML=list.map(function(a){
-    return'<div data-agn-goto="'+a.id+'|'+a.date+'" style="cursor:pointer;background:#1f1f23;border:1px solid #27272a;border-radius:7px;padding:9px 13px;margin-bottom:8px">'
-      +'<div style="font-size:13px;font-weight:600;color:#f1f5f9">'+es(a.client)+'</div>'
-      +'<div style="font-size:11px;color:#a1a1aa;margin-top:2px">'+fdt(a.date)+' \u00e0s '+es(a.time)+' &middot; '+es(a.professional)+' &middot; '+es(a.service)
-      +' &middot; <span style="color:'+(STATUS_COLOR[a.status]||"#a1a1aa")+'">'+es(a.status)+'</span></div>'
-      +(a.phone?'<div style="font-size:10px;color:#71717a;margin-top:2px">'+es(a.phone)+'</div>':'')
-      +'</div>';
-  }).join("");
-}
-function goToAgn(id,date){
-  cmod();
-  S.agnDate=date;
-  S.tab="agenda";
-  rSb();rT();
-  setTimeout(function(){openAgn(null,null,null,id);},60);
-}
-var SVC_VALS_UNLOCKED=false;
-function svcValsVisible(){return(CURRENT_USER&&CURRENT_USER.role==="admin")||SVC_VALS_UNLOCKED;}
-function openSvcValuesAuth(){
-  if(SVC_VALS_UNLOCKED){SVC_VALS_UNLOCKED=false;rT();return;}
-  omod(mhdr("Acesso aos Valores")
-    +'<div style="font-size:11px;color:#a1a1aa;margin-bottom:14px">Informe a senha para visualizar o faturamento e demais valores.</div>'
-    +'<div id="sv-err" style="display:none;background:#f43f5e18;border:1px solid #f43f5e44;color:#f87171;font-size:11px;padding:8px 11px;border-radius:7px;margin-bottom:12px"></div>'
-    +'<div class="fi"><label>Senha</label><input type="password" id="sv-pass" autocomplete="off"></div>'
-    +'<button class="pb" id="sv-btn">Confirmar</button>');
-  var passEl=document.getElementById("sv-pass");
-  passEl.addEventListener("keydown",function(e){if(e.key==="Enter")document.getElementById("sv-btn").click();});
-  document.getElementById("sv-btn").onclick=function(){
-    var pass=passEl.value;
-    var errEl=document.getElementById("sv-err");
-    if(pass==="7485"){SVC_VALS_UNLOCKED=true;cmod();rT();}
-    else{errEl.textContent="Senha incorreta.";errEl.style.display="block";}
-  };
-  setTimeout(function(){passEl.focus();},50);
-}
 function rSvc(fs){
   var tB=fs.reduce(function(s,r){return s+effVal(r);},0);
   var tL=fs.reduce(function(s,r){return s+fl(effVal(r),r.formaPagamento);},0);
@@ -1907,18 +1839,10 @@ function rSvc(fs){
     return'<tr '+rowStyle+'>'+tds+'<td><button class="eb" data-edit="svc" data-id="'+r.id+'">ed</button> <button class="db" data-del="svc" data-id="'+r.id+'">\u00d7</button></td></tr>';
   }).join("");
   var tableHtml='<div class="ox"><table><thead><tr>'+hds+'</tr></thead><tbody>'+trs+'</tbody></table></div>';
-  var showVals=svcValsVisible();
-  var eyeBtn=(CURRENT_USER&&CURRENT_USER.role!=="admin")?'<button class="gb" onclick="openSvcValuesAuth()">'+(showVals?"\uD83D\uDE48 Ocultar Valores":"\uD83D\uDC41\uFE0F Ver Valores")+'</button>':'';
-  var mask="\u2022\u2022\u2022\u2022";
-  var kgHtml='<div class="kg">'+(showVals
-    ?(kp("Fat. Bruto",fmt(tB),fs.length+" atend.")+kp("Fat. L\u00edquido",fmt(tL),"Taxa maq.: "+fmt(tB-tL))+kp("Total Comiss\u00f5es",fmt(tC))+kp("Custo Material",fmt(tM))+kp("Descontos",fmt(tDesc)))
-    :(kp("Fat. Bruto",mask,fs.length+" atend.")+kp("Fat. L\u00edquido",mask)+kp("Total Comiss\u00f5es",mask)+kp("Custo Material",mask)+kp("Descontos",mask))
-    )+(pendentes?kp('\uD83D\uDFE1 Pend. Pagamento',pendentes,"aguardando"):'')+'</div>';
   return'<div class="pg"><div class="ph"><h2>Servi\u00e7os &mdash; '+MESES[S.month]+' '+S.year+'</h2>'
     +'<div class="ph-btns"><button class="ab" onclick="openS()">\uFF0B Novo Servi\u00e7o</button>'
-    +eyeBtn
     +'<button class="gb" onclick="openRelDia()">&#128200; Relat\u00f3rio do Dia</button></div></div>'
-    +kgHtml
+    +'<div class="kg">'+kp("Fat. Bruto",fmt(tB),fs.length+" atend.")+kp("Fat. L\u00edquido",fmt(tL),"Taxa maq.: "+fmt(tB-tL))+kp("Total Comiss\u00f5es",fmt(tC))+kp("Custo Material",fmt(tM))+kp("Descontos",fmt(tDesc))+(pendentes?kp('\uD83D\uDFE1 Pend. Pagamento',pendentes,"aguardando"):'')+'</div>'
     +(pendentes?'<div style="background:#fbbf2420;border:1px solid #fbbf2440;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:11px;color:#fbbf24">&#9888; <strong>'+pendentes+' atendimento(s) com pagamento pendente</strong> &mdash; linhas em amarelo abaixo</div>':"")
     +'<div class="cd">'+tableHtml+'</div></div>';
 }
@@ -2552,15 +2476,6 @@ function saveLeadContact(){
     autor:CURRENT_USER?CURRENT_USER.nome:"",
     divulgador:document.getElementById("ld-div")?document.getElementById("ld-div").value:""
   };
-  if(etapa==="agendado"){
-    db.collection("leads").doc(id).update({
-      historico:firebase.firestore.FieldValue.arrayUnion(entry)
-    });
-    cmod();
-    showToast("Contato registrado. Finalize o agendamento na agenda.");
-    leadToAgenda(id);
-    return;
-  }
   db.collection("leads").doc(id).update({
     historico:firebase.firestore.FieldValue.arrayUnion(entry),
     etapa:etapa,proximoContato:prox||null
@@ -2678,7 +2593,6 @@ function rT(){
   var h="";
   if(S.tab==="dashboard")h=rDash(fs,fp,fe,fa);
   else if(S.tab==="agenda")h=rAgenda();
-  else if(S.tab==="followup")h=rFollowup();
   else if(S.tab==="services")h=rSvc(fs);
   else if(S.tab==="products")h=rPrd(fp);
   else if(S.tab==="expenses")h=rExp(fe);
@@ -2710,8 +2624,6 @@ document.addEventListener("click",function(e){
   var an=e.target.closest("[data-agn-nav]");if(an){S.agnDate=an.dataset.agnNav;rT();return;}
   var ns=e.target.closest("[data-new-agn]");if(ns){var pts=ns.dataset.newAgn.split("|");openAgn(pts[0],pts[1],pts[2]);return;}
   var ea=e.target.closest("[data-edit-agn]");if(ea){openAgn(null,null,null,ea.dataset.editAgn);return;}
-  var ag=e.target.closest("[data-agn-goto]");if(ag){var agp=ag.dataset.agnGoto.split("|");goToAgn(agp[0],agp[1]);return;}
-  var fc=e.target.closest("[data-followup-confirm]");if(fc){var fcp=fc.dataset.followupConfirm.split("|");confirmarFollowup(fcp[0],fcp[1]);return;}
   var dp=e.target.closest("[data-del-prof]");if(dp){delProf(dp.dataset.delProf);return;}
   var bt=e.target.closest("[data-bd-tab]");if(bt){S.bdTab=bt.dataset.bdTab;rT();return;}
   var it=e.target.closest("[data-imptab]");if(it){_impTab=it.dataset.imptab;renderImpTab();return;}
@@ -2914,67 +2826,21 @@ function getAvisosPosAtendimento(){
     if(!r.cliente||!r.date)return;
     var d=ds(r.date);
     diasChave.forEach(function(meta){
-      if(d===meta){
-        var st=r.followupStatus&&r.followupStatus[meta];
-        if(st&&st.concluido)return;
-        avisos.push({id:r.id,nome:r.cliente,tel:r.telefone||"",servico:r.trabalho,data:r.date,diasAtras:meta,acao:marcos[meta]});
-      }
+      if(d===meta)avisos.push({nome:r.cliente,tel:r.telefone||"",servico:r.trabalho,data:r.date,diasAtras:meta,acao:marcos[meta]});
     });
   });
   return avisos;
 }
-function confirmarFollowup(svcId,dia){
-  dia=parseInt(dia);
-  var campo="followupStatus."+dia;
-  var upd={};
-  upd[campo]={concluido:true,por:CURRENT_USER?CURRENT_USER.nome:"",em:hj()};
-  db.collection("servicos").doc(svcId).update(upd).then(function(){
-    var svc=D.svc.find(function(s){return s.id===svcId;});
-    if(svc){if(!svc.followupStatus)svc.followupStatus={};svc.followupStatus[dia]={concluido:true};}
-    showToast("\u2705 Contato confirmado!");
-    rT();
-  }).catch(function(err){showToast("\u274c Erro: "+err.message,"#f43f5e");});
-}
-function waLinkFollowup(tel){
-  var d=(tel||"").replace(/\D/g,"");
-  if(!d)return"";
-  if(d.length<=11)d="55"+d;
-  return"https://wa.me/"+d;
-}
 function rAvisosPosAtendimento(){
   var av=getAvisosPosAtendimento();
   if(!av.length)return"";
-  var MARCO_COR={1:"#38bdf8",7:"#a78bfa",15:"#fbbf24",30:"#34d399"};
-  var MARCO_ICON={1:"\uD83D\uDE0A",7:"\uD83D\uDC87",15:"\uD83D\uDECD\uFE0F",30:"\uD83C\uDFAF"};
-  var grupos={1:[],7:[],15:[],30:[]};
-  av.forEach(function(a){grupos[a.diasAtras].push(a);});
-  var html="";
-  [1,7,15,30].forEach(function(dia){
-    var itens=grupos[dia];
-    if(!itens.length)return;
-    var cor=MARCO_COR[dia];
-    html+='<div class="cd" style="border-left:3px solid '+cor+';margin-bottom:14px">'
-      +'<div class="ct" style="color:'+cor+'">'+MARCO_ICON[dia]+' '+dia+' dia(s) \u2014 '+es(itens[0].acao)+' ('+itens.length+')</div>'
-      +itens.map(function(a){
-        var wa=waLinkFollowup(a.tel);
-        return'<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #27272a;font-size:11px;gap:8px;flex-wrap:wrap">'
-          +'<div><strong style="color:#f1f5f9">'+es(a.nome)+'</strong><span style="color:#71717a;margin-left:6px">'+es(a.servico)+'</span></div>'
-          +'<div style="display:flex;align-items:center;gap:8px">'
-          +'<div style="text-align:right"><div style="color:'+cor+'">'+fdt(a.data)+'</div><div style="color:#71717a">'+es(a.tel||"sem telefone")+'</div></div>'
-          +(wa?'<a href="'+wa+'" target="_blank" style="background:#25d366;color:#fff;padding:5px 10px;border-radius:6px;font-size:11px;text-decoration:none;white-space:nowrap">\uD83D\uDCAC WhatsApp</a>':'')
-          +'<button class="pb" style="font-size:11px;padding:5px 10px;white-space:nowrap" data-followup-confirm="'+a.id+'|'+a.diasAtras+'">\u2714 Confirmar Contato</button>'
-          +'</div></div>';
-      }).join("")
-      +'</div>';
-  });
-  return html;
-}
-
-function rFollowup(){
-  var body=rAvisosPosAtendimento();
-  return'<div class="pg"><div class="ph"><h2>\uD83D\uDCF2 Follow-up P\u00f3s-Atendimento</h2></div>'
-    +(body||'<div class="cd"><div class="emp">Nenhum follow-up pendente hoje.</div></div>')
-    +'</div>';
+  return'<div class="cd" style="border-left:3px solid #38bdf8;margin-bottom:14px">'
+    +'<div class="ct" style="color:#38bdf8">\uD83D\uDCC5 Follow-up Pós-atendimento ('+av.length+')</div>'
+    +av.map(function(a){
+      return'<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #27272a;font-size:11px">'
+        +'<div><strong style="color:#f1f5f9">'+es(a.nome)+'</strong><span style="color:#71717a;margin-left:6px">'+es(a.servico)+'</span></div>'
+        +'<div style="text-align:right"><div style="color:#38bdf8">'+a.acao+'</div><div style="color:#71717a">'+es(a.tel||"sem telefone")+' &bull; '+fdt(a.data)+'</div></div></div>';
+    }).join("")+'</div>';
 }
 
 /* ─ DIVULGADOR NO LEAD ─ */
@@ -3425,33 +3291,6 @@ document.getElementById("mb-toggle").addEventListener("click",toggleMobileSideba
 document.getElementById("sb-backdrop").addEventListener("click",closeMobileSidebar);
 document.getElementById("lg-btn").onclick=doLogin;
 document.getElementById("lg-pass").addEventListener("keydown",function(e){if(e.key==="Enter")doLogin();});
-// olhinho da senha
-function toggleSenha(){
-  var inp=document.getElementById("lg-pass");
-  var btn=document.getElementById("lg-eye");
-  if(inp.type==="password"){inp.type="text";btn.textContent="\uD83D\uDE48";}
-  else{inp.type="password";btn.textContent="\uD83D\uDC41\uFE0F";}
-}
-// lembrar acesso
-(function(){
-  var saved=null;
-  try{saved=JSON.parse(localStorage.getItem("studioar_login"));}catch(e){}
-  if(saved&&saved.email){
-    document.getElementById("lg-email").value=saved.email;
-    document.getElementById("lg-pass").value=saved.pass||"";
-    document.getElementById("lg-lembrar").checked=true;
-  }
-})();
-var _origDoLogin=doLogin;
-doLogin=function(){
-  var lembrar=document.getElementById("lg-lembrar").checked;
-  if(lembrar){
-    try{localStorage.setItem("studioar_login",JSON.stringify({email:document.getElementById("lg-email").value,pass:document.getElementById("lg-pass").value}));}catch(e){}
-  } else {
-    try{localStorage.removeItem("studioar_login");}catch(e){}
-  }
-  _origDoLogin();
-};
 
 /* ─ PIX ─ */
 function crc16(str){
@@ -3525,15 +3364,6 @@ function copyPix(){
     :(el.select(),document.execCommand("copy"),showToast("\u2705 Pix Copia e Cola copiado!"));
 }
 
-</script>
-<script>
-if('serviceWorker' in navigator){
-  window.addEventListener('load',function(){
-    navigator.serviceWorker.register('/studio-ar/sw.js')
-      .then(function(r){console.log('SW registrado',r.scope);})
-      .catch(function(e){console.log('SW erro',e);});
-  });
-}
 </script>
 </body>
 </html>
