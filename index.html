@@ -331,9 +331,9 @@ function openAdminAuthModal(onSuccess){
 
 var CURRENT_USER = null; // {uid, email, role, nome}
 var ROLE_TABS = {
-  admin: ["dashboard","agenda","followup","leads","services","products","expenses","advances","prolabore","dre","clients","db","requests","audit","estoque","arprof","fornecedores","mensagens"],
+  admin: ["dashboard","agenda","followup","leads","services","products","expenses","advances","prolabore","dre","clients","db","requests","audit","estoque","arprof","fornecedores","caixa","mensagens"],
   recepcao: ["agenda","followup","services","products","clients","requests","estoque","mensagens"],
-  financeiro: ["dashboard","expenses","advances","prolabore","dre","arprof","mensagens"],
+  financeiro: ["dashboard","expenses","advances","prolabore","dre","arprof","caixa","mensagens"],
   marketing: ["clients","mensagens"],
   profissional: ["agenda","prolabore","mensagens"],
   comercial: ["leads","mensagens"]
@@ -722,7 +722,7 @@ function tbl(rows,cols,type){
 function kp(l,v,s){return'<div class="kp"><div class="kl">'+l+'</div><div class="kv">'+v+'</div>'+(s?'<div class="ks">'+s+'</div>':'')+'</div>';}
 
 /* SIDEBAR */
-var NAV=[["dashboard","\uD83D\uDCCA","Dashboard"],["agenda","\uD83D\uDCC5","Agenda"],["followup","\uD83D\uDCF2","Follow-up"],["services","\u2702\uFE0F","Servi\u00e7os"],["products","\uD83E\uDDF4","Produtos"],["expenses","\uD83D\uDCB8","Despesas"],["advances","\uD83D\uDCB5","Adiantamentos"],["prolabore","\uD83D\uDC65","Pr\u00f3-Labore"],["dre","\uD83D\uDCC8","DRE / DFC"],["clients","\uD83D\uDC69","Clientes"],["leads","\uD83C\uDFAF","Leads"],["db","\uD83D\uDDC4\uFE0F","Banco de Dados"],["requests","\uD83D\uDCE5","Solicita\u00e7\u00f5es Online"],["audit","\uD83D\uDD0D","Auditoria"],["estoque","\uD83E\uDDF4","Estoque"],["arprof","\uD83C\uDFF7\uFE0F","A R Professional"],["fornecedores","\uD83D\uDE9A","Fornecedores"],["mensagens","\uD83D\uDCAC","Mensagens"]];
+var NAV=[["dashboard","\uD83D\uDCCA","Dashboard"],["agenda","\uD83D\uDCC5","Agenda"],["followup","\uD83D\uDCF2","Follow-up"],["services","\u2702\uFE0F","Servi\u00e7os"],["products","\uD83E\uDDF4","Produtos"],["expenses","\uD83D\uDCB8","Despesas"],["advances","\uD83D\uDCB5","Adiantamentos"],["prolabore","\uD83D\uDC65","Pr\u00f3-Labore"],["dre","\uD83D\uDCC8","DRE / DFC"],["clients","\uD83D\uDC69","Clientes"],["leads","\uD83C\uDFAF","Leads"],["db","\uD83D\uDDC4\uFE0F","Banco de Dados"],["requests","\uD83D\uDCE5","Solicita\u00e7\u00f5es Online"],["audit","\uD83D\uDD0D","Auditoria"],["estoque","\uD83E\uDDF4","Estoque"],["arprof","\uD83C\uDFF7\uFE0F","A R Professional"],["fornecedores","\uD83D\uDE9A","Fornecedores"],["caixa","\uD83C\uDFE6","Caixa Banc\u00e1rio"],["mensagens","\uD83D\uDCAC","Mensagens"]];
 var DIVULGADORES_CUSTOM=null;
 var DIVULGADORES_DEFAULT=["Lorran","Isabela","Diane","Anton"];
 function getDivulgadores(){return DIVULGADORES_CUSTOM||DIVULGADORES_DEFAULT;}
@@ -2693,6 +2693,7 @@ function rT(){
   else if(S.tab==="estoque")h=rEstoque();
   else if(S.tab==="arprof")h=rArProf();
   else if(S.tab==="fornecedores")h=rFornecedores();
+  else if(S.tab==="caixa")h=rCaixa();
   else if(S.tab==="mensagens")h=rMensagens();
   document.getElementById("ct").innerHTML=h;
 }
@@ -2712,6 +2713,7 @@ document.addEventListener("click",function(e){
   var ea=e.target.closest("[data-edit-agn]");if(ea){openAgn(null,null,null,ea.dataset.editAgn);return;}
   var ag=e.target.closest("[data-agn-goto]");if(ag){var agp=ag.dataset.agnGoto.split("|");goToAgn(agp[0],agp[1]);return;}
   var fc=e.target.closest("[data-followup-confirm]");if(fc){var fcp=fc.dataset.followupConfirm.split("|");confirmarFollowup(fcp[0],fcp[1]);return;}
+  var cm2=e.target.closest("[data-caixa-modo]");if(cm2){S.caixaModo=cm2.dataset.caixaModo;_mpCaixaData=null;rT();return;}
   var dp=e.target.closest("[data-del-prof]");if(dp){delProf(dp.dataset.delProf);return;}
   var bt=e.target.closest("[data-bd-tab]");if(bt){S.bdTab=bt.dataset.bdTab;rT();return;}
   var it=e.target.closest("[data-imptab]");if(it){_impTab=it.dataset.imptab;renderImpTab();return;}
@@ -3111,6 +3113,156 @@ function gerarLinkMP(){
   }).catch(function(err){
     if(res)res.innerHTML='<div style="color:#f87171;font-size:11px">Erro de conex\u00e3o: '+err.message+'</div>';
   });
+}
+
+/* ─ CAIXA BANCÁRIO ─ */
+var _mpReadToken=null;
+function loadMpReadToken(cb){
+  if(_mpReadToken){cb(_mpReadToken);return;}
+  db.collection("config").doc("mpToken").get().then(function(doc){
+    var d=doc.exists?doc.data():{};
+    var tok=d.tokenLeitura||d.tokenleitura||d.tokenLeitura2||null;
+    _mpReadToken=tok;
+    cb(tok);
+  }).catch(function(){cb(null);});
+}
+var _mpCaixaData=null,_mpCaixaLoading=false,_mpCaixaErro=null,_mpCaixaRange=null;
+function caixaPeriodo(){
+  var modo=S.caixaModo||"dia";
+  var hoje=hj();
+  if(modo==="30dias")return{ini:dateAddDays(hoje,-30),fim:hoje};
+  if(modo==="periodo")return{ini:S.caixaIni||hoje,fim:S.caixaFim||hoje};
+  return{ini:S.caixaDate||hoje,fim:S.caixaDate||hoje};
+}
+function caixaPorForma(ini,fim,formaAlvo){
+  var itens=[];
+  D.svc.forEach(function(r){
+    if(!r.date||r.date<ini||r.date>fim)return;
+    if(r.pagamentos&&r.pagamentos.length){
+      r.pagamentos.forEach(function(pg){
+        if((pg.forma||"").toUpperCase().indexOf(formaAlvo)>=0){
+          itens.push({origem:"Servi\u00e7o",cliente:r.cliente,item:r.trabalho,valor:parseFloat(pg.valor)||0,data:r.date});
+        }
+      });
+    }else if((r.formaPagamento||"").toUpperCase().indexOf(formaAlvo)>=0){
+      itens.push({origem:"Servi\u00e7o",cliente:r.cliente,item:r.trabalho,valor:effVal(r),data:r.date});
+    }
+  });
+  D.prd.forEach(function(r){
+    if(!r.date||r.date<ini||r.date>fim||r.externa)return;
+    if((r.formaPagamento||"PIX").toUpperCase().indexOf(formaAlvo)>=0){
+      itens.push({origem:"Produto",cliente:r.cliente||"\u2014",item:r.produto,valor:(r.valorUnitario||0)*(r.quantidade||0),data:r.date});
+    }
+  });
+  itens.sort(function(a,b){return b.data.localeCompare(a.data);});
+  return{total:itens.reduce(function(s,i){return s+i.valor;},0),itens:itens};
+}
+function caixaTotalSistema(ini,fim){
+  var t=0;
+  D.svc.forEach(function(r){if(r.date&&r.date>=ini&&r.date<=fim)t+=effVal(r);});
+  D.prd.forEach(function(r){if(r.date&&r.date>=ini&&r.date<=fim&&!r.externa)t+=(r.valorUnitario||0)*(r.quantidade||0);});
+  return t;
+}
+function loadCaixaMP(){
+  var per=caixaPeriodo();
+  loadMpReadToken(function(token){
+    if(!token){_mpCaixaErro="Token de leitura n\u00e3o encontrado. Configure em config \u2192 mpToken \u2192 tokenLeitura no Firestore.";_mpCaixaData=[];rT();return;}
+    _mpCaixaLoading=true;rT();
+    var isoI=per.ini+"T00:00:00.000-03:00";
+    var isoF=per.fim+"T23:59:59.999-03:00";
+    fetch("https://api.mercadopago.com/v1/payments/search?sort=date_created&criteria=desc&range=date_created&begin_date="+encodeURIComponent(isoI)+"&end_date="+encodeURIComponent(isoF)+"&limit=100",{
+      headers:{"Authorization":"Bearer "+token,"Content-Type":"application/json"}
+    }).then(function(r){return r.json();}).then(function(data){
+      _mpCaixaData=(data.results||[]).filter(function(p){return p.status==="approved";});
+      _mpCaixaRange=per.ini+"|"+per.fim;
+      _mpCaixaLoading=false;_mpCaixaErro=null;
+      rT();
+    }).catch(function(err){
+      _mpCaixaLoading=false;_mpCaixaErro="Erro ao consultar Mercado Pago: "+err.message;_mpCaixaData=[];rT();
+    });
+  });
+}
+function rCaixa(){
+  var per=caixaPeriodo();
+  var modo=S.caixaModo||"dia";
+  var precisaCarregar=_mpCaixaData===null||_mpCaixaRange!==(per.ini+"|"+per.fim);
+  if(precisaCarregar&&!_mpCaixaLoading){setTimeout(loadCaixaMP,0);}
+  function fmtD(d){return d?d.slice(8,10)+"/"+d.slice(5,7)+"/"+d.slice(0,4):"";}
+  var modeBtn=function(m,label){
+    var ativo=modo===m;
+    return'<button class="'+(ativo?"pb":"gb")+'" style="padding:5px 12px;font-size:11px" data-caixa-modo="'+m+'">'+label+'</button>';
+  };
+  var filtros='<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px">'
+    +modeBtn("dia","Dia")+modeBtn("periodo","Per\u00edodo")+modeBtn("30dias","\u00daltimos 30 dias")
+    +(modo==="dia"?'<input type="date" id="caixa-date" value="'+(S.caixaDate||hj())+'" style="width:auto">':"")
+    +(modo==="periodo"?'<input type="date" id="caixa-ini" value="'+(S.caixaIni||hj())+'" style="width:auto">'
+      +'<span style="color:#71717a;font-size:11px">at\u00e9</span>'
+      +'<input type="date" id="caixa-fim" value="'+(S.caixaFim||hj())+'" style="width:auto">':"")
+    +((modo==="dia"||modo==="periodo")?'<button class="pb" style="padding:5px 12px;font-size:11px" onclick="aplicarCaixaFiltro()">Buscar</button>':"")
+    +'</div>';
+  var titulo=modo==="30dias"?"\u00daltimos 30 dias":(fmtD(per.ini)===fmtD(per.fim)?fmtD(per.ini):fmtD(per.ini)+" a "+fmtD(per.fim));
+  if(_mpCaixaErro){
+    return'<div class="pg"><div class="ph"><h2>\uD83C\uDFE6 Caixa Banc\u00e1rio</h2></div>'+filtros
+      +'<div class="cd"><div style="color:#f87171;font-size:12px">'+es(_mpCaixaErro)+'</div></div></div>';
+  }
+  if(_mpCaixaLoading||_mpCaixaData===null){
+    return'<div class="pg"><div class="ph"><h2>\uD83C\uDFE6 Caixa Banc\u00e1rio</h2></div>'+filtros
+      +'<div class="cd"><div class="emp">\u23F3 Consultando Mercado Pago...</div></div></div>';
+  }
+  var mpItens=_mpCaixaData||[];
+  var mpTotal=mpItens.reduce(function(s,p){return s+(p.transaction_amount||0);},0);
+  var dinheiro=caixaPorForma(per.ini,per.fim,"DINHEIRO");
+  var pix=caixaPorForma(per.ini,per.fim,"PIX");
+  var totalSistema=caixaTotalSistema(per.ini,per.fim);
+  var totalBancos=mpTotal+dinheiro.total+pix.total;
+  var diff=totalSistema-totalBancos;
+  var diffOk=Math.abs(diff)<0.01;
+  var mpRows=mpItens.map(function(p){
+    var dt=p.date_approved||p.date_created||"";
+    var hora=dt?dt.slice(11,16):"";
+    var dia=dt?fmtD(dt.slice(0,10)):"";
+    var tipo=p.payment_type_id==="credit_card"?"Cr\u00e9dito":p.payment_type_id==="debit_card"?"D\u00e9bito":(p.payment_type_id||"Outro");
+    var desc=p.description||p.statement_descriptor||"Pagamento";
+    return'<tr><td>'+dia+' '+hora+'</td><td>'+es(desc)+'</td><td>'+es(tipo)+'</td><td class="hi">'+fmt(p.transaction_amount||0)+'</td></tr>';
+  }).join("");
+  function listaDetalhe(cor,titulo2,dados){
+    if(!dados.itens.length)return'';
+    return'<div class="cd" style="border-left:3px solid '+cor+';margin-bottom:14px">'
+      +'<div class="ct" style="color:'+cor+'">'+titulo2+' \u2014 '+fmt(dados.total)+'</div>'
+      +dados.itens.map(function(i){
+        return'<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #27272a;font-size:11px">'
+          +'<div><strong style="color:#f1f5f9">'+es(i.cliente)+'</strong><span style="color:#71717a;margin-left:6px">'+es(i.item)+'</span></div>'
+          +'<div><span style="color:#71717a;margin-right:8px">'+fdt(i.data)+'</span><span class="hi">'+fmt(i.valor)+'</span></div></div>';
+      }).join("")+'</div>';
+  }
+  return'<div class="pg"><div class="ph"><h2>\uD83C\uDFE6 Caixa Banc\u00e1rio \u2014 '+titulo+'</h2>'
+    +'<button class="gb" onclick="_mpCaixaData=null;rT()">&#8635; Atualizar</button></div>'
+    +filtros
+    +'<div class="kg">'
+    +kp("\uD83D\uDCB3 Maquininha MP",fmt(mpTotal),mpItens.length+" transa\u00e7\u00f5es")
+    +kp("\uD83D\uDCB5 Dinheiro",fmt(dinheiro.total),dinheiro.itens.length+" lan\u00e7amentos")
+    +kp("\uD83C\uDFE6 PIX",fmt(pix.total),pix.itens.length+" lan\u00e7amentos")
+    +kp("\uD83D\uDCCB Total no Sistema",fmt(totalSistema))
+    +'</div>'
+    +'<div class="cd" style="border-left:3px solid '+(diffOk?"#34d399":"#f87171")+';margin-bottom:14px">'
+    +'<div class="ct" style="color:'+(diffOk?"#34d399":"#f87171")+'">'+(diffOk?"\u2705 Tudo conferindo":"\u26A0 Diferen\u00e7a de "+fmt(Math.abs(diff)))+'</div>'
+    +'<div style="font-size:11px;color:#a1a1aa">Bancos + Dinheiro + PIX: '+fmt(totalBancos)+' &nbsp;|&nbsp; Sistema: '+fmt(totalSistema)+'</div>'
+    +'</div>'
+    +'<div class="cd" style="margin-bottom:14px"><div class="ct">\uD83D\uDCB3 Transa\u00e7\u00f5es Mercado Pago</div>'
+    +(mpRows?'<div class="ox"><table><thead><tr><th>Data/Hora</th><th>Descri\u00e7\u00e3o</th><th>Tipo</th><th>Valor</th></tr></thead><tbody>'+mpRows+'</tbody></table></div>'
+      :'<div class="emp">Nenhuma transa\u00e7\u00e3o no per\u00edodo</div>')+'</div>'
+    +listaDetalhe("#fbbf24","\uD83D\uDCB5 Dinheiro",dinheiro)
+    +listaDetalhe("#38bdf8","\uD83C\uDFE6 PIX",pix)
+    +'</div>';
+}
+function aplicarCaixaFiltro(){
+  var modo=S.caixaModo||"dia";
+  if(modo==="dia"){var d=document.getElementById("caixa-date");if(d)S.caixaDate=d.value;}
+  if(modo==="periodo"){
+    var i=document.getElementById("caixa-ini"),f=document.getElementById("caixa-fim");
+    if(i)S.caixaIni=i.value;if(f)S.caixaFim=f.value;
+  }
+  _mpCaixaData=null;rT();
 }
 
 /* ─ FORNECEDORES ─ */
