@@ -2944,18 +2944,30 @@ function waLinkFollowup(tel){
 function rAvisosPosAtendimento(){
   var av=getAvisosPosAtendimento();
   if(!av.length)return"";
-  return'<div class="cd" style="border-left:3px solid #38bdf8;margin-bottom:14px">'
-    +'<div class="ct" style="color:#38bdf8">\uD83D\uDCC5 Follow-up Pós-atendimento ('+av.length+')</div>'
-    +av.map(function(a){
-      var wa=waLinkFollowup(a.tel);
-      return'<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #27272a;font-size:11px;gap:8px;flex-wrap:wrap">'
-        +'<div><strong style="color:#f1f5f9">'+es(a.nome)+'</strong><span style="color:#71717a;margin-left:6px">'+es(a.servico)+'</span></div>'
-        +'<div style="text-align:right;display:flex;align-items:center;gap:8px">'
-        +'<div><div style="color:#38bdf8">'+a.acao+'</div><div style="color:#71717a">'+es(a.tel||"sem telefone")+' &bull; '+fdt(a.data)+'</div></div>'
-        +(wa?'<a href="'+wa+'" target="_blank" style="background:#25d366;color:#fff;padding:5px 10px;border-radius:6px;font-size:11px;text-decoration:none;white-space:nowrap">\uD83D\uDCAC WhatsApp</a>':'')
-        +'<button class="pb" style="font-size:11px;padding:5px 10px;white-space:nowrap" data-followup-confirm="'+a.id+'|'+a.diasAtras+'">\u2714 Confirmar Contato</button>'
-        +'</div></div>';
-    }).join("")+'</div>';
+  var MARCO_COR={1:"#38bdf8",7:"#a78bfa",15:"#fbbf24",30:"#34d399"};
+  var MARCO_ICON={1:"\uD83D\uDE0A",7:"\uD83D\uDC87",15:"\uD83D\uDECD\uFE0F",30:"\uD83C\uDFAF"};
+  var grupos={1:[],7:[],15:[],30:[]};
+  av.forEach(function(a){grupos[a.diasAtras].push(a);});
+  var html="";
+  [1,7,15,30].forEach(function(dia){
+    var itens=grupos[dia];
+    if(!itens.length)return;
+    var cor=MARCO_COR[dia];
+    html+='<div class="cd" style="border-left:3px solid '+cor+';margin-bottom:14px">'
+      +'<div class="ct" style="color:'+cor+'">'+MARCO_ICON[dia]+' '+dia+' dia(s) \u2014 '+es(itens[0].acao)+' ('+itens.length+')</div>'
+      +itens.map(function(a){
+        var wa=waLinkFollowup(a.tel);
+        return'<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #27272a;font-size:11px;gap:8px;flex-wrap:wrap">'
+          +'<div><strong style="color:#f1f5f9">'+es(a.nome)+'</strong><span style="color:#71717a;margin-left:6px">'+es(a.servico)+'</span></div>'
+          +'<div style="display:flex;align-items:center;gap:8px">'
+          +'<div style="text-align:right"><div style="color:'+cor+'">'+fdt(a.data)+'</div><div style="color:#71717a">'+es(a.tel||"sem telefone")+'</div></div>'
+          +(wa?'<a href="'+wa+'" target="_blank" style="background:#25d366;color:#fff;padding:5px 10px;border-radius:6px;font-size:11px;text-decoration:none;white-space:nowrap">\uD83D\uDCAC WhatsApp</a>':'')
+          +'<button class="pb" style="font-size:11px;padding:5px 10px;white-space:nowrap" data-followup-confirm="'+a.id+'|'+a.diasAtras+'">\u2714 Confirmar Contato</button>'
+          +'</div></div>';
+      }).join("")
+      +'</div>';
+  });
+  return html;
 }
 
 function rFollowup(){
