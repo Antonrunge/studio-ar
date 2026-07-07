@@ -517,13 +517,14 @@ function timeSlots(){var s=[];for(var h=9;h<19;h++){s.push((h<10?"0":"")+h+":00"
 
 var S={tab:"dashboard",month:5,year:2026,day:0,cliSearch:"",cliSort:"dias",cliSvcFilter:"",bdTab:"clientes",bdSearch:"",agnDate:hj(),leadsView:"funil"};
 var D={svc:[],prd:[],exp:[],adv:[],agn:[],contacts:[],requests:[],audit:[],estoque:[],leads:[],arEntradas:[],arSaidas:[],arProdutos:[],fornecedores:[],msgs:[]};
-var PL_CUSTOM=null,PROFS_CUSTOM=null;
+var PL_CUSTOM=null,PROFS_CUSTOM=null,PROFS_DESLIGADOS_CUSTOM=null;
 var RANKING_EXCLUDED_DEFAULT=["ANTON","DIANE","ISABELA","MATHEUS"];
 var RANKING_EXCLUDED=null;
 var FIDELIDADE_CONFIG={visitas:10,desconto:50,tipo:"desconto"};
 function getFidelidade(){return FIDELIDADE_CONFIG;}
 function getRankingExcluded(){return RANKING_EXCLUDED||RANKING_EXCLUDED_DEFAULT;}
 function getProfs(){return PROFS_CUSTOM||PROFS_DEF;}
+function getDesligados(){return PROFS_DESLIGADOS_CUSTOM||{};}
 function getPL(){return PL_CUSTOM||JSON.parse(JSON.stringify(PL_DEFAULT));}
 
 var SD_SVC=[
@@ -624,7 +625,8 @@ function setupListeners(){
   var u4=db.collection("config").doc("leadsRegua").onSnapshot(function(doc){LEAD_REGUA_CUSTOM=doc.exists&&doc.data().dias?doc.data().dias:null;rT();});
   var u5=db.collection("config").doc("fidelidade").onSnapshot(function(doc){if(doc.exists&&doc.data().visitas)FIDELIDADE_CONFIG=doc.data();rT();});
   var u6=db.collection("config").doc("divulgadores").onSnapshot(function(doc){DIVULGADORES_CUSTOM=doc.exists&&doc.data().list?doc.data().list:null;rT();});
-  _listeners.push(u1,u2,u3,u4,u5,u6);
+  var u7=db.collection("config").doc("profissionaisDesligados").onSnapshot(function(doc){PROFS_DESLIGADOS_CUSTOM=doc.exists?doc.data().values:null;rT();});
+  _listeners.push(u1,u2,u3,u4,u5,u6,u7);
   rAll();
 }
 
@@ -1189,11 +1191,17 @@ function savePL(){
   cmod();
 }
 function delProf(name){
-  if(!confirm("Remover "+name+"?"))return;
-  PROFS_CUSTOM=getProfs().filter(function(p){return p!==name;});
-  var pl=getPL();delete pl[name];PL_CUSTOM=pl;
-  db.collection("config").doc("profissionais").set({list:PROFS_CUSTOM});
-  db.collection("config").doc("prolabore").set({values:PL_CUSTOM});
+  var padrao=(S.month+1)+"/"+S.year;
+  var resp=prompt("A partir de qual m\u00eas "+name+" deixa de trabalhar com voc\u00ea?\n(Ele continua aparecendo normalmente nos meses anteriores)\n\nFormato MM/AAAA:",padrao);
+  if(!resp)return;
+  var partes=resp.split("/");
+  var mes=parseInt(partes[0],10),ano=parseInt(partes[1],10);
+  if(!mes||!ano||mes<1||mes>12)return alert("M\u00eas/ano inv\u00e1lido. Use o formato MM/AAAA.");
+  var desligados=getDesligados();
+  desligados=JSON.parse(JSON.stringify(desligados));
+  desligados[name]={month:mes-1,year:ano};
+  PROFS_DESLIGADOS_CUSTOM=desligados;
+  db.collection("config").doc("profissionaisDesligados").set({values:PROFS_DESLIGADOS_CUSTOM});
   openPLSettings();
 }
 
@@ -1990,7 +1998,14 @@ function rPL(fs,fp,fa){
   });
   var cpByP={};fp.forEach(function(r){cpByP[r.profissional]=(cpByP[r.profissional]||0)+fl(r.valorUnitario*r.quantidade,r.formaPagamento||"PIX")*r.comissaoVendedor;});
   var aByP={};fa.forEach(function(r){aByP[r.colaborador]=(aByP[r.colaborador]||0)+r.valor;});
-  var allActiveP=profs.filter(function(p){return(pl[p]||0)>0||(cByP[p]||0)>0;});
+  var desligados=getDesligados();
+  var baseAtivo=function(p){
+    var d=desligados[p];
+    if(!d)return pl[p]||0;
+    var antesCorte=(S.year<d.year)||(S.year===d.year&&S.month<d.month);
+    return antesCorte?(pl[p]||0):0;
+  };
+  var allActiveP=profs.filter(function(p){return baseAtivo(p)>0||(cByP[p]||0)>0;});
 
   /* RANKING — apenas comiss\u00f5es (servi\u00e7os + produtos), sem pr\u00f3-labore; exclui equipe administrativa */
   var rkExcl=getRankingExcluded();
@@ -2003,7 +2018,7 @@ function rPL(fs,fp,fa){
   if(myName)activeP=activeP.filter(function(p){return p===myName;});
   var tB=0,tCS=0,tCP=0,tA=0,tR=0;
   var rows=activeP.map(function(p){
-    var base=pl[p]||0,cs=cByP[p]||0,cp=cpByP[p]||0,av=aByP[p]||0,tot=base+cs+cp,rec=tot-av;
+    var base=baseAtivo(p),cs=cByP[p]||0,cp=cpByP[p]||0,av=aByP[p]||0,tot=base+cs+cp,rec=tot-av;
     tB+=base;tCS+=cs;tCP+=cp;tA+=av;tR+=rec;
     return'<tr><td>'+es(p)+'</td><td>'+fmt(base)+'</td><td>'+fmt(cs)+'</td><td>'+fmt(cp)+'</td><td>'+fmt(tot)+'</td><td>'+fmt(av)+'</td><td class="hi">'+fmt(rec)+'</td></tr>';
   }).join("");
