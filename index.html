@@ -516,8 +516,11 @@ function fdtLong(s){var days=["Dom","Seg","Ter","Qua","Qui","Sex","S\u00e1b"];va
 function timeSlots(){var s=[];for(var h=9;h<19;h++){s.push((h<10?"0":"")+h+":00");s.push((h<10?"0":"")+h+":30");}s.push("19:00");return s;}
 
 var S={tab:"dashboard",month:5,year:2026,day:0,cliSearch:"",cliSort:"dias",cliSvcFilter:"",bdTab:"clientes",bdSearch:"",agnDate:hj(),leadsView:"funil"};
+(function(){var _sp=sg("studioar_periodo");if(_sp&&typeof _sp.month==="number"&&typeof _sp.year==="number"){S.month=_sp.month;S.year=_sp.year;}})();
+function salvarPeriodo(){ss("studioar_periodo",{month:S.month,year:S.year});}
 var D={svc:[],prd:[],exp:[],adv:[],agn:[],contacts:[],requests:[],audit:[],estoque:[],leads:[],arEntradas:[],arSaidas:[],arProdutos:[],fornecedores:[],msgs:[]};
-var PL_CUSTOM=null,PROFS_CUSTOM=null,PROFS_DESLIGADOS_CUSTOM=null;
+var PL_CUSTOM=null,PROFS_CUSTOM=null,PROFS_DESLIGADOS_CUSTOM=null,PROFS_AUXILIARES_CUSTOM=null;
+var PROFS_AUXILIARES_DEFAULT={"CAROL":{promovidoMes:null,promovidoAno:null}};
 var RANKING_EXCLUDED_DEFAULT=["ANTON","DIANE","ISABELA","MATHEUS"];
 var RANKING_EXCLUDED=null;
 var FIDELIDADE_CONFIG={visitas:10,desconto:50,tipo:"desconto"};
@@ -525,6 +528,14 @@ function getFidelidade(){return FIDELIDADE_CONFIG;}
 function getRankingExcluded(){return RANKING_EXCLUDED||RANKING_EXCLUDED_DEFAULT;}
 function getProfs(){return PROFS_CUSTOM||PROFS_DEF;}
 function getDesligados(){return PROFS_DESLIGADOS_CUSTOM||{};}
+function getAuxiliares(){return PROFS_AUXILIARES_CUSTOM||PROFS_AUXILIARES_DEFAULT;}
+function isAuxiliarNoMes(nome,mes,ano){
+  var info=getAuxiliares()[nome];
+  if(!info)return false;
+  if(!info.promovidoAno)return true;
+  var jaPromovido=(ano>info.promovidoAno)||(ano===info.promovidoAno&&mes>=info.promovidoMes);
+  return !jaPromovido;
+}
 function getPL(){return PL_CUSTOM||JSON.parse(JSON.stringify(PL_DEFAULT));}
 
 var SD_SVC=[
@@ -626,7 +637,8 @@ function setupListeners(){
   var u5=db.collection("config").doc("fidelidade").onSnapshot(function(doc){if(doc.exists&&doc.data().visitas)FIDELIDADE_CONFIG=doc.data();rT();});
   var u6=db.collection("config").doc("divulgadores").onSnapshot(function(doc){DIVULGADORES_CUSTOM=doc.exists&&doc.data().list?doc.data().list:null;rT();});
   var u7=db.collection("config").doc("profissionaisDesligados").onSnapshot(function(doc){PROFS_DESLIGADOS_CUSTOM=doc.exists?doc.data().values:null;rT();});
-  _listeners.push(u1,u2,u3,u4,u5,u6,u7);
+  var u8=db.collection("config").doc("profissionaisAuxiliares").onSnapshot(function(doc){PROFS_AUXILIARES_CUSTOM=doc.exists?doc.data().values:null;rT();});
+  _listeners.push(u1,u2,u3,u4,u5,u6,u7,u8);
   rAll();
 }
 
@@ -753,8 +765,8 @@ function rSb(){
       :(CURRENT_USER&&(CURRENT_USER.role==="recepcao"||CURRENT_USER.role==="comercial")?'<div class="bkp-bar"><button class="bkp-save" onclick="openPix()">&#128178; PIX</button><button class="bkp-save" onclick="openMpPayment()">&#128179; MP</button></div>':''))
     +'<div class="user-badge"><div><div class="nm">'+es(CURRENT_USER?CURRENT_USER.nome:"")+'</div><div class="rl"><span class="sync-dot"></span>'+es(ROLE_LABELS[CURRENT_USER?CURRENT_USER.role:""]||"")+'</div></div><button onclick="doLogout()">Sair</button></div>'
     +'<div style="padding:8px 14px;border-top:1px solid #1f1f23;font-size:10px;color:#3f3f46">Online \u00b7 Studio A R</div>';
-  document.getElementById("sl-m").onchange=function(){S.month=parseInt(this.value);S.day=0;rT();};
-  document.getElementById("sl-y").onchange=function(){S.year=parseInt(this.value);S.day=0;rT();};
+  document.getElementById("sl-m").onchange=function(){S.month=parseInt(this.value);S.day=0;salvarPeriodo();rT();};
+  document.getElementById("sl-y").onchange=function(){S.year=parseInt(this.value);S.day=0;salvarPeriodo();rT();};
   document.getElementById("sl-d").onchange=function(){S.day=parseInt(this.value);rT();};
 }
 
@@ -1157,13 +1169,21 @@ function openPLSettings(){
   var pl=getPL(),profs=getProfs();
   var rows=profs.map(function(p){
     var sid=p.replace(/[^a-zA-Z0-9]/g,"_");
+    var aux=isAuxiliarNoMes(p,S.month,S.year);
+    var auxInfo=getAuxiliares()[p];
+    var auxTag=aux
+      ?'<span style="color:#fbbf24;font-size:10px">Auxiliar (sem comiss\u00e3o)</span> <button class="gb" style="padding:3px 8px;font-size:10px" data-promover-cabeleireiro="'+es(p)+'">Promover a Cabeleireiro(a)</button>'
+      :(auxInfo?'<span style="color:#34d399;font-size:10px">Cabeleireiro(a) desde '+(auxInfo.promovidoMes+1)+'/'+auxInfo.promovidoAno+'</span>'
+        :'<button class="gb" style="padding:3px 8px;font-size:10px" data-marcar-auxiliar="'+es(p)+'">Marcar como Auxiliar</button>');
     return'<tr><td style="padding:6px 8px;color:#f1f5f9">'+es(p)+'</td>'
       +'<td style="padding:4px 8px"><input type="number" id="pl-'+sid+'" value="'+(pl[p]||0)+'" style="width:90px;padding:5px 8px;font-size:12px"></td>'
+      +'<td style="padding:4px 8px">'+auxTag+'</td>'
       +'<td style="padding:4px 8px"><button class="db" data-del-prof="'+es(p)+'">✕</button></td></tr>';
   }).join("");
   omod(mhdr("Configurar Sal\u00e1rios Base")
+    +'<div style="font-size:11px;color:#71717a;margin-bottom:10px">Auxiliares participam do atendimento (e reduzem a taxa de comiss\u00e3o dividida entre a equipe) mas n\u00e3o recebem comiss\u00e3o \u2014 esse valor fica como saldo do sal\u00e3o. Quando um auxiliar for promovido a cabeleireiro(a), ele passa a receber comiss\u00e3o a partir do m\u00eas informado.</div>'
     +'<div class="ox" style="max-height:240px;overflow-y:auto;margin-bottom:14px">'
-    +'<table><thead><tr><th>Colaborador</th><th>Sal\u00e1rio Base (R$)</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>'
+    +'<table><thead><tr><th>Colaborador</th><th>Sal\u00e1rio Base (R$)</th><th>Comiss\u00e3o</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>'
     +'<div style="border-top:1px solid #27272a;padding-top:12px">'
     +'<div style="font-size:12px;color:#a1a1aa;margin-bottom:8px">Adicionar colaborador:</div>'
     +'<div class="g2"><div class="fi"><label>Nome</label><input type="text" id="pl-new-name" placeholder="NOME EM MAIÚSCULO"></div>'
@@ -1202,6 +1222,27 @@ function delProf(name){
   desligados[name]={month:mes-1,year:ano};
   PROFS_DESLIGADOS_CUSTOM=desligados;
   db.collection("config").doc("profissionaisDesligados").set({values:PROFS_DESLIGADOS_CUSTOM});
+  openPLSettings();
+}
+function marcarAuxiliar(name){
+  if(!confirm(name+" passa a ser Auxiliar: participa dos atendimentos mas n\u00e3o recebe comiss\u00e3o (o valor fica como saldo do sal\u00e3o). Confirmar?"))return;
+  var aux=getAuxiliares();aux=JSON.parse(JSON.stringify(aux));
+  aux[name]={promovidoMes:null,promovidoAno:null};
+  PROFS_AUXILIARES_CUSTOM=aux;
+  db.collection("config").doc("profissionaisAuxiliares").set({values:PROFS_AUXILIARES_CUSTOM});
+  openPLSettings();
+}
+function promoverCabeleireiro(name){
+  var padrao=(S.month+1)+"/"+S.year;
+  var resp=prompt("A partir de qual m\u00eas "+name+" passa a receber comiss\u00e3o como Cabeleireiro(a)?\n(Nos meses anteriores continua sem comiss\u00e3o)\n\nFormato MM/AAAA:",padrao);
+  if(!resp)return;
+  var partes=resp.split("/");
+  var mes=parseInt(partes[0],10),ano=parseInt(partes[1],10);
+  if(!mes||!ano||mes<1||mes>12)return alert("M\u00eas/ano inv\u00e1lido. Use o formato MM/AAAA.");
+  var aux=getAuxiliares();aux=JSON.parse(JSON.stringify(aux));
+  aux[name]={promovidoMes:mes-1,promovidoAno:ano};
+  PROFS_AUXILIARES_CUSTOM=aux;
+  db.collection("config").doc("profissionaisAuxiliares").set({values:PROFS_AUXILIARES_CUSTOM});
   openPLSettings();
 }
 
@@ -1602,6 +1643,7 @@ function buildCliMap(){
     if(r.observacoes)cmap[k].obs.push(r.observacoes);
   });
   D.contacts.forEach(function(c){
+    if(!c.nome)return;
     var k=c.nome.trim().toUpperCase();
     if(!cmap[k]){cmap[k]={nome:c.nome,tel:c.telefone||"",email:c.email||"",end:c.endereco||"",nasc:c.nascimento||"",cap:c.captacao||"",datas:[],svcs:[],qtd:0,gasto:0,obs:[],contatoOnly:true,fonte:c.fonte};}
     else{if(c.telefone&&!cmap[k].tel)cmap[k].tel=c.telefone;if(c.email&&!cmap[k].email)cmap[k].email=c.email;}
@@ -1994,7 +2036,7 @@ function rPL(fs,fp,fa){
     var ns=(r.profissionais||[r.profissional]).filter(function(n){return n;});
     if(!ns.length)ns=[r.profissional];
     var c=cm(effVal(r),r.formaPagamento,r.taxaComissao);
-    ns.forEach(function(n){cByP[n]=(cByP[n]||0)+c;});
+    ns.forEach(function(n){if(!isAuxiliarNoMes(n,S.month,S.year))cByP[n]=(cByP[n]||0)+c;});
   });
   var cpByP={};fp.forEach(function(r){cpByP[r.profissional]=(cpByP[r.profissional]||0)+fl(r.valorUnitario*r.quantidade,r.formaPagamento||"PIX")*r.comissaoVendedor;});
   var aByP={};fa.forEach(function(r){aByP[r.colaborador]=(aByP[r.colaborador]||0)+r.valor;});
@@ -2055,8 +2097,9 @@ function rPL(fs,fp,fa){
       var ns=(r.profissionais||[r.profissional]).filter(function(n){return n;});
       return ns.indexOf(myName)>=0;
     }).slice().sort(function(a,b){return b.date.localeCompare(a.date);});
+    var myAux=isAuxiliarNoMes(myName,S.month,S.year);
     var histRows=myServices.map(function(r){
-      var c=cm(effVal(r),r.formaPagamento,r.taxaComissao);
+      var c=myAux?0:cm(effVal(r),r.formaPagamento,r.taxaComissao);
       var ns=(r.profissionais||[r.profissional]).filter(function(n){return n;});
       var teamTag=ns.length>1?'<span style="color:#71717a;font-size:9px"> (equipe de '+ns.length+')</span>':"";
       return'<tr><td>'+fdt(r.date)+'</td><td style="color:#f1f5f9">'+es(r.trabalho)+teamTag+'</td><td>'+es(r.cliente||"")+'</td><td class="hi">'+fmt(c)+'</td></tr>';
@@ -2086,7 +2129,12 @@ function rDRE(fs,fp,fe,fa){
   var cmvP=fpSal.reduce(function(s,r){return s+(r.custo||0)*r.quantidade;},0);
   var cmvTotal=cmvS+cmvP;
   var margemBruta=recLiq-cmvTotal;
-  var cE=fs.reduce(function(s,r){var _n=(r.profissionais||[r.profissional]).filter(function(x){return x;});return s+cm(effVal(r),r.formaPagamento,r.taxaComissao)*Math.max(1,_n.length);},0);
+  var cE=fs.reduce(function(s,r){
+    var _n=(r.profissionais||[r.profissional]).filter(function(x){return x;});
+    var _nComissionavel=_n.filter(function(x){return !isAuxiliarNoMes(x,S.month,S.year);});
+    var _mult=_n.length?_nComissionavel.length:1;
+    return s+cm(effVal(r),r.formaPagamento,r.taxaComissao)*_mult;
+  },0);
   var byCateg={};fe.forEach(function(r){var c=r.categoria||"Outros";byCateg[c]=(byCateg[c]||0)+r.valorPago;});
   var despFixas=byCateg["Fixo"]||0;
   var despMkt=byCateg["Marketing"]||0;
@@ -2691,6 +2739,7 @@ function rT(){
   var fe=fmy(D.exp,S.month,S.year);
   var fa=fmy(D.adv,S.month,S.year);
   var h="";
+  try{
   if(S.tab==="dashboard")h=rDash(fs,fp,fe,fa);
   else if(S.tab==="agenda")h=rAgenda();
   else if(S.tab==="followup")h=rFollowup();
@@ -2703,7 +2752,15 @@ function rT(){
     }
     h=rSvc(svcData);
   }
-  else if(S.tab==="products")h=rPrd(fp);
+  else if(S.tab==="products"){
+    var prdData=fp;
+    if(S.day>0){
+      var prdDd=S.day<10?"0"+S.day:String(S.day);
+      var prdMm=(S.month+1)<10?"0"+(S.month+1):String(S.month+1);
+      prdData=fday(D.prd,S.year+"-"+prdMm+"-"+prdDd);
+    }
+    h=rPrd(prdData);
+  }
   else if(S.tab==="expenses")h=rExp(fe);
   else if(S.tab==="advances")h=rAdv(fa);
   else if(S.tab==="prolabore")h=rPL(fs,fp,fa);
@@ -2718,6 +2775,10 @@ function rT(){
   else if(S.tab==="fornecedores")h=rFornecedores();
   else if(S.tab==="caixa")h=rCaixa();
   else if(S.tab==="mensagens")h=rMensagens();
+  }catch(errRT){
+    console.error("Erro ao renderizar aba "+S.tab,errRT);
+    h='<div class="pg"><div class="cd"><div class="emp">\u26a0 Ocorreu um erro ao carregar esta tela. Tente trocar de aba e voltar; se persistir, avise o Anton.<br><span style="color:#71717a;font-size:10px">'+es(errRT.message||"")+'</span></div></div></div>';
+  }
   document.getElementById("ct").innerHTML=h;
 }
 function rAll(){rSb();rT();}
@@ -2738,6 +2799,8 @@ document.addEventListener("click",function(e){
   var fc=e.target.closest("[data-followup-confirm]");if(fc){var fcp=fc.dataset.followupConfirm.split("|");confirmarFollowup(fcp[0],fcp[1]);return;}
   var cm2=e.target.closest("[data-caixa-modo]");if(cm2){S.caixaModo=cm2.dataset.caixaModo;_mpCaixaData=null;rT();return;}
   var dp=e.target.closest("[data-del-prof]");if(dp){delProf(dp.dataset.delProf);return;}
+  var ma=e.target.closest("[data-marcar-auxiliar]");if(ma){marcarAuxiliar(ma.dataset.marcarAuxiliar);return;}
+  var pc=e.target.closest("[data-promover-cabeleireiro]");if(pc){promoverCabeleireiro(pc.dataset.promoverCabeleireiro);return;}
   var bt=e.target.closest("[data-bd-tab]");if(bt){S.bdTab=bt.dataset.bdTab;rT();return;}
   var it=e.target.closest("[data-imptab]");if(it){_impTab=it.dataset.imptab;renderImpTab();return;}
   var rc=e.target.closest("[data-req-confirm]");if(rc){confirmRequest(rc.dataset.reqConfirm);return;}
@@ -2939,7 +3002,7 @@ function getAvisosPosAtendimento(){
     if(!r.cliente||!r.date)return;
     var d=ds(r.date);
     diasChave.forEach(function(meta){
-      if(d===meta){
+      if(d>=meta){
         var st=r.followupStatus&&r.followupStatus[meta];
         if(st&&st.concluido)return;
         avisos.push({id:r.id,nome:r.cliente,tel:r.telefone||"",servico:r.trabalho,data:r.date,diasAtras:meta,acao:marcos[meta]});
