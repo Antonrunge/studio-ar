@@ -515,7 +515,8 @@ function dateAddDays(d,n){var dt=new Date(d+"T12:00:00");dt.setDate(dt.getDate()
 function fdtLong(s){var days=["Dom","Seg","Ter","Qua","Qui","Sex","S\u00e1b"];var d=new Date(s+"T12:00:00");return days[d.getDay()]+", "+fdt(s);}
 function timeSlots(){var s=[];for(var h=9;h<19;h++){s.push((h<10?"0":"")+h+":00");s.push((h<10?"0":"")+h+":30");}s.push("19:00");return s;}
 
-var S={tab:"dashboard",month:5,year:2026,day:0,cliSearch:"",cliSort:"dias",cliSvcFilter:"",bdTab:"clientes",bdSearch:"",agnDate:hj(),leadsView:"funil"};
+var _agora=new Date();
+var S={tab:"dashboard",month:_agora.getMonth(),year:_agora.getFullYear(),day:0,cliSearch:"",cliSort:"dias",cliSvcFilter:"",bdTab:"clientes",bdSearch:"",agnDate:hj(),leadsView:"funil",leadsSearch:""};
 (function(){var _sp=sg("studioar_periodo");if(_sp&&typeof _sp.month==="number"&&typeof _sp.year==="number"){S.month=_sp.month;S.year=_sp.year;}})();
 function salvarPeriodo(){ss("studioar_periodo",{month:S.month,year:S.year});}
 var D={svc:[],prd:[],exp:[],adv:[],agn:[],contacts:[],requests:[],audit:[],estoque:[],leads:[],arEntradas:[],arSaidas:[],arProdutos:[],fornecedores:[],msgs:[]};
@@ -1629,6 +1630,20 @@ function expContatos(){
   dlCSV("contatos_studio_ar.csv",["Nome","Telefone","Email","Endereco","Nascimento","Captacao","Fonte"],
     D.contacts.map(function(c){return[c.nome,c.telefone||"",c.email||"",c.endereco||"",c.nascimento||"",c.captacao||"",c.fonte||""];}));
 }
+function expDespesas(){
+  dlCSV("despesas_studio_ar.csv",["Data","Categoria","Descricao","ValorPago","PagoPor"],
+    D.exp.map(function(r){return[r.date,r.categoria||"",r.conta,r.valorPago,r.pagoPor];}));
+}
+function expAuditoria(){
+  var rows=[];
+  (D.audit||[]).forEach(function(a){
+    Object.keys(a.alteracoes||{}).forEach(function(campo){
+      var diff=a.alteracoes[campo];
+      rows.push([(a.timestamp||"").replace("T"," ").slice(0,16),a.nomeCliente||"",campo,diff.antes||"",diff.depois||"",a.alteradoPor||"",a.alteradoPorRole||""]);
+    });
+  });
+  dlCSV("auditoria_studio_ar.csv",["DataHora","Cliente","Campo","Antes","Depois","Por","Funcao"],rows);
+}
 
 /* BUILD CLIENTS MAP */
 function buildCliMap(){
@@ -1790,7 +1805,13 @@ function rDash(fsOrig,fpOrig,feOrig,faOrig){
   var titulo=isDay?("Dashboard \u2014 "+fdt(dayStr)):("Dashboard \u2014 "+MESES[S.month]+" "+S.year);
   var byP={};fs.forEach(function(r){(r.profissionais||[r.profissional]).forEach(function(p){if(p)byP[p]=(byP[p]||0)+effVal(r);});});
   var profD=Object.keys(byP).map(function(k){return{n:k,v:Math.round(byP[k])};}).sort(function(a,b){return b.v-a.v;}).slice(0,8);
-  var byC={};fs.forEach(function(r){if(r.captacao)byC[r.captacao]=(byC[r.captacao]||0)+1;});
+  var byC={};var seenCliCap={};fs.forEach(function(r){
+    if(!r.captacao) return;
+    var key=r.captacao+"||"+(r.cliente||"").trim().toUpperCase();
+    if(seenCliCap[key]) return;
+    seenCliCap[key]=true;
+    byC[r.captacao]=(byC[r.captacao]||0)+1;
+  });
   var capD=Object.keys(byC).map(function(k){return{n:k,v:byC[k]};}).sort(function(a,b){return b.v-a.v;});
   var byS={};var bySQ={};fs.forEach(function(r){byS[r.trabalho]=(byS[r.trabalho]||0)+r.valor;bySQ[r.trabalho]=(bySQ[r.trabalho]||0)+1;});
   var svcD=Object.keys(byS).map(function(k){return{n:k,v:Math.round(byS[k]),q:bySQ[k]};}).sort(function(a,b){return b.v-a.v;}).slice(0,7);
@@ -2377,7 +2398,7 @@ function rDB(){
     var labels={"clientes":"Clientes","servicos":"Servi\u00e7os","produtos":"Produtos","agenda":"Agenda","despesas":"Despesas","contatos":"Contatos Importados","auditoria":"Hist. Altera\u00e7\u00f5es"};
     return'<button class="bd-tab'+(S.bdTab===t?' on':'')+'" data-bd-tab="'+t+'">'+labels[t]+'</button>';
   }).join("");
-  var expMap={"clientes":"expClientes()","servicos":"expServicos()","produtos":"expProdutos()","agenda":"expAgenda()","despesas":"expContatos()","contatos":"expContatos()"};
+  var expMap={"clientes":"expClientes()","servicos":"expServicos()","produtos":"expProdutos()","agenda":"expAgenda()","despesas":"expDespesas()","contatos":"expContatos()","auditoria":"expAuditoria()"};
   var expBtn='<button class="exp-btn" onclick="'+( expMap[S.bdTab]||"expClientes()")+'">&#8595; Exportar CSV</button>';
   var content="",hds="",trs="";
   if(S.bdTab==="clientes"){
@@ -2477,7 +2498,18 @@ function rLeads(){
     +'<div class="mtabs">'+tabBtns+'</div>'+body+'</div>';
 }
 function rLeadsBoard(){
-  var leads=D.leads||[];
+  return '<div style="margin-bottom:12px;max-width:320px">'
+    +'<input type="text" id="leads-search-inp" placeholder="\uD83D\uDD0D Buscar por nome..." value="'+es(S.leadsSearch||"")+'" oninput="leadsSearchInput(this)">'
+    +'</div><div class="lead-board" id="lead-board-cols">'+buildLeadCols()+'</div>';
+}
+function leadsSearchInput(el){
+  S.leadsSearch=el.value;
+  var res=document.getElementById("lead-board-cols");
+  if(res)res.innerHTML=buildLeadCols();
+}
+function buildLeadCols(){
+  var q=(S.leadsSearch||"").trim().toLowerCase();
+  var leads=(D.leads||[]).filter(function(l){return !q||(l.nome||"").toLowerCase().indexOf(q)>=0;});
   var cols=LEAD_STAGES.map(function(st){
     var items=leads.filter(function(l){return l.etapa===st;}).sort(function(a,b){return(b.dataCriacao||"").localeCompare(a.dataCriacao||"");});
     var cards=items.map(function(l){
@@ -2490,7 +2522,7 @@ function rLeadsBoard(){
     return'<div class="lead-col"><div class="lead-col-hd"><span style="color:'+LEAD_STAGE_COLOR[st]+'">'+LEAD_STAGE_LABELS[st]+'</span><span style="color:#52525b">'+items.length+'</span></div>'
       +'<div class="lead-col-bd" data-lead-dropzone="'+st+'">'+(cards||'<div style="font-size:10px;color:#3f3f46;text-align:center;padding:10px 0">vazio</div>')+'</div></div>';
   }).join("");
-  return'<div class="lead-board">'+cols+'</div>';
+  return cols;
 }
 function rLeadsToday(){
   var dia=S.leadsDay||hj();
