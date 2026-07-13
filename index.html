@@ -1976,9 +1976,9 @@ function rSvc(fs){
     }}
   ];
   // tabela com linha colorida pra pendentes
-  if(!fs.length)var q2=(S.svcSearch||"").trim().toLowerCase();
+  var q2=(S.svcSearch||"").trim().toLowerCase();
   if(q2)fs=fs.filter(function(r){return(r.cliente||"").toLowerCase().indexOf(q2)>=0||(r.telefone||"").toLowerCase().indexOf(q2)>=0;});
-  return'<div class="pg"><div class="ph"><h2>Servi\u00e7os &mdash; '+MESES[S.month]+' '+S.year+'</h2><button class="ab" onclick="openS()">&#xFF0B; Novo Servi\u00e7o</button></div>'+'<div class="srow" style="margin-bottom:12px"><input type="text" id="svc-search-inp" placeholder="\uD83D\uDD0D Buscar por nome ou telefone..." value="'+es(S.svcSearch||\"\")+\'" oninput="svcSearchInput(this)"></div>'+'<div class="cd"><div class="emp">Nenhum registro neste per\u00edodo</div></div></div>';
+  if(!fs.length)return'<div class="pg"><div class="ph"><h2>Servi\u00e7os &mdash; '+MESES[S.month]+' '+S.year+'</h2><button class="ab" onclick="openS()">&#xFF0B; Novo Servi\u00e7o</button></div>'+'<div class="cd"><div class="emp">Nenhum registro neste per\u00edodo</div></div></div>';
   var hds=cols.map(function(c){return'<th>'+c.l+'</th>';}).join("")+'<th></th>';
   var trs=fs.map(function(r){
     var isPend=r.pagamento==="pendente";
@@ -2000,6 +2000,9 @@ function rSvc(fs){
     +'<button class="gb" onclick="openRelDia()">&#128200; Relat\u00f3rio do Dia</button></div></div>'
     +kgHtml
     +(pendentes?'<div style="background:#fbbf2420;border:1px solid #fbbf2440;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:11px;color:#fbbf24">&#9888; <strong>'+pendentes+' atendimento(s) com pagamento pendente</strong> &mdash; linhas em amarelo abaixo</div>':"")
+    +'<div class="srow" style="margin-bottom:12px">'
+    +'<input type="text" id="svc-search-inp" placeholder="\uD83D\uDD0D Buscar por nome ou telefone..." value="'+es(S.svcSearch||"")+'">'
+    +'</div>'
     +'<div class="cd">'+tableHtml+'</div></div>';
 }
 
