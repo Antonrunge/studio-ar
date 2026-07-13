@@ -3894,6 +3894,17 @@ function copyPix(){
 
 </script>
 <script>
+/* Force clear old SW cache */
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.getRegistrations().then(function(regs){
+    regs.forEach(function(r){r.unregister();});
+  });
+  if('caches' in window){
+    caches.keys().then(function(names){
+      names.forEach(function(n){caches.delete(n);});
+    });
+  }
+}
 if('serviceWorker' in navigator){
   window.addEventListener('load',function(){
     navigator.serviceWorker.register('/studio-ar/sw.js')
