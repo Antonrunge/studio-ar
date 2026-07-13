@@ -1877,7 +1877,7 @@ function rAgenda(){
         var div=appt.divulgador?'<div style="font-size:8px;color:#38bdf8;margin-top:2px">\u{1F464} '+es(appt.divulgador)+'</div>':'';
         return'<div class="agn-slot" data-agn-drop-prof="'+p+'" data-agn-drop-time="'+t+'" data-agn-drop-date="'+d+'"><div class="agn-appt status-'+appt.status+'" draggable="true" data-agn-drag="'+appt.id+'" data-edit-agn="'+appt.id+'">'+es(appt.client)+'<br><span style="font-size:9px;opacity:.8">'+es(appt.service)+'</span>'+div+'</div></div>';
       }
-      return'<div class="agn-slot" data-new-agn="'+d+'|'+t+'|'+p+'"><div class="agn-empty">+</div></div>';
+      return'<div class="agn-slot" data-agn-drop-prof="'+p+'" data-agn-drop-time="'+t+'" data-agn-drop-date="'+d+'" data-new-agn="'+d+'|'+t+'|'+p+'"><div class="agn-empty">+</div></div>';
     }).join("");
     return timeTd+cells;
   }).join("");
@@ -2001,7 +2001,7 @@ function rSvc(fs){
     +kgHtml
     +(pendentes?'<div style="background:#fbbf2420;border:1px solid #fbbf2440;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:11px;color:#fbbf24">&#9888; <strong>'+pendentes+' atendimento(s) com pagamento pendente</strong> &mdash; linhas em amarelo abaixo</div>':"")
     +'<div class="srow" style="margin-bottom:12px">'
-    +'<input type="text" id="svc-search-inp" placeholder="\uD83D\uDD0D Buscar por nome ou telefone..." value="'+es(S.svcSearch||"")+'">'
+    +'<input type="text" id="svc-search-inp" placeholder="\uD83D\uDD0D Buscar por nome ou telefone..." value="'+es(S.svcSearch||"")+'" oninput="svcSearchInput(this)">'
     +'</div>'
     +'<div class="cd">'+tableHtml+'</div></div>';
 }
