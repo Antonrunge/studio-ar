@@ -1995,7 +1995,7 @@ function rSvc(fs){
     +'<button class="gb" onclick="openRelDia()">&#128200; Relat\u00f3rio do Dia</button></div></div>'
     +kgHtml
     +(pendentes?'<div style="background:#fbbf2420;border:1px solid #fbbf2440;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:11px;color:#fbbf24">&#9888; <strong>'+pendentes+' atendimento(s) com pagamento pendente</strong> &mdash; linhas em amarelo abaixo</div>':"")
-    +'<div class="srow" style="margin-bottom:12px">'+'<input type="text" id="svc-search-inp" placeholder="\uD83D\uDD0D Buscar por nome ou telefone..." value="'+es(S.svcSearch||"")+"'" oninput="svcSearchInput(this)">'+'</div>'+'<div class="cd">'+tableHtml+'</div></div>';
+    +'<div class="srow" style="margin-bottom:12px"><input type="text" id="svc-search-inp" placeholder="\uD83D\uDD0D Buscar por nome ou telefone..." oninput="svcSearchInput(this)"></div>'
 }
 
 function rPrd(fp){
