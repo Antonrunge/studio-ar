@@ -2577,7 +2577,7 @@ function rLeadsBoard(){
   var intOpts='<option value="">Todos os interesses</option>'+interests.map(function(v){return'<option value="'+es(v)+'"'+(intF===v?' selected':'')+'>'+es(v)+'</option>';}).join("");
   return '<div style="display:flex;gap:9px;flex-wrap:wrap;margin-bottom:12px">'
     +'<input type="text" id="leads-search-inp" placeholder="\uD83D\uDD0D Buscar por nome..." value="'+es(S.leadsSearch||"")+'" style="flex:1;min-width:160px" oninput="leadsSearchInput(this)">'
-    +'<select style="width:auto;min-width:170px" onchange="S.leadsInterestFilter=this.value;var el=document.getElementById('leads-search-inp');if(el)leadsSearchInput(el);">'+intOpts+'</select>'
+    +'<select style="width:auto;min-width:170px" onchange="S.leadsInterestFilter=this.value;rT();">'+intOpts+'</select>'
     +'</div><div class="lead-board" id="lead-board-cols">'+buildLeadCols()+'</div>';
 }
 function svcSearchInput(el){
