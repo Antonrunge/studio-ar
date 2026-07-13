@@ -2582,7 +2582,13 @@ function rLeadsBoard(){
 }
 function svcSearchInput(el){
   S.svcSearch=el.value;
-  rT();
+  var q=(el.value||"").trim().toLowerCase();
+  var ct=document.getElementById("ct");
+  if(!ct)return;
+  ct.querySelectorAll("tbody tr").forEach(function(row){
+    var text=(row.textContent||"").toLowerCase();
+    row.style.display=(!q||text.indexOf(q)>=0)?"":"none";
+  });
 }
 function leadsSearchInput(el){
   S.leadsSearch=el.value;
