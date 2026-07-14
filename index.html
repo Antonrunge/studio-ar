@@ -2176,9 +2176,19 @@ function rDRE(fs,fp,fe,fa){
   var despMkt=byCateg["Marketing"]||0;
   var despOp=fe.reduce(function(s,r){return s+r.valorPago;},0)-despFixas-despMkt;
   var ebitda=margemBruta-cE-despOp-despFixas-despMkt;
-  var plT=Object.values(getPL()).reduce(function(s,v){return s+v;},0);
-  var avTotal=fa.reduce(function(s,r){return s+r.valor;},0);
-  var lucroLiq=ebitda-(plT-avTotal);
+  /* plT = base + comissões serviços + comissões produtos (igual ao Total a Pagar do Pró-Labore) */
+  var _pl=getPL(),_profs=getProfs();
+  var _cByP={};fs.forEach(function(r){var ns=(r.profissionais||[r.profissional]).filter(function(n){return n;});if(!ns.length)ns=[r.profissional];var c=cm(effVal(r),r.formaPagamento,r.taxaComissao);ns.forEach(function(n){if(!isAuxiliarNoMes(n,S.month,S.year))_cByP[n]=(_cByP[n]||0)+c;});});
+  var _cpByP={};fp.forEach(function(r){_cpByP[r.profissional]=(_cpByP[r.profissional]||0)+fl(r.valorUnitario*r.quantidade,r.formaPagamento||"PIX")*r.comissaoVendedor;});
+  var _aByP={};fa.forEach(function(r){_aByP[r.colaborador]=(_aByP[r.colaborador]||0)+r.valor;});
+  var deslig=getDesligados();
+  var plT=_profs.reduce(function(s,p){
+    var d=deslig[p];var base=(d&&((S.year>d.year)||(S.year===d.year&&S.month>=d.month)))?0:(_pl[p]||0);
+    var cs=_cByP[p]||0,cp=_cpByP[p]||0,av=_aByP[p]||0;
+    return s+(base+cs+cp-av);
+  },0);
+  var avTotal=0;/* já abatido no plT */
+  var lucroLiq=ebitda-plT;
   function dr(l,v,ind,neg){
     return'<tr><td style="padding:6px 13px;color:'+(ind?"#a1a1aa":"#e4e4e7")+';padding-left:'+(ind?30:13)+'px">'+l+'</td>'
       +'<td style="padding:6px 13px;text-align:right;color:'+(neg?"#f87171":"#d4d4d8")+'">'+(neg&&v>0?"- ":"")+fmt(Math.abs(v))+'</td></tr>';
@@ -2214,7 +2224,7 @@ function rDRE(fs,fp,fe,fa){
     +sec("(-) CMV")+dr("Custo Material Servi\u00e7os",cmvS,true,true)+dr("Custo Produtos Vendidos",cmvP,true,true)+sum("= MARGEM BRUTA",margemBruta,margemBruta>=0?"#34d399":"#f87171")
     +sec("(-) DESPESAS")+dr("Comiss\u00f5es da Equipe",cE,true,true)+dr("Despesas Operacionais",despOp,true,true)+dr("Despesas Fixas",despFixas,true,true)+dr("Marketing / Tr\u00e1fego",despMkt,true,true)
     +sum("= EBITDA",ebitda,ebitda>=0?"#34d399":"#f87171")
-    +sec("(-) ENCARGOS")+dr("Pr\u00f3-Labore l\u00edquido (prev. - adiant.)",plT-avTotal,true,true)
+    +sec("(-) ENCARGOS")+dr("Pr\u00f3-Labore (base + com. - adiant.)",plT,true,true)
     +'<tr class="dfin"><td style="padding:10px 13px;color:#f1f5f9">= RESULTADO L\u00cdQUIDO</td><td style="padding:10px 13px;text-align:right;font-size:15px;color:'+(lucroLiq>=0?"#34d399":"#f87171")+'">'+fmt(lucroLiq)+'</td></tr>'
     +'</tbody></table></div>'
     +'<div>'
