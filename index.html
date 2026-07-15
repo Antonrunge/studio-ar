@@ -540,7 +540,19 @@ function isAuxiliarNoMes(nome,mes,ano){
   var jaPromovido=(ano>info.promovidoAno)||(ano===info.promovidoAno&&mes>=info.promovidoMes);
   return !jaPromovido;
 }
-function getPL(){return PL_CUSTOM||JSON.parse(JSON.stringify(PL_DEFAULT));}
+function getPL(){
+  var raw=PL_CUSTOM||JSON.parse(JSON.stringify(PL_DEFAULT));
+  var key=S.year+"-"+(S.month<10?"0":"")+S.month;
+  var result={};
+  Object.keys(raw).forEach(function(p){
+    var v=raw[p];
+    if(typeof v==="object"&&v!==null){
+      result[p]=v[key]!==undefined?v[key]:(v["default"]||0);
+    }else{result[p]=v||0;}
+  });
+  return result;
+}
+function getPLRaw(){return PL_CUSTOM||JSON.parse(JSON.stringify(PL_DEFAULT));}
 
 var SD_SVC=[
   {id:uid(),date:"2026-06-02",valor:125,profissionais:["ANTON"],numProfs:1,trabalho:"CORTE",formaPagamento:"CR\u00c9DITO 3",taxaComissao:0.1,cliente:"ELIANA ALVES CARVALHO",captacao:"INSTAGRAM",telefone:"37999388876",email:"",endereco:"",nascimento:"",custoMaterial:0,observacoes:""},
@@ -1171,6 +1183,7 @@ function saveRankingSettings(){
 }
 function openPLSettings(){
   var pl=getPL(),profs=getProfs();
+  var mesLabel=["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"][S.month-1]+"/"+S.year;
   var rows=profs.map(function(p){
     var sid=p.replace(/[^a-zA-Z0-9]/g,"_");
     var aux=isAuxiliarNoMes(p,S.month,S.year);
@@ -1208,10 +1221,23 @@ function addProf(){
   openPLSettings();
 }
 function savePL(){
-  var profs=getProfs();var pl={};
-  profs.forEach(function(p){var el=document.getElementById("pl-"+p.replace(/[^a-zA-Z0-9]/g,'_'));pl[p]=el?parseFloat(el.value)||0:0;});
-  PL_CUSTOM=pl;
+  var profs=getProfs();
+  var raw=JSON.parse(JSON.stringify(getPLRaw()));
+  var key=S.year+"-"+(S.month<10?"0":"")+S.month;
+  profs.forEach(function(p){
+    var el=document.getElementById("pl-"+p.replace(/[^a-zA-Z0-9]/g,'_'));
+    var val=el?parseFloat(el.value)||0:0;
+    if(typeof raw[p]==="object"&&raw[p]!==null){
+      raw[p][key]=val;
+    }else{
+      var oldVal=raw[p]||0;
+      if(val!==oldVal){raw[p]={"default":oldVal};raw[p][key]=val;}
+      else{raw[p]=val;}
+    }
+  });
+  PL_CUSTOM=raw;
   db.collection("config").doc("prolabore").set({values:PL_CUSTOM});
+  showToast("\u2705 Sal\u00e1rios salvos para "+["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"][S.month-1]+"\/"+S.year+"!");
   cmod();
 }
 function delProf(name){
@@ -2868,7 +2894,7 @@ document.addEventListener("click",function(e){
   var db=e.target.closest("[data-del]");if(db){delR(db.dataset.del,db.dataset.id);return;}
   var eb=e.target.closest("[data-edit]");if(eb){var t=eb.dataset.edit,id=eb.dataset.id;
     if(t==="svc")openS(id);else if(t==="prd")openP(id);else if(t==="exp")openE(id);else if(t==="adv")openA(id);
-    else if(t==="forn")openFornecedor(id);else if(t==="arprod")openArProduto(id);
+    else if(t==="forn")openFornecedor(id);else if(t==="arprod")openArProduto(id);else if(t==="arent")openArEntrada(id);
     return;}
   var vr=e.target.closest("[data-venda-realizada]");if(vr){confirmarVendaRealizada(vr.dataset.vendaRealizada);return;}
   var an=e.target.closest("[data-agn-nav]");if(an){S.agnDate=an.dataset.agnNav;rT();return;}
@@ -3552,8 +3578,8 @@ function rArEstoque(){
   var rows=prods.map(function(p){
     var corEst=p.estoque<=0?"#f87171":p.estoque<=5?"#fbbf24":"#34d399";
     return'<tr>'
-      +'<td><strong>'+es(p.nome)+'</strong><div style="font-size:10px;color:#71717a">'+es(p.categoria||"")+'</div></td>'
-      +'<td class="hi" style="color:'+corEst+'">'+es(String(p.estoque||0))+' '+es(p.unidade||"un")+'</td>'
+      +'<td><strong>'+es(p.nome)+'</strong><div style="font-size:10px;color:#71717a">'+es(p.categoria||"")+(p.conteudoEmbalagem?" \u2014 "+p.conteudoEmbalagem+" "+es(p.unidadeConteudo||"mL"):"")+'</div></td>'
+      +'<td class="hi" style="color:'+corEst+'">'+es(String(p.estoque||0))+' un.</td>'
       +'<td style="color:#a1a1aa">'+es(String(p.prateleira||0))+'</td>'
       +'<td>'+fmt(p.custoPago||0)+'</td>'
       +'<td style="color:#38bdf8">'+fmt(p.precoDistribuidor||0)+'</td>'
@@ -3569,35 +3595,47 @@ function rArEstoque(){
 }
 function openArProduto(editId){
   var r=editId?D.arProdutos.find(function(x){return x.id===editId;}):null;
+  var cats=["Shampoo","M\u00e1scara","Condicionador","Leave-in","S\u00e9rum","\u00d3leo","Reconstrutor","Finalizador","Progressiva","Botox","Matizador","Outro"];
+  var catOpts=cats.map(function(cat){return'<option value="'+es(cat)+'"'+(r&&r.categoria===cat?" selected":"")+'>'+es(cat)+'</option>';}).join("");
+  var unOpts=["mL","Litro","g","Kg"].map(function(u){return'<option value="'+u+'"'+(r&&r.unidadeConteudo===u?" selected":"")+'>'+u+'</option>';}).join("");
   omod(mhdr(editId?"Editar Produto AR":"Novo Produto A R Professional")
     +'<div class="g2">'
     +'<div class="fi"><label>Nome do Produto</label><input type="text" id="ar-nome" value="'+es(r?r.nome:"")+'"></div>'
-    +'<div class="fi"><label>Categoria</label><input type="text" id="ar-cat" value="'+es(r?r.categoria:"")+'" placeholder="Shampoo, M\u00e1scara, Progressiva..."></div>'
+    +'<div class="fi"><label>Categoria</label><select id="ar-cat"><option value="">Selecione...</option>'+catOpts+'</select></div>'
     +'</div>'
-    +'<div class="g2">'
-    +'<div class="fi"><label>Unidade</label><select id="ar-un"><option value="un"'+(r&&r.unidade==="un"?" selected":"")+'>Unidade</option><option value="kg"'+(r&&r.unidade==="kg"?" selected":"")+'>Kg</option><option value="L"'+(r&&r.unidade==="L"?" selected":"")+'>Litro</option><option value="g"'+(r&&r.unidade==="g"?" selected":"")+'>g</option><option value="ml"'+(r&&r.unidade==="ml"?" selected":"")+'>ml</option></select></div>'
-    +'<div class="fi"><label>Custo pago (R$/un)</label><input type="number" id="ar-custo" value="'+(r?r.custoPago:"")+'"></div>'
-    +'</div>'
-    +'<div style="background:#27272a;border-radius:8px;padding:10px;margin-bottom:10px">'
-    +'<div style="font-size:11px;font-weight:600;color:#a1a1aa;margin-bottom:8px">&#128176; Pre\u00e7os de venda</div>'
     +'<div class="g3">'
-    +'<div class="fi"><label style="color:#38bdf8">Distribuidor / Studio A R</label><input type="number" id="ar-p1" value="'+(r?r.precoDistribuidor:"")+'"></div>'
-    +'<div class="fi"><label style="color:#fbbf24">Sal\u00e3o Parceiro</label><input type="number" id="ar-p2" value="'+(r?r.precoSalaoParceiro:"")+'"></div>'
-    +'<div class="fi"><label style="color:#f43f5e">Cabeleireiro (externo)</label><input type="number" id="ar-p3" value="'+(r?r.precoCabeleireiro:"")+'"></div>'
+    +'<div class="fi"><label>Conte\u00fado da Embalagem</label><input type="number" id="ar-vol" value="'+( r?r.conteudoEmbalagem:"")+'" placeholder="Ex: 300"></div>'
+    +'<div class="fi"><label>Unidade do Conte\u00fado</label><select id="ar-un">'+unOpts+'</select></div>'
+    +'<div class="fi"><label>Qtd em Estoque (unidades)</label><input type="number" id="ar-estoque" value="'+( r?r.estoque:0)+'" min="0"></div>'
+    +'</div>'
+    +'<div class="fi"><label>Custo pago por unidade (R$)</label><input type="number" id="ar-custo" value="'+( r?r.custoPago:"")+'"></div>'
+    +'<div style="background:#27272a;border-radius:8px;padding:10px;margin-bottom:10px">'
+    +'<div style="font-size:11px;font-weight:600;color:#a1a1aa;margin-bottom:8px">&#128176; Pre\u00e7os de venda (por unidade)</div>'
+    +'<div class="g3">'
+    +'<div class="fi"><label style="color:#38bdf8">Distribuidor / Studio A R</label><input type="number" id="ar-p1" value="'+( r?r.precoDistribuidor:"")+'"></div>'
+    +'<div class="fi"><label style="color:#fbbf24">Sal\u00e3o Parceiro</label><input type="number" id="ar-p2" value="'+( r?r.precoSalaoParceiro:"")+'"></div>'
+    +'<div class="fi"><label style="color:#f43f5e">Cabeleireiro (externo)</label><input type="number" id="ar-p3" value="'+( r?r.precoCabeleireiro:"")+'"></div>'
     +'</div></div>'
-    +'<input type="hidden" id="ar-id" value="'+(editId||"")+'"><button class="pb" onclick="savArProduto()">Salvar Produto</button>');
+    +'<input type="hidden" id="ar-id" value="'+( editId||"")+'"><button class="pb" onclick="savArProduto()">Salvar Produto</button>');
 }
 function savArProduto(){
   var nome=document.getElementById("ar-nome").value.trim();if(!nome)return alert("Informe o nome.");
+  var cat=document.getElementById("ar-cat").value;if(!cat)return alert("Selecione a categoria.");
+  var vol=parseFloat(document.getElementById("ar-vol").value)||0;if(!vol)return alert("Informe o conte\u00fado da embalagem.");
+  var un=document.getElementById("ar-un").value;
   var editId=document.getElementById("ar-id").value;
-  var rec={id:editId||uid(),nome:nome,categoria:document.getElementById("ar-cat").value.trim(),
-    unidade:document.getElementById("ar-un").value,
+  var estoque=parseFloat(document.getElementById("ar-estoque").value)||0;
+  // Build display label: "Power Hidrat | Shampoo | 300 mL"
+  var label=nome+" | "+cat+" | "+vol+" "+un;
+  var rec={id:editId||uid(),nome:nome,categoria:cat,
+    conteudoEmbalagem:vol,unidadeConteudo:un,label:label,
+    unidade:"un",/* stock always in units */
     custoPago:parseFloat(document.getElementById("ar-custo").value)||0,
     precoDistribuidor:parseFloat(document.getElementById("ar-p1").value)||0,
     precoSalaoParceiro:parseFloat(document.getElementById("ar-p2").value)||0,
     precoCabeleireiro:parseFloat(document.getElementById("ar-p3").value)||0,
-    estoque:0,prateleira:0};
-  if(editId){var ex=D.arProdutos.find(function(x){return x.id===editId;});if(ex){rec.estoque=ex.estoque||0;rec.prateleira=ex.prateleira||0;}}
+    estoque:estoque,prateleira:0};
+  if(editId){var ex=D.arProdutos.find(function(x){return x.id===editId;});if(ex){rec.prateleira=ex.prateleira||0;}}
   db.collection("arProdutos").doc(rec.id).set(rec,{merge:true});
   showToast("\u2705 Produto salvo!");cmod();
 }
@@ -3617,39 +3655,54 @@ function rArEntradas(){
     +'<div class="ct">Entradas de Produtos</div><button class="ab" onclick="openArEntrada()">\uFF0B Registrar Entrada</button></div>'
     +tbl(D.arEntradas,cols,"arent")+'</div>';
 }
-function openArEntrada(){
+function openArEntrada(editId){
+  var r=editId?D.arEntradas.find(function(x){return x.id===editId;}):null;
   var prods=D.arProdutos;var forns=D.fornecedores;
-  if(!prods.length)return alert("Cadastre produtos primeiro na aba Estoque.");
-  omod(mhdr("&#128229; Registrar Entrada")
+  if(!prods.length&&!r)return alert("Cadastre produtos primeiro na aba Estoque.");
+  var prodOpts=prods.map(function(p){
+    var sel=r&&r.produtoId===p.id?" selected":"";
+    return'<option value="'+es(p.id)+'|'+es(p.label||p.nome)+'|un"'+sel+'>'+es(p.label||p.nome)+'</option>';
+  }).join("");
+  var fornOpts=forns.map(function(f){var sel=r&&r.fornecedor===f.nome?" selected":"";return'<option value="'+es(f.nome)+'"'+sel+'>'+es(f.nome)+'</option>';}).join("");
+  omod(mhdr(r?"&#9998; Editar Entrada":"&#128229; Registrar Entrada")
     +'<div class="g2">'
-    +'<div class="fi"><label>Data</label><input type="date" id="ae-d" value="'+hj()+'"></div>'
-    +'<div class="fi"><label>Produto</label><select id="ae-prod"><option value="">Selecione...</option>'+prods.map(function(p){return'<option value="'+es(p.id)+'|'+es(p.nome)+'|'+es(p.unidade||"un")+'">'+es(p.nome)+'</option>';}).join("")+'</select></div>'
+    +'<div class="fi"><label>Data</label><input type="date" id="ae-d" value="'+(r?r.date:hj())+'"></div>'
+    +'<div class="fi"><label>Produto</label><select id="ae-prod"><option value="">Selecione...</option>'+prodOpts+'</select></div>'
     +'</div>'
     +'<div class="g3">'
-    +'<div class="fi"><label>Quantidade</label><input type="number" id="ae-qtd" min="1" value="1"></div>'
-    +'<div class="fi"><label>Custo unit\u00e1rio (R$)</label><input type="number" id="ae-cu" placeholder="0,00"></div>'
-    +'<div class="fi"><label>Custo Total</label><input type="number" id="ae-ct" placeholder="autom\u00e1tico" readonly style="opacity:.7"></div>'
+    +'<div class="fi"><label>Quantidade</label><input type="number" id="ae-qtd" min="1" value="'+(r?r.quantidade:1)+'"></div>'
+    +'<div class="fi"><label>Custo unit\u00e1rio (R$)</label><input type="number" id="ae-cu" value="'+(r?r.custoUnitario:"")+'"></div>'
+    +'<div class="fi"><label>Custo Total</label><input type="number" id="ae-ct" readonly style="opacity:.7"></div>'
     +'</div>'
-    +'<div class="fi"><label>Fornecedor</label><select id="ae-forn"><option value="">Selecione (opcional)...</option>'+forns.map(function(f){return'<option value="'+es(f.nome)+'">'+es(f.nome)+'</option>';}).join("")+'</select></div>'
-    +'<div class="fi"><label>Observa\u00e7\u00f5es</label><input type="text" id="ae-obs" placeholder="N\u00famero NF, lote, etc."></div>'
-    +'<button class="pb" onclick="savArEntrada()">Salvar Entrada</button>');
+    +'<div class="fi"><label>Fornecedor</label><select id="ae-forn"><option value="">Selecione (opcional)...</option>'+fornOpts+'</select></div>'
+    +'<div class="fi"><label>Observa\u00e7\u00f5es</label><input type="text" id="ae-obs" value="'+(r?es(r.obs||""):"")+'" placeholder="N\u00famero NF, lote, etc."></div>'
+    +'<input type="hidden" id="ae-id" value="'+(editId||"")+'">'
+    +'<button class="pb" onclick="savArEntrada()">Salvar</button>');
   function upCt(){var q=parseFloat(document.getElementById("ae-qtd").value)||0;var cu=parseFloat(document.getElementById("ae-cu").value)||0;document.getElementById("ae-ct").value=(q*cu).toFixed(2);}
   document.getElementById("ae-qtd").oninput=upCt;
   document.getElementById("ae-cu").oninput=upCt;
+  upCt();
 }
 function savArEntrada(){
+  var editId=document.getElementById("ae-id").value;
   var prodRaw=document.getElementById("ae-prod").value;if(!prodRaw)return alert("Selecione o produto.");
   var parts=prodRaw.split("|");var prodId=parts[0],prodNome=parts[1],unidade=parts[2];
   var qtd=parseFloat(document.getElementById("ae-qtd").value)||0;
   if(qtd<=0)return alert("Quantidade inv\u00e1lida.");
   var cu=parseFloat(document.getElementById("ae-cu").value)||0;
-  var rec={id:uid(),date:document.getElementById("ae-d").value,produto:prodNome,produtoId:prodId,
+  var rec={id:editId||uid(),date:document.getElementById("ae-d").value,produto:prodNome,produtoId:prodId,
     unidade:unidade,quantidade:qtd,custoUnitario:cu,
     fornecedor:document.getElementById("ae-forn").value,obs:document.getElementById("ae-obs").value};
-  db.collection("arEntradas").doc(rec.id).set(rec);
-  // atualiza estoque do produto
-  db.collection("arProdutos").doc(prodId).update({estoque:firebase.firestore.FieldValue.increment(qtd),custoPago:cu});
-  showToast("\u2705 Entrada registrada! Estoque atualizado.");cmod();
+  db.collection("arEntradas").doc(rec.id).set(rec,{merge:true});
+  if(editId){
+    // edit: recalculate stock delta
+    var old=D.arEntradas.find(function(x){return x.id===editId;});
+    var delta=qtd-(old?old.quantidade:0);
+    if(delta!==0)db.collection("arProdutos").doc(prodId).update({estoque:firebase.firestore.FieldValue.increment(delta)});
+  }else{
+    db.collection("arProdutos").doc(prodId).update({estoque:firebase.firestore.FieldValue.increment(qtd),custoPago:cu,unidade:"un"});
+  }
+  showToast("\u2705 Entrada "+(editId?"atualizada":"registrada")+"! Estoque atualizado.");cmod();
 }
 
 /* SAÍDAS AR PROF */
@@ -3723,7 +3776,7 @@ function rArPrateleira(){
   var rows=prods.map(function(p){
     var cor=(p.prateleira||0)<=2?"#f87171":(p.prateleira||0)<=5?"#fbbf24":"#34d399";
     return'<tr>'
-      +'<td><strong>'+es(p.nome)+'</strong><div style="font-size:10px;color:#71717a">'+es(p.categoria||"")+'</div></td>'
+      +'<td><strong>'+es(p.nome)+'</strong><div style="font-size:10px;color:#71717a">'+es(p.categoria||"")+(p.conteudoEmbalagem?" \u2014 "+p.conteudoEmbalagem+" "+es(p.unidadeConteudo||"mL"):"")+'</div></td>'
       +'<td style="color:'+cor+';font-weight:600">'+es(String(p.prateleira||0))+' '+es(p.unidade||"un")+'</td>'
       +'<td>'+fmt(p.precoDistribuidor||0)+'</td>'
       +'<td class="hi">'+fmt((p.prateleira||0)*(p.precoDistribuidor||0))+'</td>'
