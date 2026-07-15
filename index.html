@@ -519,7 +519,7 @@ function fdtLong(s){var days=["Dom","Seg","Ter","Qua","Qui","Sex","S\u00e1b"];va
 function timeSlots(){var s=[];for(var h=9;h<19;h++){s.push((h<10?"0":"")+h+":00");s.push((h<10?"0":"")+h+":30");}s.push("19:00");return s;}
 
 var _agora=new Date();
-var S={tab:"dashboard",svcSearch:"",expCatFilter:"",leadsInterestFilter:"",month:_agora.getMonth(),year:_agora.getFullYear(),day:0,cliSearch:"",cliSort:"dias",cliSvcFilter:"",bdTab:"clientes",bdSearch:"",agnDate:hj(),leadsView:"funil",leadsSearch:""};
+var S={tab:"dashboard",svcSearch:"",expCatFilter:"",leadsInterestFilter:"",arEstSearch:"",arEstCat:"",month:_agora.getMonth(),year:_agora.getFullYear(),day:0,cliSearch:"",cliSort:"dias",cliSvcFilter:"",bdTab:"clientes",bdSearch:"",agnDate:hj(),leadsView:"funil",leadsSearch:""};
 (function(){var _sp=sg("studioar_periodo");if(_sp&&typeof _sp.month==="number"&&typeof _sp.year==="number"){S.month=_sp.month;S.year=_sp.year;}})();
 function salvarPeriodo(){ss("studioar_periodo",{month:S.month,year:S.year});}
 var D={svc:[],prd:[],exp:[],adv:[],agn:[],contacts:[],requests:[],audit:[],estoque:[],leads:[],arEntradas:[],arSaidas:[],arProdutos:[],arReps:[],fornecedores:[],msgs:[]};
@@ -2823,7 +2823,7 @@ function seUpdateProduto(sel){
   var o=sel.options[sel.selectedIndex];
   document.getElementById('se-nome').value=o.dataset.nome||'';
   document.getElementById('se-arpid').value=sel.value;
-  document.getElementById('se-custo-unit').value=o.dataset.custo||0;
+  document.getElementById('se-custo-unit').value=o.dataset.cab||o.dataset.custo||0;
   seCalcTotal();
 }
 function seCalcTotal(){
@@ -2836,7 +2836,7 @@ function openStockEntry(){
   var pratItems=D.arProdutos.filter(function(p){return(p.prateleira||0)>0;})
     .slice().sort(function(a,b){return(a.label||a.nome).localeCompare(b.label||b.nome);});
   if(!pratItems.length)return alert("Prateleira vazia! Primeiro faça uma saída do A R Professional para a Prateleira Salão.");
-  var prodOpts=pratItems.map(function(p){return'<option value="'+es(p.id)+'" data-nome="'+es(p.label||p.nome)+'" data-custo="'+(p.custoPago||0)+'">'+es(p.label||p.nome)+' (prat: '+(p.prateleira||0)+' un.)</option>';}).join("");
+  var prodOpts=pratItems.map(function(p){return'<option value="'+es(p.id)+'" data-nome="'+es(p.label||p.nome)+'" data-custo="'+(p.custoPago||0)+'" data-cab="'+(p.precoCabeleireiro||0)+'">'+es(p.label||p.nome)+' (prat: '+(p.prateleira||0)+' un.)</option>';}).join("");
   omod(mhdr("Nova Entrada de Estoque — Reposi\u00e7\u00e3o da Prateleira")
     +'<div class="fi"><label>Data</label><input type="date" id="se-d" value="'+hj()+'"></div>'
     +'<div class="fi"><label>Produto (da Prateleira Sal\u00e3o)</label><select id="se-prod-sel" onchange="seUpdateProduto(this)"><option value="">Selecione...</option>'+prodOpts+'</select></div>'
@@ -3609,8 +3609,23 @@ function rArProf(){
 }
 
 /* ESTOQUE A R PROF */
+function arEstFilter(){
+  var q=(document.getElementById("arp-search")||{value:""}).value.trim().toLowerCase();
+  var catF=(document.getElementById("arp-cat-f")||{value:""}).value;
+  S.arEstSearch=q; S.arEstCat=catF;
+  var rows=document.querySelectorAll("#arp-tbody tr");
+  rows.forEach(function(row){
+    var txt=(row.textContent||"").toLowerCase();
+    var catEl=row.querySelector("td div");
+    var cat=catEl?catEl.textContent.toLowerCase():"";
+    row.style.display=(!q||txt.indexOf(q)>=0)&&(!catF||cat.indexOf(catF.toLowerCase())>=0)?"":"none";
+  });
+}
 function rArEstoque(){
-  var prods=D.arProdutos;
+  var cats=[];D.arProdutos.forEach(function(p){if(p.categoria&&cats.indexOf(p.categoria)<0)cats.push(p.categoria);});cats.sort();
+  var catF=S.arEstCat||"";
+  var catOpts='<option value="">Todas as categorias</option>'+cats.map(function(k){return'<option value="'+es(k)+'"'+(catF===k?' selected':'')+'>'+es(k)+'</option>';}).join("");
+  var prods=D.arProdutos.slice().sort(function(a,b){return(a.label||a.nome).localeCompare(b.label||b.nome);});
   if(!prods.length)return'<div class="cd"><button class="ab" onclick="openArProduto()">\uFF0B Novo Produto</button><div class="emp" style="margin-top:12px">Nenhum produto cadastrado</div></div>';
   var rows=prods.map(function(p){
     var corEst=p.estoque<=0?"#f87171":p.estoque<=5?"#fbbf24":"#34d399";
@@ -3628,7 +3643,11 @@ function rArEstoque(){
   return'<div class="cd"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
     +'<div class="ct">Produtos A R Professional</div>'
     +'<button class="ab" onclick="openArProduto()">\uFF0B Novo Produto</button></div>'
-    +'<div class="ox"><table class="dt"><thead><tr><th>Produto</th><th>Estoque</th><th>Prateleira</th><th>Custo</th><th style="color:#38bdf8">Distrib.</th><th style="color:#fbbf24">Sal\u00e3o Parceiro</th><th style="color:#f43f5e">Cabeleireiro</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
+    +'<div class="srow" style="margin-bottom:12px">'
+    +'<input type="text" id="arp-search" placeholder="Buscar produto..." oninput="arEstFilter()" style="flex:1" value="'+(S.arEstSearch||"")+'">'
+    +'<select id="arp-cat-f" onchange="arEstFilter()" style="width:auto;min-width:160px">'+catOpts+'</select>'
+    +'</div>'
+    +'<div class="ox"><table class="dt" id="arp-table"><thead><tr><th>Produto</th><th>Estoque</th><th>Prateleira</th><th>Custo</th><th style="color:#38bdf8">Distrib.</th><th style="color:#fbbf24">Sal\u00e3o Parceiro</th><th style="color:#f43f5e">Cabeleireiro</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
 }
 function openArProduto(editId){
   var r=editId?D.arProdutos.find(function(x){return x.id===editId;}):null;
