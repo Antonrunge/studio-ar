@@ -3646,7 +3646,7 @@ function rArEntradas(){
     {k:"date",l:"Data",fn:function(r){return fdt(r.date);}},
     {k:"produto",l:"Produto",fn:function(r){return es(r.produto);}},
     {k:"fornecedor",l:"Fornecedor",fn:function(r){return es(r.fornecedor||"\u2014");}},
-    {k:"qtd",l:"Qtd",fn:function(r){return es(String(r.quantidade))+" "+es(r.unidade||"un");}},
+    {k:"qtd",l:"Qtd",fn:function(r){return es(String(r.quantidade))+" "+(r.unidade==="un"||!r.unidade?"un.":es(r.unidade));}},
     {k:"cu",l:"Custo Unit.",fn:function(r){return fmt(r.custoUnitario||0);}},
     {k:"ct",l:"Custo Total",fn:function(r){return fmt((r.custoUnitario||0)*(r.quantidade||1));},hi:true},
     {k:"obs",l:"Obs",fn:function(r){return es(r.obs||"\u2014");}}
@@ -3661,7 +3661,7 @@ function openArEntrada(editId){
   if(!prods.length&&!r)return alert("Cadastre produtos primeiro na aba Estoque.");
   var prodOpts=prods.map(function(p){
     var sel=r&&r.produtoId===p.id?" selected":"";
-    return'<option value="'+es(p.id)+'|'+es(p.label||p.nome)+'|un"'+sel+'>'+es(p.label||p.nome)+'</option>';
+    return'<option value="'+es(p.id)+'"'+sel+'>'+es(p.label||p.nome)+'</option>';
   }).join("");
   var fornOpts=forns.map(function(f){var sel=r&&r.fornecedor===f.nome?" selected":"";return'<option value="'+es(f.nome)+'"'+sel+'>'+es(f.nome)+'</option>';}).join("");
   omod(mhdr(r?"&#9998; Editar Entrada":"&#128229; Registrar Entrada")
@@ -3685,8 +3685,10 @@ function openArEntrada(editId){
 }
 function savArEntrada(){
   var editId=document.getElementById("ae-id").value;
-  var prodRaw=document.getElementById("ae-prod").value;if(!prodRaw)return alert("Selecione o produto.");
-  var parts=prodRaw.split("|");var prodId=parts[0],prodNome=parts[1],unidade=parts[2];
+  var prodId=document.getElementById("ae-prod").value;if(!prodId)return alert("Selecione o produto.");
+  var prodObj=D.arProdutos.find(function(x){return x.id===prodId;})||{};
+  var prodNome=prodObj.label||prodObj.nome||"";
+  var unidade="un";
   var qtd=parseFloat(document.getElementById("ae-qtd").value)||0;
   if(qtd<=0)return alert("Quantidade inv\u00e1lida.");
   var cu=parseFloat(document.getElementById("ae-cu").value)||0;
