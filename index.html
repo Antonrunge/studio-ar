@@ -2823,7 +2823,10 @@ function seUpdateProduto(sel){
   var o=sel.options[sel.selectedIndex];
   document.getElementById('se-nome').value=o.dataset.nome||'';
   document.getElementById('se-arpid').value=sel.value;
-  document.getElementById('se-custo-unit').value=o.dataset.cab||o.dataset.custo||0;
+  var prodId=sel.value;
+  var prodObj=(D.arProdutos||[]).find(function(x){return x.id===prodId;})||{};
+  var preco=prodObj.precoCabeleireiro||parseFloat(o.dataset.cab)||parseFloat(o.dataset.custo)||0;
+  document.getElementById('se-custo-unit').value=preco;
   seCalcTotal();
 }
 function seCalcTotal(){
@@ -3610,22 +3613,26 @@ function rArProf(){
 
 /* ESTOQUE A R PROF */
 function arEstFilter(){
-  var q=(document.getElementById("arp-search")||{value:""}).value.trim().toLowerCase();
-  var catF=(document.getElementById("arp-cat-f")||{value:""}).value;
-  S.arEstSearch=q; S.arEstCat=catF;
-  var rows=document.querySelectorAll("#arp-tbody tr");
-  rows.forEach(function(row){
-    var txt=(row.textContent||"").toLowerCase();
-    var catEl=row.querySelector("td div");
-    var cat=catEl?catEl.textContent.toLowerCase():"";
-    row.style.display=(!q||txt.indexOf(q)>=0)&&(!catF||cat.indexOf(catF.toLowerCase())>=0)?"":"none";
-  });
+  var inp=document.getElementById("arp-search");
+  var catSel=document.getElementById("arp-cat-f");
+  S.arEstSearch=inp?inp.value:"";
+  S.arEstCat=catSel?catSel.value:"";
+  var pos=inp?inp.selectionStart:0;
+  rT();
+  setTimeout(function(){
+    var inp2=document.getElementById("arp-search");
+    if(inp2){inp2.focus();try{inp2.setSelectionRange(pos,pos);}catch(e){}}
+  },30);
 }
+
 function rArEstoque(){
   var cats=[];D.arProdutos.forEach(function(p){if(p.categoria&&cats.indexOf(p.categoria)<0)cats.push(p.categoria);});cats.sort();
   var catF=S.arEstCat||"";
   var catOpts='<option value="">Todas as categorias</option>'+cats.map(function(k){return'<option value="'+es(k)+'"'+(catF===k?' selected':'')+'>'+es(k)+'</option>';}).join("");
+  var q2=(S.arEstSearch||"").trim().toLowerCase();
   var prods=D.arProdutos.slice().sort(function(a,b){return(a.label||a.nome).localeCompare(b.label||b.nome);});
+  if(q2)prods=prods.filter(function(p){return(p.label||p.nome||"").toLowerCase().indexOf(q2)>=0||(p.categoria||"").toLowerCase().indexOf(q2)>=0;});
+  if(catF)prods=prods.filter(function(p){return(p.categoria||"")===catF;});
   if(!prods.length)return'<div class="cd"><button class="ab" onclick="openArProduto()">\uFF0B Novo Produto</button><div class="emp" style="margin-top:12px">Nenhum produto cadastrado</div></div>';
   var rows=prods.map(function(p){
     var corEst=p.estoque<=0?"#f87171":p.estoque<=5?"#fbbf24":"#34d399";
