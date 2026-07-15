@@ -522,7 +522,7 @@ var _agora=new Date();
 var S={tab:"dashboard",svcSearch:"",expCatFilter:"",leadsInterestFilter:"",month:_agora.getMonth(),year:_agora.getFullYear(),day:0,cliSearch:"",cliSort:"dias",cliSvcFilter:"",bdTab:"clientes",bdSearch:"",agnDate:hj(),leadsView:"funil",leadsSearch:""};
 (function(){var _sp=sg("studioar_periodo");if(_sp&&typeof _sp.month==="number"&&typeof _sp.year==="number"){S.month=_sp.month;S.year=_sp.year;}})();
 function salvarPeriodo(){ss("studioar_periodo",{month:S.month,year:S.year});}
-var D={svc:[],prd:[],exp:[],adv:[],agn:[],contacts:[],requests:[],audit:[],estoque:[],leads:[],arEntradas:[],arSaidas:[],arProdutos:[],fornecedores:[],msgs:[]};
+var D={svc:[],prd:[],exp:[],adv:[],agn:[],contacts:[],requests:[],audit:[],estoque:[],leads:[],arEntradas:[],arSaidas:[],arProdutos:[],arReps:[],fornecedores:[],msgs:[]};
 var PL_CUSTOM=null,PROFS_CUSTOM=null,PROFS_DESLIGADOS_CUSTOM=null,PROFS_AUXILIARES_CUSTOM=null;
 var PROFS_AUXILIARES_DEFAULT={"CAROL":{promovidoMes:null,promovidoAno:null}};
 var RANKING_EXCLUDED_DEFAULT=["ANTON","DIANE","ISABELA","MATHEUS"];
@@ -641,6 +641,7 @@ function setupListeners(){
   listen("arEntradas",function(a){D.arEntradas=a;});
   listen("arSaidas",function(a){D.arSaidas=a;});
   listen("arProdutos",function(a){D.arProdutos=a;});
+  listen("arReps",function(a){D.arReps=a;});
   listen("fornecedores",function(a){D.fornecedores=a;});
   db.collection("mensagens").orderBy("ts","desc").limit(100).onSnapshot(function(snap){
     D.msgs=snap.docs.map(function(d){return d.data();}).reverse();rT();
@@ -1049,6 +1050,20 @@ function savP(){
     formaPagamento:document.getElementById("mp-fp").value||"PIX",
     externa:document.getElementById("mp-ext").value==="true"};
   rec.createdBy=CURRENT_USER?CURRENT_USER.role:"";
+  // Deduzir da prateleira do A R Professional
+  var mpSel=document.getElementById("mp-pr");
+  var selOpt=mpSel?mpSel.options[mpSel.selectedIndex]:null;
+  var arProdId=selOpt?selOpt.dataset.arpid:"";
+  if(arProdId&&!editId){
+    var arProd=D.arProdutos.find(function(x){return x.id===arProdId;});
+    var vendQtd=rec.quantidade||1;
+    if(arProd&&(arProd.prateleira||0)>=vendQtd){
+      db.collection("arProdutos").doc(arProdId).update({prateleira:firebase.firestore.FieldValue.increment(-vendQtd)});
+    }else if(arProd){
+      showToast("\u26a0\uFE0F Estoque na prateleira insuficiente! Disponível: "+(arProd.prateleira||0)+" un.","#fbbf24");
+    }
+    rec.arProdutoId=arProdId;
+  }
   db.collection("produtos").doc(rec.id).set(rec);
   cmod();
 }
@@ -2804,13 +2819,29 @@ function rEstoque(){
     +(low.length?'<div style="background:#f43f5e18;border:1px solid #f43f5e44;color:#f87171;padding:11px 15px;border-radius:8px;font-size:12px;margin-bottom:16px"><strong>\u26a0 '+low.length+' produto(s) precisam de reposi\u00e7\u00e3o (abaixo de 300):</strong> '+low.map(function(i){return es(i.nome);}).join(", ")+'</div>':"")
     +'<div class="cg" style="grid-template-columns:repeat(auto-fill,minmax(270px,1fr));margin-bottom:0">'+(cards||'<div class="emp">Nenhum produto cadastrado no estoque ainda. Clique em "Nova Entrada" para come\u00e7ar.</div>')+'</div></div>';
 }
+function seUpdateProduto(sel){
+  var o=sel.options[sel.selectedIndex];
+  document.getElementById('se-nome').value=o.dataset.nome||'';
+  document.getElementById('se-arpid').value=sel.value;
+  document.getElementById('se-custo-unit').value=o.dataset.custo||0;
+  seCalcTotal();
+}
+function seCalcTotal(){
+  var qtd=parseFloat(document.getElementById('se-qtd').value)||0;
+  var cu=parseFloat(document.getElementById('se-custo-unit').value)||0;
+  var valEl=document.getElementById('se-valor');
+  if(valEl)valEl.value=(qtd*cu).toFixed(2);
+}
 function openStockEntry(){
-  var existing=(D.estoque||[]).map(function(i){return i.nome;});
-  omod(mhdr("Nova Entrada de Estoque")
+  var pratItems=D.arProdutos.filter(function(p){return(p.prateleira||0)>0;})
+    .slice().sort(function(a,b){return(a.label||a.nome).localeCompare(b.label||b.nome);});
+  if(!pratItems.length)return alert("Prateleira vazia! Primeiro faça uma saída do A R Professional para a Prateleira Salão.");
+  var prodOpts=pratItems.map(function(p){return'<option value="'+es(p.id)+'" data-nome="'+es(p.label||p.nome)+'" data-custo="'+(p.custoPago||0)+'"'>'+es(p.label||p.nome)+' (prat: '+(p.prateleira||0)+' un.)</option>';}).join("");
+  omod(mhdr("Nova Entrada de Estoque — Reposi\u00e7\u00e3o da Prateleira")
     +'<div class="fi"><label>Data</label><input type="date" id="se-d" value="'+hj()+'"></div>'
-    +'<div class="fi"><label>Produto</label><input type="text" id="se-nome" list="se-dl" placeholder="Nome do produto (ex: SHAMPOO DETECTOR)">'
-    +'<datalist id="se-dl">'+existing.map(function(n){return'<option value="'+es(n)+'">';}).join("")+'</datalist></div>'
-    +'<div class="g2"><div class="fi"><label>Quantidade</label><input type="number" id="se-qtd" placeholder="Ex: 1000"></div>'
+    +'<div class="fi"><label>Produto (da Prateleira Sal\u00e3o)</label><select id="se-prod-sel" onchange="seUpdateProduto(this)"><option value="">Selecione...</option>'+prodOpts+'</select></div>'
+    +'<input type="hidden" id="se-arpid"><input type="hidden" id="se-custo-unit" value="0">'
+    +'<div class="g2"><div class="fi"><label>Quantidade</label><input type="number" id="se-qtd" oninput="seCalcTotal()" placeholder="Ex: 1000"></div>'
     +'<div class="fi"><label>Unidade</label><select id="se-un"><option value="ml">ml</option><option value="g">gramas</option></select></div></div>'
     +'<div class="fi"><label>Valor Pago (R$)</label><input type="number" id="se-valor" placeholder="0,00"></div>'
     +'<div style="font-size:10px;color:#52525b;margin-bottom:10px">Esse valor n\u00e3o entra nas despesas do DRE \u2014 serve apenas para controle do estoque, j\u00e1 que o custo por procedimento j\u00e1 \u00e9 descontado em cada servi\u00e7o.</div>'
@@ -2833,7 +2864,10 @@ function saveStockEntry(){
     });
   }).then(function(){
     db.collection("estoqueEntradas").add({id:uid(),produtoId:docId,produtoNome:nome,date:document.getElementById("se-d").value,quantidade:qtd,unidade:un,valorPago:valor,registradoPor:CURRENT_USER?CURRENT_USER.nome:"",timestamp:new Date().toISOString()});
-    showToast("\u2705 Entrada registrada no estoque!");
+    // Deduct from prateleira
+    var arPid=document.getElementById("se-arpid")?document.getElementById("se-arpid").value:"";
+    if(arPid){db.collection("arProdutos").doc(arPid).update({prateleira:firebase.firestore.FieldValue.increment(-1)});}
+    showToast("\u2705 Entrada registrada! Produto retirado da prateleira.");
     cmod();
   }).catch(function(err){showToast("\u274c Erro: "+err.message,"#f43f5e");});
 }
@@ -2896,6 +2930,7 @@ document.addEventListener("click",function(e){
     if(t==="svc")openS(id);else if(t==="prd")openP(id);else if(t==="exp")openE(id);else if(t==="adv")openA(id);
     else if(t==="forn")openFornecedor(id);else if(t==="arprod")openArProduto(id);else if(t==="arent")openArEntrada(id);
     return;}
+  var rp=e.target.closest("[data-repor-id]");if(rp){openReporPrateleira(rp.dataset.reporId,rp.dataset.reporNome);return;}
   var vr=e.target.closest("[data-venda-realizada]");if(vr){confirmarVendaRealizada(vr.dataset.vendaRealizada);return;}
   var an=e.target.closest("[data-agn-nav]");if(an){S.agnDate=an.dataset.agnNav;rT();return;}
   var ns=e.target.closest("[data-new-agn]");if(ns){var pts=ns.dataset.newAgn.split("|");openAgn(pts[0],pts[1],pts[2]);return;}
@@ -3560,13 +3595,15 @@ function savFornecedor(){
 /* ─ A R PROFESSIONAL ─ */
 var AR_SUB="estoque";
 function rArProf(){
-  var tabs=[["estoque","&#128230; Estoque"],["entradas","&#128229; Entradas"],["saidas","&#128228; Sa\u00eddas"],["prateleira","&#128717; Prateleira Sal\u00e3o"]];
+  var isAdm=CURRENT_USER&&(CURRENT_USER.role==="admin"||CURRENT_USER.role==="financeiro");
+  var tabs=[["estoque","&#128230; Estoque"],["entradas","&#128229; Entradas"],["saidas","&#128228; Sa\u00eddas"],["prateleira","&#128717; Prateleira Sal\u00e3o"]].concat(isAdm?[["relatorio-estoque","&#128202; Relat\u00f3rio"]]:[]);
   var tabBtns=tabs.map(function(t){return'<button class="mtab'+(AR_SUB===t[0]?" on":"")+'" onclick="AR_SUB=\''+t[0]+'\';rT()">'+t[1]+'</button>';}).join("");
   var body="";
   if(AR_SUB==="estoque")body=rArEstoque();
   else if(AR_SUB==="entradas")body=rArEntradas();
   else if(AR_SUB==="saidas")body=rArSaidas();
   else if(AR_SUB==="prateleira")body=rArPrateleira();
+  else if(AR_SUB==="relatorio-estoque")body=rArRelatorio();
   return'<div class="pg"><div class="ph"><h2>\uD83C\uDFF7\uFE0F A R Professional</h2></div>'
     +'<div class="mtabs">'+tabBtns+'</div>'+body+'</div>';
 }
@@ -3585,7 +3622,7 @@ function rArEstoque(){
       +'<td style="color:#38bdf8">'+fmt(p.precoDistribuidor||0)+'</td>'
       +'<td style="color:#fbbf24">'+fmt(p.precoSalaoParceiro||0)+'</td>'
       +'<td style="color:#f43f5e">'+fmt(p.precoCabeleireiro||0)+'</td>'
-      +'<td><button class="eb" data-edit="arprod" data-id="'+p.id+'">ed</button></td>'
+      +'<td style="display:flex;gap:4px"><button class="eb" data-edit="arprod" data-id="'+p.id+'">ed</button>'+(((p.estoque||0)>0)?'<button class="gb" style="font-size:10px;padding:4px 8px" data-repor-id="'+p.id+'" data-repor-nome="'+es(p.nome)+'">\u2193 Repor</button>':'<span style="font-size:9px;color:#f87171;padding:4px">Sem estoque</span>')+'</td>'
       +'</tr>';
   }).join("");
   return'<div class="cd"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
@@ -3651,8 +3688,10 @@ function rArEntradas(){
     {k:"ct",l:"Custo Total",fn:function(r){return fmt((r.custoUnitario||0)*(r.quantidade||1));},hi:true},
     {k:"obs",l:"Obs",fn:function(r){return es(r.obs||"\u2014");}}
   ];
+  var totalEntradas=D.arEntradas.reduce(function(s,r){return s+(r.custoUnitario||0)*(r.quantidade||1);},0);
   return'<div class="cd"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
     +'<div class="ct">Entradas de Produtos</div><button class="ab" onclick="openArEntrada()">\uFF0B Registrar Entrada</button></div>'
+    +'<div style="font-size:11px;color:#a1a1aa;margin-bottom:12px">Total investido nas entradas: <strong style="color:#34d399">'+fmt(totalEntradas)+'</strong></div>'
     +tbl(D.arEntradas,cols,"arent")+'</div>';
 }
 function openArEntrada(editId){
@@ -3708,11 +3747,41 @@ function savArEntrada(){
 }
 
 /* SAÍDAS AR PROF */
+
+/* REPOSIÇÃO DE PRATELEIRA */
+function openReporPrateleira(prodId,nome){
+  var prod=D.arProdutos.find(function(x){return x.id===prodId;});
+  if(!prod||(prod.estoque||0)<=0){
+    showToast("\u26a0\uFE0F "+es(nome)+" n\u00e3o tem estoque dispon\u00edvel para reposi\u00e7\u00e3o!","#f43f5e");
+    return;
+  }
+  omod(mhdr("\u21e9 Repor Prateleira \u2014 "+es(nome))
+    +'<div style="font-size:11px;color:#a1a1aa;margin-bottom:12px">Dispon\u00edvel em estoque: <strong style="color:#34d399">'+prod.estoque+' un.</strong></div>'
+    +'<div class="fi"><label>Quantidade a repor (unidades)</label><input type="number" id="rp-qtd" value="1" min="1" max="'+prod.estoque+'"></div>'
+    +'<button class="pb" onclick="savReporPrateleira(\''+prodId+'\')">Confirmar Reposi\u00e7\u00e3o</button>');
+}
+function savReporPrateleira(prodId){
+  var prod=D.arProdutos.find(function(x){return x.id===prodId;});
+  if(!prod)return;
+  var qtd=parseInt(document.getElementById("rp-qtd").value)||0;
+  if(qtd<=0||qtd>prod.estoque)return alert("Quantidade inv\u00e1lida.");
+  db.collection("arProdutos").doc(prodId).update({
+    estoque:firebase.firestore.FieldValue.increment(-qtd),
+    prateleira:firebase.firestore.FieldValue.increment(qtd)
+  });
+  db.collection("arReps").add({
+    id:uid(),date:hj(),produtoId:prodId,produtoNome:prod.label||prod.nome,
+    quantidade:qtd,registradoPor:CURRENT_USER?CURRENT_USER.nome:"?",
+    timestamp:new Date().toISOString()
+  });
+  showToast("\u2705 "+qtd+" un. de "+es(prod.nome)+" movidas para a prateleira!");
+  cmod();
+}
 function rArSaidas(){
   var cols=[
     {k:"date",l:"Data",fn:function(r){return fdt(r.date);}},
     {k:"produto",l:"Produto",fn:function(r){return es(r.produto);}},
-    {k:"tipo",l:"Tipo",fn:function(r){var cor={salao:"#38bdf8",vendaExterna:"#f43f5e",cliente:"#fbbf24"}[r.tipo]||"#a1a1aa";return'<span style="color:'+cor+'">'+es(r.tipo==="salao"?"&#x2192; Sal\u00e3o":r.tipo==="vendaExterna"?"Venda Externa":"&#x2192; Cliente Sal\u00e3o")+'</span>';}},
+    {k:"tipo",l:"Tipo",fn:function(r){var cor={salao:"#38bdf8",vendaExterna:"#f43f5e",cliente:"#fbbf24"}[r.tipo]||"#a1a1aa";var lbl=r.tipo==="salao"?"\u2192 Studio A R":r.tipo==="vendaExterna"?"Venda Externa":"\u2192 Cliente Sal\u00e3o";return'<span style="color:'+cor+'">'+lbl+'</span>';}},
     {k:"qtd",l:"Qtd",fn:function(r){return es(String(r.quantidade));}},
     {k:"preco",l:"Pre\u00e7o",fn:function(r){return fmt(r.precoUnitario||0);}},
     {k:"total",l:"Total",fn:function(r){return fmt((r.precoUnitario||0)*(r.quantidade||1));},hi:true},
@@ -3771,6 +3840,35 @@ function savArSaida(){
 }
 
 /* PRATELEIRA DO SALÃO */
+
+function rArRelatorio(){
+  var dia=hj();
+  var reps=(D.arReps||[]).filter(function(r){return(r.date||"").slice(0,10)===dia;});
+  reps.sort(function(a,b){return(b.timestamp||"").localeCompare(a.timestamp||"");});
+  /* Investimento total e receita potencial */
+  var totalInvest=0,totalDistrib=0,totalSalao=0,totalCab=0;
+  (D.arProdutos||[]).forEach(function(p){
+    var est=p.estoque||0;
+    totalInvest+=est*(p.custoPago||0);
+    totalDistrib+=est*(p.precoDistribuidor||0);
+    totalSalao+=est*(p.precoSalaoParceiro||0);
+    totalCab+=est*(p.precoCabeleireiro||0);
+  });
+  /* Repos do dia */
+  var repRows=reps.length
+    ?reps.map(function(r){return'<tr><td>'+es(r.produtoNome||r.produtoId)+'</td><td style="color:#f43f5e">'+es(String(r.quantidade))+' un.</td><td style="color:#a1a1aa">'+es(r.registradoPor||"")+'</td><td style="color:#71717a;font-size:10px">'+es((r.timestamp||"").replace("T"," ").slice(0,16))+'</td></tr>';}).join("")
+    :'<tr><td colspan="4" style="text-align:center;color:#52525b;padding:20px">Nenhuma reposi\u00e7\u00e3o registrada hoje</td></tr>';
+  return'<div class="cd"><div class="ct" style="margin-bottom:14px">&#128202; Relat\u00f3rio de Estoque</div>'
+    +'<div style="font-size:11px;font-weight:600;color:#a1a1aa;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">Investimento atual no estoque</div>'
+    +'<div class="kg" style="grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px">'
+    +kp("Custo Total Investido",fmt(totalInvest),"valor de compra")
+    +kp("Se vender (Distrib.)",fmt(totalDistrib),"pre\u00e7o distribuidor")
+    +kp("Se vender (Sal\u00e3o Parc.)",fmt(totalSalao),"pre\u00e7o sal\u00e3o parceiro")
+    +kp("Se vender (Cabeleireiro)",fmt(totalCab),"pre\u00e7o cabeleireiro")
+    +'</div>'
+    +'<div style="font-size:11px;font-weight:600;color:#a1a1aa;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">Reposi\u00e7\u00f5es de Prateleira Hoje (\u2014 '+fdt(dia)+')</div>'
+    +'<div class="ox"><table class="dt"><thead><tr><th>Produto</th><th>Qtd</th><th>Registrado por</th><th>Hor\u00e1rio</th></tr></thead><tbody>'+repRows+'</tbody></table></div></div>';
+}
 function rArPrateleira(){
   var prods=D.arProdutos.filter(function(p){return(p.prateleira||0)>0;});
   var total=prods.reduce(function(s,p){return s+((p.prateleira||0)*(p.precoDistribuidor||0));},0);
