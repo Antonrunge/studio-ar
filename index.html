@@ -3613,16 +3613,14 @@ function rArProf(){
 
 /* ESTOQUE A R PROF */
 function arEstFilter(){
-  var inp=document.getElementById("arp-search");
-  var catSel=document.getElementById("arp-cat-f");
-  S.arEstSearch=inp?inp.value:"";
-  S.arEstCat=catSel?catSel.value:"";
-  var pos=inp?inp.selectionStart:0;
-  rT();
-  setTimeout(function(){
-    var inp2=document.getElementById("arp-search");
-    if(inp2){inp2.focus();try{inp2.setSelectionRange(pos,pos);}catch(e){}}
-  },30);
+  var q=(document.getElementById("arp-search")||{value:""}).value.trim().toLowerCase();
+  var catF=(document.getElementById("arp-cat-f")||{value:""}).value.trim().toLowerCase();
+  document.querySelectorAll("#arp-tbody tr").forEach(function(row){
+    var txt=(row.textContent||"").toLowerCase();
+    var matchQ=!q||txt.indexOf(q)>=0;
+    var matchC=!catF||txt.indexOf(catF)>=0;
+    row.style.display=matchQ&&matchC?"":"none";
+  });
 }
 
 function rArEstoque(){
@@ -3654,7 +3652,7 @@ function rArEstoque(){
     +'<input type="text" id="arp-search" placeholder="Buscar produto..." oninput="arEstFilter()" style="flex:1" value="'+(S.arEstSearch||"")+'">'
     +'<select id="arp-cat-f" onchange="arEstFilter()" style="width:auto;min-width:160px">'+catOpts+'</select>'
     +'</div>'
-    +'<div class="ox"><table class="dt" id="arp-table"><thead><tr><th>Produto</th><th>Estoque</th><th>Prateleira</th><th>Custo</th><th style="color:#38bdf8">Distrib.</th><th style="color:#fbbf24">Sal\u00e3o Parceiro</th><th style="color:#f43f5e">Cabeleireiro</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
+    +'<div class="ox"><table class="dt" id="arp-table"><thead><tr><th>Produto</th><th>Estoque</th><th>Prateleira</th><th>Custo</th><th style="color:#38bdf8">Distrib.</th><th style="color:#fbbf24">Sal\u00e3o Parceiro</th><th style="color:#f43f5e">Cabeleireiro</th><th></th></tr></thead><tbody id="arp-tbody">'+rows+'</tbody></table></div></div>';
 }
 function openArProduto(editId){
   var r=editId?D.arProdutos.find(function(x){return x.id===editId;}):null;
