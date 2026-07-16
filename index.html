@@ -1155,7 +1155,9 @@ function savAgn(){
   var slotId=rec.date+"_"+rec.time.replace(":","")+"_"+slug(rec.professional);
   db.collection("horariosPublicos").doc(slotId).set({date:rec.date,time:rec.time,professional:rec.professional,status:rec.status==="cancelado"?"cancelado":"ocupado",agendamentoId:rec.id});
   if(LEAD_BOOKING_ID){
-    db.collection("leads").doc(LEAD_BOOKING_ID).update({etapa:"agendado",agendamentoId:rec.id,proximoContato:null});
+    var leadAg=(D.leads||[]).find(function(x){return x.id===LEAD_BOOKING_ID;});
+    db.collection("leads").doc(LEAD_BOOKING_ID).update({etapa:"agendado",agendamentoId:rec.id,proximoContato:null,
+      historico:firebase.firestore.FieldValue.arrayUnion(etapaHistEntry(leadAg?leadAg.etapa:"","agendado"))});
     LEAD_BOOKING_ID=null;
   }
   cmod();
@@ -2380,6 +2382,78 @@ function cliSvcFilter(el){
   if(res)res.innerHTML=buildCliTable(S.cliSearch,S.cliSort);
 }
 
+/* ─ FICHA TÉCNICA DA CLIENTE ─ */
+function openFichaTecnica(nome){
+  var docId=slug(nome);
+  db.collection("fichasTecnicas").doc(docId).get().then(function(doc){
+    renderFichaTecnica(nome,doc.exists?doc.data():{});
+  }).catch(function(e){showToast("\u274c Erro ao carregar ficha: "+e.message,"#f43f5e");});
+}
+function renderFichaTecnica(nome,f){
+  var regs=(f.registros||[]).slice().sort(function(a,b){return(b.date||"").localeCompare(a.date||"");});
+  var rows=regs.map(function(rg){
+    return'<tr><td>'+fdt(rg.date)+'</td><td style="color:#f1f5f9">'+es(rg.procedimento||"")+'</td>'
+      +'<td style="color:#fbbf24;max-width:200px;white-space:normal">'+es(rg.formula||"")+'</td>'
+      +'<td style="color:#a1a1aa;font-size:10px;max-width:160px;white-space:normal">'+es(rg.obs||"")+'</td>'
+      +'<td style="color:#71717a;font-size:10px">'+es(rg.por||"")+'</td></tr>';
+  }).join("")||'<tr><td colspan="5" style="text-align:center;color:#52525b;padding:14px">Nenhum registro qu\u00edmico ainda</td></tr>';
+  var alertaAlergia=f.alergias?'<div style="background:#f43f5e18;border:1px solid #f43f5e44;color:#f87171;padding:9px 12px;border-radius:8px;font-size:12px;font-weight:600;margin-bottom:12px">\u26a0 '+es(f.alergias)+'</div>':'';
+  var key=nome.trim().toUpperCase();
+  var visitas=(D.svc||[]).filter(function(r){return r.cliente&&r.cliente.trim().toUpperCase()===key;}).sort(function(a,b){return b.date.localeCompare(a.date);});
+  var visRows=visitas.map(function(r){
+    var profs=(r.profissionais||[r.profissional]).filter(Boolean).join(", ");
+    return'<tr><td>'+fdt(r.date)+'</td><td>'+es(r.trabalho||"")+'</td><td style="color:#71717a">'+es(profs)+'</td><td style="color:#34d399">'+fmt(effVal(r))+'</td><td style="color:#a1a1aa;font-size:10px;max-width:160px;white-space:normal">'+es(r.obs||"")+'</td></tr>';
+  }).join("")||'<tr><td colspan="5" style="text-align:center;color:#52525b;padding:14px">Nenhuma visita registrada ainda</td></tr>';
+  var selGest=function(v){return['\u2014','Sim','N\u00e3o'].map(function(o){return'<option value="'+o+'"'+((f.gestante||'\u2014')===o?' selected':'')+'>'+o+'</option>';}).join('');};
+  omod(mhdr("\uD83D\uDCCB Ficha de Anamnese \u2014 "+es(nome))
+    +'<div style="margin-bottom:10px"><button class="gb" data-cli-profile="'+es(nome)+'">\u2190 Voltar ao perfil</button></div>'
+    +alertaAlergia
+    +'<div class="fi"><label style="color:#f87171">\u26a0 Alergias / cuidados</label><input type="text" id="ft-alergias" value="'+es(f.alergias||"")+'" placeholder="Ex: alergia a am\u00f4nia, couro cabeludo sens\u00edvel..."></div>'
+    +'<div class="g2"><div class="fi"><label>Gestante / amamentando</label><select id="ft-gest">'+selGest()+'</select></div>'
+    +'<div class="fi"><label>Sa\u00fade / medicamentos em uso</label><input type="text" id="ft-saude" value="'+es(f.saude||"")+'" placeholder="Ex: hipertens\u00e3o, uso de minoxidil..."></div></div>'
+    +'<div class="fi"><label>Qu\u00edmica anterior no cabelo</label><input type="text" id="ft-quimant" value="'+es(f.quimicaAnterior||"")+'" placeholder="Ex: henna h\u00e1 6 meses, progressiva com formol, colora\u00e7\u00e3o caseira..."></div>'
+    +'<div class="fi"><label>Observa\u00e7\u00f5es gerais do cabelo</label><input type="text" id="ft-obsger" value="'+es(f.obsGerais||"")+'" placeholder="Ex: porosidade alta, base 5, couro sens\u00edvel..."></div>'
+    +'<button class="pb" data-ficha-save-info="'+es(nome)+'">\uD83D\uDCBE Salvar informa\u00e7\u00f5es</button>'
+    +'<div style="margin-top:16px;background:#27272a;border-radius:8px;padding:10px">'
+    +'<div style="font-size:11px;font-weight:600;color:#a1a1aa;margin-bottom:8px">\uFF0B Novo registro qu\u00edmico</div>'
+    +'<div class="g2"><div class="fi"><label>Data</label><input type="date" id="ft-d" value="'+hj()+'"></div>'
+    +'<div class="fi"><label>Procedimento</label><input type="text" id="ft-proc" placeholder="Ex: Colora\u00e7\u00e3o, Luzes, Progressiva..."></div></div>'
+    +'<div class="fi"><label>F\u00f3rmula / produtos usados</label><input type="text" id="ft-form" placeholder="Ex: 7.0 + 6.34 (1:1) + OX 20 VOL"></div>'
+    +'<div class="fi"><label>Observa\u00e7\u00f5es (resultado, tempo de pausa...)</label><input type="text" id="ft-obs" placeholder="Ex: pausa 35 min, fundo alaranjado corrigido"></div>'
+    +'<button class="pb" data-ficha-save-reg="'+es(nome)+'">Salvar registro</button></div>'
+    +'<div style="margin-top:16px"><div class="ct">Hist\u00f3rico qu\u00edmico</div>'
+    +'<div class="ox"><table class="dt"><thead><tr><th>Data</th><th>Procedimento</th><th>F\u00f3rmula</th><th>Obs</th><th>Por</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>'
+    +'<div style="margin-top:16px"><div class="ct">Hist\u00f3rico completo de visitas ('+visitas.length+')</div>'
+    +'<div class="ox"><table class="dt"><thead><tr><th>Data</th><th>Servi\u00e7o</th><th>Profissional</th><th>Valor</th><th>Observa\u00e7\u00f5es</th></tr></thead><tbody>'+visRows+'</tbody></table></div></div>');
+}
+function savFichaInfo(nome){
+  db.collection("fichasTecnicas").doc(slug(nome)).set({
+    nome:nome,
+    alergias:document.getElementById("ft-alergias").value.trim(),
+    gestante:document.getElementById("ft-gest").value,
+    saude:document.getElementById("ft-saude").value.trim(),
+    quimicaAnterior:document.getElementById("ft-quimant").value.trim(),
+    obsGerais:document.getElementById("ft-obsger").value.trim()
+  },{merge:true}).then(function(){showToast("\u2705 Ficha atualizada!");})
+  .catch(function(e){showToast("\u274c Erro: "+e.message,"#f43f5e");});
+}
+function savFichaReg(nome){
+  var proc=document.getElementById("ft-proc").value.trim();
+  if(!proc)return alert("Informe o procedimento.");
+  var reg={id:uid(),date:document.getElementById("ft-d").value||hj(),
+    procedimento:proc,
+    formula:document.getElementById("ft-form").value.trim(),
+    obs:document.getElementById("ft-obs").value.trim(),
+    por:CURRENT_USER?CURRENT_USER.nome:""};
+  db.collection("fichasTecnicas").doc(slug(nome)).set({
+    nome:nome,
+    registros:firebase.firestore.FieldValue.arrayUnion(reg)
+  },{merge:true}).then(function(){
+    showToast("\u2705 Registro qu\u00edmico salvo!");
+    openFichaTecnica(nome);
+  }).catch(function(e){showToast("\u274c Erro: "+e.message,"#f43f5e");});
+}
+
 /* ─ PERFIL 360 DA CLIENTE ─ */
 function openClientProfile(nome){
   var key=nome.trim().toUpperCase();
@@ -2428,6 +2502,7 @@ function openClientProfile(nome){
 
   omod(mhdr("\uD83D\uDC64 "+es(c.nome))
     +rankBadge
+    +'<div style="margin-bottom:12px"><button class="gb" data-ficha-cliente="'+es(c.nome)+'">\uD83D\uDCCB Ficha de Anamnese (sa\u00fade, qu\u00edmica, f\u00f3rmulas e hist\u00f3rico)</button></div>'
     +'<div class="g3" style="margin-bottom:12px">'+kp("Total gasto",fmt(c.gasto))+kp("Visitas",c.qtd)+kp("\u00daltimo atend.",hist[0]?fdt(hist[0].date):"\u2014")+'</div>'
     +(ultObs?'<div style="background:#27272a;border-left:3px solid #f43f5e;padding:8px 11px;border-radius:0 6px 6px 0;font-size:11px;color:#d4d4d8;margin-bottom:12px"><div style="color:#71717a;font-size:10px;margin-bottom:3px">Obs. \u00faltimo atendimento</div>'+es(ultObs)+'</div>':"")
     +editFields
@@ -2559,6 +2634,13 @@ function cancelRequest(id){
 }
 
 /* ─ LEADS / COMERCIAL ─ */
+function etapaHistEntry(ant,nova){
+  var lbl=function(k){return(typeof LEAD_STAGE_LABELS!=="undefined"&&LEAD_STAGE_LABELS[k])||k||"";};
+  return{data:hj(),hora:new Date().toTimeString().slice(0,5),
+    etapaAnterior:ant||"",etapaNova:nova,
+    obs:"Mudou de etapa: "+lbl(ant)+" \u2192 "+lbl(nova),
+    autor:CURRENT_USER?CURRENT_USER.nome:""};
+}
 function rLeadsDailyReport(){
   var dia=S.leadsDay||hj();
   var leads=D.leads||[];
@@ -2735,7 +2817,9 @@ function openLeadDetail(id){
     +'<div style="margin-top:16px"><div class="ct">Hist\u00f3rico de contatos</div>'+hist+'</div>');
 }
 function retomar(id){
-  db.collection("leads").doc(id).update({etapa:"lead",motivoPerda:null,proximoContato:hj()});
+  var lAnt=(D.leads||[]).find(function(x){return x.id===id;});
+  db.collection("leads").doc(id).update({etapa:"lead",motivoPerda:null,proximoContato:hj(),
+    historico:firebase.firestore.FieldValue.arrayUnion(etapaHistEntry(lAnt?lAnt.etapa:"","lead"))});
   showToast("Lead reaberto");cmod();
 }
 function saveLeadContact(){
@@ -2749,6 +2833,8 @@ function saveLeadContact(){
     autor:CURRENT_USER?CURRENT_USER.nome:"",
     divulgador:document.getElementById("ld-div")?document.getElementById("ld-div").value:""
   };
+  var leadAtual=(D.leads||[]).find(function(x){return x.id===id;});
+  if(leadAtual&&etapa&&etapa!=="agendado"&&leadAtual.etapa!==etapa){entry.etapaAnterior=leadAtual.etapa;entry.etapaNova=etapa;}
   if(etapa==="agendado"){
     db.collection("leads").doc(id).update({
       historico:firebase.firestore.FieldValue.arrayUnion(entry)
@@ -2773,7 +2859,9 @@ function openLeadLost(id){
 function saveLeadLost(){
   var id=document.getElementById("ld-lost-id").value;
   var mot=document.getElementById("ld-mot").value;
-  db.collection("leads").doc(id).update({etapa:"perdido",motivoPerda:mot,proximoContato:null});
+  var lAnt=(D.leads||[]).find(function(x){return x.id===id;});
+  db.collection("leads").doc(id).update({etapa:"perdido",motivoPerda:mot,proximoContato:null,
+    historico:firebase.firestore.FieldValue.arrayUnion(etapaHistEntry(lAnt?lAnt.etapa:"","perdido"))});
   showToast("Lead marcado como perdido","#f87171");cmod();
 }
 function leadConvert(id){
@@ -2783,7 +2871,8 @@ function leadConvert(id){
   var docId=slug(l.nome);
   db.collection("contatos").doc(docId).set({id:docId,nome:l.nome,telefone:l.telefone||"",
     fonte:"Comercial / Leads",captacao:l.origem||"TR\u00c1FEGO PAGO",dataCadastro:hj()},{merge:true});
-  db.collection("leads").doc(id).update({etapa:"convertido",clienteVinculado:docId,proximoContato:null});
+  db.collection("leads").doc(id).update({etapa:"convertido",clienteVinculado:docId,proximoContato:null,
+    historico:firebase.firestore.FieldValue.arrayUnion(etapaHistEntry(l.etapa,"convertido"))});
   showToast("\u2705 Lead convertido em cliente!");cmod();
 }
 function leadToAgenda(id){
@@ -3015,6 +3104,9 @@ document.addEventListener("click",function(e){
   var lp=e.target.closest("[data-lead-perdido]");if(lp){openLeadLost(lp.dataset.leadPerdido);return;}
   var ec=e.target.closest("[data-edit-contact]");if(ec){openEditContact(ec.dataset.editContact);return;}
   var cp=e.target.closest("[data-cli-profile]");if(cp){openClientProfile(cp.dataset.cliProfile);return;}
+  var ftc=e.target.closest("[data-ficha-cliente]");if(ftc){openFichaTecnica(ftc.dataset.fichaCliente);return;}
+  var fsi=e.target.closest("[data-ficha-save-info]");if(fsi){savFichaInfo(fsi.dataset.fichaSaveInfo);return;}
+  var fsr=e.target.closest("[data-ficha-save-reg]");if(fsr){savFichaReg(fsr.dataset.fichaSaveReg);return;}
   var ck=e.target.closest("[data-cli-pick]");if(ck){selectCliMatch(parseInt(ck.dataset.cliPick),ck.dataset.cliPickPx);return;}
   var cd=e.target.closest("[data-cat-del-type]");if(cd){delCatalogItem(cd.dataset.catDelType,parseInt(cd.dataset.catDelIdx));return;}
 });
@@ -3116,7 +3208,8 @@ document.addEventListener("drop",function(e){
   if(novaEtapa==="agendado"){leadToAgenda(id);return;}
   if(novaEtapa==="perdido"){openLeadLost(id);return;}
   if(novaEtapa==="convertido"){leadConvert(id);return;}
-  db.collection("leads").doc(id).update({etapa:novaEtapa}).then(function(){
+  db.collection("leads").doc(id).update({etapa:novaEtapa,
+    historico:firebase.firestore.FieldValue.arrayUnion(etapaHistEntry(lead.etapa,novaEtapa))}).then(function(){
     showToast("\u2705 "+lead.nome+" movida para "+LEAD_STAGE_LABELS[novaEtapa]);
   }).catch(function(err){showToast("\u274c Erro: "+err.message,"#f43f5e");});
 });
@@ -3969,10 +4062,36 @@ function rArPrateleira(){
       +'</tr>';
   }).join("");
   return'<div class="cd">'
-    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">'
     +'<div class="ct">&#128717; Prateleira do Studio A R</div>'
-    +'<div style="font-size:11px;color:#a1a1aa">Valor em estoque: <strong style="color:#34d399">'+fmt(total)+'</strong></div></div>'
+    +'<div style="display:flex;align-items:center;gap:10px"><button class="gb" onclick="imprimirConferenciaPrateleira()">&#128424; Imprimir confer\u00eancia (PDF)</button>'
+    +'<div style="font-size:11px;color:#a1a1aa">Valor em estoque: <strong style="color:#34d399">'+fmt(total)+'</strong></div></div></div>'
     +'<div class="ox"><table class="dt"><thead><tr><th>Produto</th><th>Qtd na Prateleira</th><th>Pre\u00e7o Distrib.</th><th>Valor Total</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
+}
+function imprimirConferenciaPrateleira(){
+  var prods=(D.arProdutos||[]).filter(function(p){return(p.prateleira||0)>0;}).sort(function(a,b){return(a.nome||a.label).localeCompare(b.nome||b.label);});
+  if(!prods.length)return showToast("Nenhum produto na prateleira para conferir.","#fbbf24");
+  var rows=prods.map(function(p,i){
+    var det=(p.categoria?es(p.categoria):"")+(p.conteudoEmbalagem?" \u2014 "+p.conteudoEmbalagem+" "+es(p.unidadeConteudo||"mL"):"");
+    return'<tr><td class="c">'+(i+1)+'</td><td><strong>'+es(p.nome)+'</strong>'+(det?'<span class="mut"> ('+det+')</span>':'')+'</td><td class="c">'+(p.prateleira||0)+' un.</td><td></td><td></td><td></td></tr>';
+  }).join("");
+  var now=new Date();
+  var html='<!DOCTYPE html><html><head><meta charset="utf-8"><title>Confer\u00eancia de Prateleira \u2014 Studio A R</title><style>'
+    +'body{font-family:Arial,sans-serif;color:#111;margin:24px}h1{font-size:17px;margin:0}h2{font-size:11px;font-weight:normal;color:#555;margin:4px 0 16px}'
+    +'table{width:100%;border-collapse:collapse;font-size:11px}th,td{border:1px solid #999;padding:6px 8px;text-align:left;height:18px}th{background:#eee}'
+    +'.c{text-align:center}.mut{color:#777;font-size:9px}'
+    +'.foot{margin-top:34px;font-size:11px;display:flex;justify-content:space-between}.line{border-top:1px solid #111;padding-top:4px;width:40%;text-align:center}'
+    +'@media print{button{display:none}}</style></head><body>'
+    +'<h1>Confer\u00eancia F\u00edsica \u2014 Prateleira Sal\u00e3o (A R Professional)</h1>'
+    +'<h2>Gerado em '+fdt(hj())+' \u00e0s '+now.toTimeString().slice(0,5)+' por '+es(CURRENT_USER?CURRENT_USER.nome:"")+' \u00b7 '+prods.length+' produtos</h2>'
+    +'<table><thead><tr><th style="width:28px">#</th><th>Produto</th><th style="width:90px">Qtd no Sistema</th><th style="width:90px">Qtd Contada</th><th style="width:80px">Diferen\u00e7a</th><th style="width:150px">Observa\u00e7\u00e3o</th></tr></thead><tbody>'+rows+'</tbody></table>'
+    +'<div class="foot"><div class="line">Conferido por</div><div class="line">Assinatura / Data</div></div>'
+    +'<button onclick="window.print()" style="margin-top:20px;padding:8px 16px;cursor:pointer">Imprimir / Salvar como PDF</button>'
+    +'</body></html>';
+  var w=window.open("","_blank");
+  if(!w)return showToast("\u274c Pop-up bloqueado pelo navegador. Libere pop-ups para imprimir.","#f43f5e");
+  w.document.write(html);w.document.close();
+  setTimeout(function(){try{w.print();}catch(e){}},400);
 }
 function baixarPrateleira(prodId,nome,unidade){
   omod(mhdr("Baixar uso \u2014 "+es(nome))
