@@ -4012,8 +4012,12 @@ function savArSaida(){
   db.collection("arSaidas").doc(rec.id).set(rec);
   // baixa estoque AR Prof
   db.collection("arProdutos").doc(prodId).update({estoque:firebase.firestore.FieldValue.increment(-qtd)});
-  // se for para o salão, adiciona na prateleira
-  if(tipo==="salao"){db.collection("arProdutos").doc(prodId).update({prateleira:firebase.firestore.FieldValue.increment(qtd)});}
+  // se for para o salão, adiciona na prateleira e registra como reposição (aparece no Relatório)
+  if(tipo==="salao"){
+    db.collection("arProdutos").doc(prodId).update({prateleira:firebase.firestore.FieldValue.increment(qtd)});
+    db.collection("arReps").add({id:uid(),date:rec.date||hj(),produtoId:prodId,produtoNome:prodNome,
+      quantidade:qtd,registradoPor:CURRENT_USER?CURRENT_USER.nome:"?",timestamp:new Date().toISOString()});
+  }
   showToast("\u2705 Sa\u00edda registrada!");cmod();
 }
 
