@@ -1013,10 +1013,17 @@ function savS(){
 /* PRODUCT MODAL */
 function openP(editId){
   var r=editId?D.prd.find(function(x){return x.id===editId;}):null;
+  var prodsPrat=(D.arProdutos||[]).filter(function(p){return(p.prateleira||0)>0;}).sort(function(a,b){return(a.label||a.nome).localeCompare(b.label||b.nome);});
+  if(!editId&&!prodsPrat.length){showToast('\u26a0\uFE0F Nenhum produto dispon\u00edvel na Prateleira Sal\u00e3o. Reponha a prateleira primeiro (aba A R Professional).','#f43f5e');return;}
+  var prOpts=prodsPrat.map(function(p){
+    var nm=p.label||p.nome;
+    return'<option value="'+es(nm)+'" data-arpid="'+es(p.id)+'"'+(r&&r.produto===nm?' selected':'')+'>'+es(nm)+' (prat: '+p.prateleira+' un.)</option>';
+  }).join('');
+  if(r&&r.produto&&!prodsPrat.some(function(p){return(p.label||p.nome)===r.produto;})){prOpts='<option value="'+es(r.produto)+'" selected>'+es(r.produto)+'</option>'+prOpts;}
   omod(mhdr(editId?"Editar Venda":"Nova Venda de Produto")
     +'<div class="g2"><div class="fi"><label>Data</label><input type="date" id="mp-d" value="'+(r?r.date:hj())+'"></div>'
     +'<div class="fi"><label>Quantidade</label><input type="number" id="mp-q" value="'+(r?r.quantidade:1)+'"></div></div>'
-    +'<div class="fi"><label>Produto</label><select id="mp-pr"><option value="">Selecione...</option>'+ol(getProds(),r?r.produto:"")+'</select></div>'
+    +'<div class="fi"><label>Produto (da Prateleira Sal\u00e3o)</label><select id="mp-pr"><option value="">Selecione...</option>'+prOpts+'</select></div>'
     +'<div class="g3"><div class="fi"><label>Valor Unit. (R$)</label><input type="number" id="mp-vu" value="'+(r?r.valorUnitario:"")+'" placeholder="0,00"></div>'
     +'<div class="fi"><label>Custo Unit. (70% autom\u00e1tico)</label><input type="number" id="mp-cu" value="'+(r?r.custo:0)+'" readonly style="opacity:.6;cursor:not-allowed"></div>'
     +'<div class="fi"><label>Vendedor</label><select id="mp-pf">'+ol(getProfs(),r?r.profissional:"ANTON")+'</select></div></div>'
@@ -1050,18 +1057,16 @@ function savP(){
     formaPagamento:document.getElementById("mp-fp").value||"PIX",
     externa:document.getElementById("mp-ext").value==="true"};
   rec.createdBy=CURRENT_USER?CURRENT_USER.role:"";
-  // Deduzir da prateleira do A R Professional
+  // Toda venda nova (sal\u00e3o ou externa) abate da Prateleira Sal\u00e3o; sem saldo, recusa
   var mpSel=document.getElementById("mp-pr");
   var selOpt=mpSel?mpSel.options[mpSel.selectedIndex]:null;
   var arProdId=selOpt?selOpt.dataset.arpid:"";
-  if(arProdId&&!editId){
-    var arProd=D.arProdutos.find(function(x){return x.id===arProdId;});
+  if(!editId){
+    if(!arProdId)return alert("\u26a0 Este produto n\u00e3o est\u00e1 na Prateleira Sal\u00e3o. Reponha a prateleira primeiro (aba A R Professional).");
+    var arProd=(D.arProdutos||[]).find(function(x){return x.id===arProdId;});
     var vendQtd=rec.quantidade||1;
-    if(arProd&&(arProd.prateleira||0)>=vendQtd){
-      db.collection("arProdutos").doc(arProdId).update({prateleira:firebase.firestore.FieldValue.increment(-vendQtd)});
-    }else if(arProd){
-      showToast("\u26a0\uFE0F Estoque na prateleira insuficiente! Disponível: "+(arProd.prateleira||0)+" un.","#fbbf24");
-    }
+    if(!arProd||(arProd.prateleira||0)<vendQtd)return alert("\u26a0 Sem prateleira suficiente: "+rec.produto+" tem apenas "+(arProd?(arProd.prateleira||0):0)+" un. na Prateleira Sal\u00e3o. Reponha a prateleira primeiro (aba A R Professional).");
+    db.collection("arProdutos").doc(arProdId).update({prateleira:firebase.firestore.FieldValue.increment(-vendQtd)});
     rec.arProdutoId=arProdId;
   }
   db.collection("produtos").doc(rec.id).set(rec);
@@ -1636,7 +1641,16 @@ function saveCatalog(){
     .catch(function(e){showToast("\u274c Erro: "+e.message,"#f43f5e");});
 }
 function delR(type,id){
-  function doDelete(){db.collection(COL_MAP[type]).doc(id).delete();}
+  function doDelete(){
+    // Venda desfeita: devolver a quantidade para a Prateleira Sal\u00e3o
+    if(type==="prd"){
+      var vnd=(D.prd||[]).find(function(x){return x.id===id;});
+      if(vnd&&vnd.arProdutoId){
+        db.collection("arProdutos").doc(vnd.arProdutoId).update({prateleira:firebase.firestore.FieldValue.increment(vnd.quantidade||1)});
+      }
+    }
+    db.collection(COL_MAP[type]).doc(id).delete();
+  }
   if(CURRENT_USER&&CURRENT_USER.role==="admin"){
     if(!confirm("Excluir?"))return;
     doDelete();
@@ -2836,24 +2850,40 @@ function seCalcTotal(){
   if(valEl)valEl.value=(qtd*cu).toFixed(2);
 }
 function openStockEntry(){
-  var prods=(D.arProdutos||[]).slice().sort(function(a,b){return(a.label||a.nome).localeCompare(b.label||b.nome);});
+  var prods=(D.arProdutos||[]).filter(function(p){return(p.prateleira||0)>0;}).sort(function(a,b){return(a.label||a.nome).localeCompare(b.label||b.nome);});
+  if(!prods.length){showToast('\u26a0\uFE0F Nenhum produto dispon\u00edvel na Prateleira Sal\u00e3o. Reponha a prateleira primeiro (aba A R Professional).','#f43f5e');return;}
   var opts=prods.map(function(p){
-    var cab=p.precoCabeleireiro||0;
-    return'<option value="'+es(p.id)+'" data-cab="'+cab+'" data-nome="'+es(p.label||p.nome)+'">'+es(p.label||p.nome)+(p.prateleira>0?' (prat: '+p.prateleira+' un.)':'')+'</option>';
+    var preco=p.precoDistribuidor||p.custoPago||p.precoCabeleireiro||0;
+    return'<option value="'+es(p.id)+'" data-preco="'+preco+'" data-vol="'+(p.conteudoEmbalagem||0)+'" data-un="'+es(p.unidadeConteudo||'mL')+'" data-nome="'+es(p.nome||p.label)+'" data-prat="'+(p.prateleira||0)+'">'+es(p.label||p.nome)+' (prat: '+p.prateleira+' un.)</option>';
   }).join('');
   omod(mhdr('Nova Entrada de Estoque')
     +'<div class="fi"><label>Data</label><input type="date" id="se-d" value="'+hj()+'"></div>'
     +'<div class="fi"><label>Produto</label><select id="se-sel" onchange="seOnProd(this)"><option value="">Selecione...</option>'+opts+'</select></div>'
     +'<div class="g2"><div class="fi"><label>Quantidade (unidades)</label><input type="number" id="se-qtd" min="1" value="1" oninput="seOnQty()"></div>'
     +'<div class="fi"><label>Pre\u00e7o unit\u00e1rio (R$)</label><input type="number" id="se-pu" value="0" oninput="seOnQty()"></div></div>'
+    +'<div id="se-info" style="font-size:11px;color:#a1a1aa;margin-bottom:10px"></div>'
     +'<div class="fi"><label>Total (R$)</label><input type="number" id="se-total" readonly style="opacity:.6;background:#111"></div>'
     +'<button class="pb" onclick="saveStockEntry()">Salvar Entrada</button>');
   seOnQty();
 }
+function seConteudo(){
+  var selEl=document.getElementById('se-sel');
+  if(!selEl||!selEl.value)return null;
+  var o=selEl.options[selEl.selectedIndex];
+  var vol=parseFloat(o.dataset.vol)||0;
+  var un=o.dataset.un||'mL';
+  var units=parseInt(document.getElementById('se-qtd').value)||0;
+  if(vol<=0)return{qtd:units,unidade:'un'};
+  var fator=1,unidade='ml';
+  if(un==='Litro'){unidade='ml';fator=1000;}
+  else if(un==='g'){unidade='g';}
+  else if(un==='Kg'){unidade='g';fator=1000;}
+  return{qtd:units*vol*fator,unidade:unidade};
+}
 function seOnProd(sel){
   var o=sel.options[sel.selectedIndex];
-  var cab=parseFloat(o.dataset.cab)||0;
-  document.getElementById('se-pu').value=cab.toFixed(2);
+  var preco=parseFloat(o.dataset.preco)||0;
+  document.getElementById('se-pu').value=preco.toFixed(2);
   seOnQty();
 }
 function seOnQty(){
@@ -2861,6 +2891,11 @@ function seOnQty(){
   var pu=parseFloat(document.getElementById('se-pu').value)||0;
   var tot=document.getElementById('se-total');
   if(tot)tot.value=(qtd*pu).toFixed(2);
+  var info=document.getElementById('se-info');
+  if(info){
+    var c=seConteudo();
+    info.innerHTML=(c&&c.qtd>0)?'Entra no estoque: <strong style="color:#34d399">'+Math.round(c.qtd)+' '+es(c.unidade)+'</strong>':'';
+  }
 }
 
 function saveStockEntry(){
@@ -2874,26 +2909,29 @@ function saveStockEntry(){
   var pu=parseFloat(document.getElementById('se-pu').value)||0;
   var total=qtd*pu;
   var date=document.getElementById('se-d').value||hj();
+  var prodAtual=(D.arProdutos||[]).find(function(x){return x.id===prodId;});
+  var prat=prodAtual?(prodAtual.prateleira||0):0;
+  if(qtd>prat)return alert('\u26a0 Sem prateleira suficiente: '+nome+' tem apenas '+prat+' un. na Prateleira Sal\u00e3o. Reponha a prateleira primeiro (aba A R Professional).');
+  var cont=seConteudo()||{qtd:qtd,unidade:'un'};
   // Salvar entrada
   db.collection('estoqueEntradas').add({
     id:uid(),produtoId:prodId,produtoNome:nome,
     date:date,quantidade:qtd,unidade:'un',
+    conteudoAdicionado:cont.qtd,conteudoUnidade:cont.unidade,
     custoUnitario:pu,valorPago:total,
     registradoPor:CURRENT_USER?CURRENT_USER.nome:'',
     timestamp:new Date().toISOString()
   }).then(function(){
-    // Deduzir da prateleira se tiver
-    var prod=(D.arProdutos||[]).find(function(x){return x.id===prodId;});
-    if(prod&&(prod.prateleira||0)>=qtd){
-      db.collection('arProdutos').doc(prodId).update({prateleira:firebase.firestore.FieldValue.increment(-qtd)});
-    }
-    // Atualizar estoque interno
-    var ref=db.collection('estoque').doc(prodId);
-    ref.get().then(function(doc){
-      var cur=(doc.exists?doc.data().quantidadeAtual:0)||0;
-      ref.set({nome:nome,unidade:'un',quantidadeAtual:cur+qtd,valorTotalInvestido:((doc.exists?doc.data().valorTotalInvestido:0)||0)+total},{merge:true});
-    });
-    showToast('\u2705 '+qtd+' un. de '+nome+' registradas! Total: R$ '+total.toFixed(2).replace('.',','));
+    // Deduzir da prateleira (quantidade j\u00e1 validada antes de salvar)
+    db.collection('arProdutos').doc(prodId).update({prateleira:firebase.firestore.FieldValue.increment(-qtd)});
+    // Atualizar estoque interno (mesmo cart\u00e3o usado pela baixa autom\u00e1tica dos servi\u00e7os)
+    var docId=slug(nome)||prodId;
+    db.collection('estoque').doc(docId).set({
+      nome:nome,unidade:cont.unidade,
+      quantidadeAtual:firebase.firestore.FieldValue.increment(cont.qtd),
+      valorTotalInvestido:firebase.firestore.FieldValue.increment(total)
+    },{merge:true});
+    showToast('\u2705 '+qtd+' un. de '+nome+' registradas! (+'+Math.round(cont.qtd)+' '+cont.unidade+' no estoque) Total: R$ '+total.toFixed(2).replace('.',','));
     cmod();
   }).catch(function(e){showToast('\u274c Erro: '+e.message,'#f43f5e');});
 }
