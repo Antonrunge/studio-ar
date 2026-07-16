@@ -1006,6 +1006,9 @@ function savS(){
   // marcar sinal como usado se aplicado
   if(sinalAplicado){db.collection("servicos").doc(sinalAplicado).update({sinalUsado:true,sinalUsadoEm:dataAtend});}
 
+  // gatilho automático: lead agendada com o mesmo telefone compareceu → converter
+  leadAutoConvert(tel,cli);
+
   showToast("\u2705 "+itens.length+" servi\u00e7o(s) lan\u00e7ados para "+cli+"!");
   cmod();
 }
@@ -2698,10 +2701,22 @@ function buildLeadCols(){
     var items=leads.filter(function(l){return l.etapa===st;}).sort(function(a,b){return(b.dataCriacao||"").localeCompare(a.dataCriacao||"");});
     var cards=items.map(function(l){
       var due=l.proximoContato&&l.proximoContato<=hj()&&st!=="convertido"&&st!=="perdido";
+      var agInfo="",acoes="";
+      if(st==="agendado"){
+        var ag=l.agendamentoId?(D.agn||[]).find(function(a){return a.id===l.agendamentoId;}):null;
+        if(ag&&ag.date){
+          var passou=ag.date<hj();
+          agInfo='<div style="font-size:9px;font-weight:600;color:'+(passou?"#f87171":"#a78bfa")+';margin-top:3px">'+(passou?"\u26a0 J\u00e1 passou \u2014 confirmar presen\u00e7a \u00b7 ":"\uD83D\uDCC5 Agendada: ")+fdt(ag.date)+(ag.time?" "+es(ag.time):"")+'</div>';
+        }
+        acoes='<div style="display:flex;gap:4px;margin-top:6px">'
+          +'<button style="flex:1;background:#34d399;color:#000;border:none;border-radius:5px;font-size:9px;font-weight:700;padding:4px 0;cursor:pointer" data-lead-veio="'+l.id+'">\u2713 Compareceu</button>'
+          +'<button style="flex:1;background:#27272a;color:#f87171;border:1px solid #3f3f46;border-radius:5px;font-size:9px;font-weight:700;padding:4px 0;cursor:pointer" data-lead-faltou="'+l.id+'">\u2715 Faltou</button></div>';
+      }
       return'<div class="lead-card" draggable="true" data-lead-id="'+l.id+'" style="border-left-color:'+LEAD_STAGE_COLOR[st]+'" data-lead-open="'+l.id+'">'
         +'<div class="nm">'+es(l.nome)+'</div>'
         +'<div class="it">'+es(l.interesse||"")+'</div>'
-        +'<div class="mt"><span>'+es(l.responsavel||"")+'</span>'+(l.proximoContato?'<span class="'+(due?"lead-due":"")+'">'+(due?"\u26a0 ":"\uD83D\uDCC5 ")+fdt(l.proximoContato)+'</span>':'')+'</div></div>';
+        +'<div class="mt"><span>'+es(l.responsavel||"")+'</span>'+(l.proximoContato?'<span class="'+(due?"lead-due":"")+'">'+(due?"\u26a0 ":"\uD83D\uDCC5 ")+fdt(l.proximoContato)+'</span>':'')+'</div>'
+        +agInfo+acoes+'</div>';
     }).join("");
     return'<div class="lead-col"><div class="lead-col-hd"><span style="color:'+LEAD_STAGE_COLOR[st]+'">'+LEAD_STAGE_LABELS[st]+'</span><span style="color:#52525b">'+items.length+'</span></div>'
       +'<div class="lead-col-bd" data-lead-dropzone="'+st+'">'+(cards||'<div style="font-size:10px;color:#3f3f46;text-align:center;padding:10px 0">vazio</div>')+'</div></div>';
@@ -2874,6 +2889,32 @@ function leadConvert(id){
   db.collection("leads").doc(id).update({etapa:"convertido",clienteVinculado:docId,proximoContato:null,
     historico:firebase.firestore.FieldValue.arrayUnion(etapaHistEntry(l.etapa,"convertido"))});
   showToast("\u2705 Lead convertido em cliente!");cmod();
+}
+function leadAutoConvert(telServ,nomeCli){
+  var dig=(telServ||"").replace(/\D/g,"");
+  if(dig.length<8)return; // sem telefone confiável não arrisca conversão automática
+  var suf=dig.slice(-8);
+  var lead=(D.leads||[]).find(function(l){
+    if(l.etapa!=="agendado")return false;
+    var ld=(l.telefone||"").replace(/\D/g,"");
+    return ld.length>=8&&ld.slice(-8)===suf;
+  });
+  if(!lead)return;
+  var entry=etapaHistEntry(lead.etapa,"convertido");
+  entry.obs="\u2713 Compareceu \u2014 convertida automaticamente pelo lan\u00e7amento do servi\u00e7o (telefone conferido)";
+  db.collection("leads").doc(lead.id).update({etapa:"convertido",clienteVinculado:slug(nomeCli||lead.nome),proximoContato:null,
+    historico:firebase.firestore.FieldValue.arrayUnion(entry)});
+  showToast("\uD83C\uDF89 Lead "+lead.nome+" convertida automaticamente \u2014 compareceu!");
+}
+function leadNoShow(id){
+  var l=(D.leads||[]).find(function(x){return x.id===id;});
+  if(!l)return;
+  if(!confirm(l.nome+" n\u00e3o compareceu ao agendamento? Ela volta para \"Interesse identificado\" com contato marcado para hoje (remarcar)."))return;
+  var entry=etapaHistEntry(l.etapa,"interesse");
+  entry.obs="\u2715 N\u00e3o compareceu ao agendamento \u2014 remarcar";
+  db.collection("leads").doc(id).update({etapa:"interesse",proximoContato:hj(),
+    historico:firebase.firestore.FieldValue.arrayUnion(entry)});
+  showToast("\uD83D\uDCC5 "+l.nome+" voltou para o funil \u2014 contato hoje para remarcar.","#fbbf24");
 }
 function leadToAgenda(id){
   var l=(D.leads||[]).find(function(x){return x.id===id;});
@@ -3146,6 +3187,8 @@ document.addEventListener("click",function(e){
   var rc=e.target.closest("[data-req-confirm]");if(rc){confirmRequest(rc.dataset.reqConfirm);return;}
   var rx=e.target.closest("[data-req-cancel]");if(rx){cancelRequest(rx.dataset.reqCancel);return;}
   var lv=e.target.closest("[data-leads-view]");if(lv){S.leadsView=lv.dataset.leadsView;rT();return;}
+  var lv=e.target.closest("[data-lead-veio]");if(lv){leadConvert(lv.dataset.leadVeio);return;}
+  var lf=e.target.closest("[data-lead-faltou]");if(lf){leadNoShow(lf.dataset.leadFaltou);return;}
   var lo=e.target.closest("[data-lead-open]");if(lo){openLeadDetail(lo.dataset.leadOpen);return;}
   var la=e.target.closest("[data-lead-agendar]");if(la){leadToAgenda(la.dataset.leadAgendar);return;}
   var lp=e.target.closest("[data-lead-perdido]");if(lp){openLeadLost(lp.dataset.leadPerdido);return;}
