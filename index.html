@@ -2650,14 +2650,26 @@ function rLeadsDailyReport(){
   var novos=leads.filter(function(l){return(l.dataCriacao||"").slice(0,10)===dia;});
   var mudaram=[];
   leads.forEach(function(l){(l.historico||[]).forEach(function(h){if((h.data||"").slice(0,10)===dia&&h.etapaAnterior&&h.etapaAnterior!==h.etapaNova)mudaram.push({lead:l,hist:h});});});
+  var agendadosDia=mudaram.filter(function(m){return m.hist.etapaNova==="agendado";});
+  var agnDia=(D.agn||[]).filter(function(a){return(a.date||"")===dia;}).sort(function(a,b){return(a.time||"").localeCompare(b.time||"");});
+  var leadByAgn={};leads.forEach(function(l){if(l.agendamentoId)leadByAgn[l.agendamentoId]=true;});
   var interCount={};leads.forEach(function(l){if(l.interesse)interCount[l.interesse]=(interCount[l.interesse]||0)+1;});
   var topInt=Object.keys(interCount).map(function(k){return{nome:k,qtd:interCount[k]};}).sort(function(a,b){return b.qtd-a.qtd;}).slice(0,8);
   var maxInt=topInt.length?topInt[0].qtd:1;
   var datePicker='<div style="display:flex;align-items:center;gap:10px;margin-bottom:18px"><label style="font-size:11px;color:#71717a">Dia:</label><input type="date" value="'+dia+'" onchange="S.leadsDay=this.value;rT()" style="width:auto"><button class="gb" onclick="S.leadsDay=\''+hj()+'\';rT()">Hoje</button></div>';
   var novosHtml=novos.length?novos.map(function(l){return'<div style="padding:8px 12px;background:#18181b;border:1px solid #27272a;border-radius:8px;margin-bottom:7px;display:flex;align-items:center;gap:10px"><div style="flex:1"><div style="font-size:12px;font-weight:600;color:#f1f5f9">'+es(l.nome)+'</div><div style="font-size:10px;color:#71717a">'+es(l.interesse||"")+(l.responsavel?' \u00b7 '+es(l.responsavel):'')+'</div></div><span style="font-size:10px;padding:2px 8px;border-radius:8px;background:#34d39920;color:#34d399">NOVO</span></div>';}).join(""):'<div class="emp" style="padding:16px 0">Nenhum lead neste dia</div>';
   var mudouHtml=mudaram.length?mudaram.map(function(m){return'<div style="padding:7px 12px;background:#18181b;border:1px solid #27272a;border-radius:8px;margin-bottom:6px;font-size:11px"><span style="color:#f1f5f9;font-weight:600">'+es(m.lead.nome)+'</span> <span style="color:#52525b">\u2192</span> <span style="color:#fbbf24">'+es(m.hist.etapaAnterior||"")+'</span> <span style="color:#52525b">\u2192</span> <span style="color:#34d399">'+es(m.hist.etapaNova||"")+'</span></div>';}).join(""):'<div class="emp" style="padding:16px 0">Nenhuma mudan\u00e7a neste dia</div>';
+  var agnHtml=agnDia.length?agnDia.map(function(a){
+    var isLead=!!leadByAgn[a.id];
+    return'<div style="padding:8px 12px;background:#18181b;border:1px solid #27272a;border-radius:8px;margin-bottom:7px;display:flex;align-items:center;gap:10px">'
+      +'<div style="font-size:12px;font-weight:700;color:#a78bfa;min-width:44px">'+es(a.time||"--:--")+'</div>'
+      +'<div style="flex:1"><div style="font-size:12px;font-weight:600;color:#f1f5f9">'+es(a.client||"")+'</div>'
+      +'<div style="font-size:10px;color:#71717a">'+es(a.service||"")+(a.professional?' \u00b7 '+es(a.professional):'')+'</div></div>'
+      +(isLead?'<span style="font-size:10px;padding:2px 8px;border-radius:8px;background:#f43f5e20;color:#f43f5e">LEAD</span>':'')
+      +'</div>';
+  }).join(""):'<div class="emp" style="padding:16px 0">Nenhum agendamento neste dia</div>';
   var intHtml=topInt.map(function(i){var pct=Math.round(i.qtd/maxInt*100);return'<div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;font-size:11px;color:#d4d4d8;margin-bottom:3px"><span>'+es(i.nome)+'</span><span style="color:#a1a1aa">'+i.qtd+'</span></div><div style="background:#27272a;border-radius:4px;height:7px"><div style="width:'+pct+'%;height:100%;background:#f43f5e;border-radius:4px"></div></div></div>';}).join("");
-  return datePicker+'<div class="cg" style="grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:18px">'+kp("Novos Leads",novos.length,"em "+fdt(dia))+kp("Mudaram de Etapa",mudaram.length,"movimenta\u00e7\u00f5es")+kp("Total no Funil",leads.length,"leads")+'</div>'+'<div class="cg" style="grid-template-columns:1fr 1fr"><div><div class="cd"><div class="ct">Novos em '+fdt(dia)+'</div>'+novosHtml+'</div><div class="cd"><div class="ct">Mudan\u00e7as de Etapa</div>'+mudouHtml+'</div></div><div class="cd"><div class="ct">\uD83C\uDFF7 Interesses Mais Procurados</div>'+(intHtml||'<div class="emp">Sem dados</div>')+'</div></div>';
+  return datePicker+'<div class="cg" style="grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;margin-bottom:18px">'+kp("Novos Leads",novos.length,"em "+fdt(dia))+kp("Mudaram de Etapa",mudaram.length,"movimenta\u00e7\u00f5es")+kp("Agendados no Dia",agendadosDia.length,"leads viraram agendado")+kp("Total no Funil",leads.length,"leads")+'</div>'+'<div class="cg" style="grid-template-columns:1fr 1fr"><div><div class="cd"><div class="ct">Novos em '+fdt(dia)+'</div>'+novosHtml+'</div><div class="cd"><div class="ct">Mudan\u00e7as de Etapa</div>'+mudouHtml+'</div></div><div><div class="cd"><div class="ct">\uD83C\uDFF7 Interesses Mais Procurados</div>'+(intHtml||'<div class="emp">Sem dados</div>')+'</div><div class="cd"><div class="ct">\uD83D\uDCC5 Agendamentos do Dia \u2014 '+fdt(dia)+'</div>'+agnHtml+'</div></div></div>';
 }
 function rLeads(){
   var isAdmin=CURRENT_USER&&CURRENT_USER.role==="admin";
