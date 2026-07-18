@@ -3152,6 +3152,7 @@ function loadMetaAds(force){
     META_CACHE.insights=[];res[1].forEach(function(d){META_CACHE.insights.push(d.data());});
     META_CACHE.mes=rg.key;META_CACHE.carregando=false;
     if(S.tab==="metaads")rAll();
+    if(force)showToast("\u2705 M\u00e9tricas atualizadas \u2014 "+rg.label);
   }).catch(function(e){
     META_CACHE.carregando=false;
     showToast("\u274c Erro ao carregar Meta Ads: "+e.message,"#f43f5e");
