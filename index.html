@@ -334,7 +334,7 @@ function openAdminAuthModal(onSuccess){
 
 var CURRENT_USER = null; // {uid, email, role, nome}
 var ROLE_TABS = {
-  admin: ["dashboard","agenda","followup","leads","services","products","expenses","advances","prolabore","dre","clients","db","requests","audit","estoque","arprof","fornecedores","caixa","mensagens"],
+  admin: ["dashboard","agenda","followup","leads","services","products","expenses","advances","prolabore","dre","clients","db","requests","audit","estoque","arprof","metaads","fornecedores","caixa","mensagens"],
   recepcao: ["agenda","followup","services","products","clients","requests","estoque","mensagens"],
   financeiro: ["dashboard","expenses","advances","prolabore","dre","arprof","caixa","mensagens"],
   marketing: ["clients","mensagens"],
@@ -753,7 +753,7 @@ function tbl(rows,cols,type){
 function kp(l,v,s){return'<div class="kp"><div class="kl">'+l+'</div><div class="kv">'+v+'</div>'+(s?'<div class="ks">'+s+'</div>':'')+'</div>';}
 
 /* SIDEBAR */
-var NAV=[["dashboard","\uD83D\uDCCA","Dashboard"],["agenda","\uD83D\uDCC5","Agenda"],["followup","\uD83D\uDCF2","Follow-up"],["services","\u2702\uFE0F","Servi\u00e7os"],["products","\uD83E\uDDF4","Produtos"],["expenses","\uD83D\uDCB8","Despesas"],["advances","\uD83D\uDCB5","Adiantamentos"],["prolabore","\uD83D\uDC65","Pr\u00f3-Labore"],["dre","\uD83D\uDCC8","DRE / DFC"],["clients","\uD83D\uDC69","Clientes"],["leads","\uD83C\uDFAF","Leads"],["db","\uD83D\uDDC4\uFE0F","Banco de Dados"],["requests","\uD83D\uDCE5","Solicita\u00e7\u00f5es Online"],["audit","\uD83D\uDD0D","Auditoria"],["estoque","\uD83E\uDDF4","Estoque"],["arprof","\uD83C\uDFF7\uFE0F","A R Professional"],["fornecedores","\uD83D\uDE9A","Fornecedores"],["caixa","\uD83C\uDFE6","Caixa Banc\u00e1rio"],["mensagens","\uD83D\uDCAC","Mensagens"]];
+var NAV=[["dashboard","\uD83D\uDCCA","Dashboard"],["agenda","\uD83D\uDCC5","Agenda"],["followup","\uD83D\uDCF2","Follow-up"],["services","\u2702\uFE0F","Servi\u00e7os"],["products","\uD83E\uDDF4","Produtos"],["expenses","\uD83D\uDCB8","Despesas"],["advances","\uD83D\uDCB5","Adiantamentos"],["prolabore","\uD83D\uDC65","Pr\u00f3-Labore"],["dre","\uD83D\uDCC8","DRE / DFC"],["clients","\uD83D\uDC69","Clientes"],["leads","\uD83C\uDFAF","Leads"],["db","\uD83D\uDDC4\uFE0F","Banco de Dados"],["requests","\uD83D\uDCE5","Solicita\u00e7\u00f5es Online"],["audit","\uD83D\uDD0D","Auditoria"],["estoque","\uD83E\uDDF4","Estoque"],["arprof","\uD83C\uDFF7\uFE0F","A R Professional"],["metaads","\uD83D\uDCE3","Meta Ads"],["fornecedores","\uD83D\uDE9A","Fornecedores"],["caixa","\uD83C\uDFE6","Caixa Banc\u00e1rio"],["mensagens","\uD83D\uDCAC","Mensagens"]];
 var DIVULGADORES_CUSTOM=null;
 var DIVULGADORES_DEFAULT=["Lorran","Isabela","Diane","Anton"];
 function getDivulgadores(){return DIVULGADORES_CUSTOM||DIVULGADORES_DEFAULT;}
@@ -3125,6 +3125,108 @@ function saveStockEntry(){
   }).catch(function(e){showToast('\u274c Erro: '+e.message,'#f43f5e');});
 }
 
+/* ─ META ADS (Etapa 1: leitura das métricas sincronizadas) ─ */
+var META_CACHE={mes:null,insights:[],camps:[],carregando:false};
+function metaMesKey(){var mm=(S.month+1)<10?"0"+(S.month+1):String(S.month+1);return S.year+"-"+mm;}
+function loadMetaAds(force){
+  var mes=metaMesKey();
+  if(META_CACHE.carregando)return;
+  if(!force&&META_CACHE.mes===mes)return;
+  META_CACHE.carregando=true;
+  Promise.all([
+    db.collection("metaCampanhas").get(),
+    db.collection("metaInsights").where("date",">=",mes+"-01").where("date","<=",mes+"-31").get()
+  ]).then(function(res){
+    META_CACHE.camps=[];res[0].forEach(function(d){META_CACHE.camps.push(d.data());});
+    META_CACHE.insights=[];res[1].forEach(function(d){META_CACHE.insights.push(d.data());});
+    META_CACHE.mes=mes;META_CACHE.carregando=false;
+    if(S.tab==="metaads")render();
+  }).catch(function(e){
+    META_CACHE.carregando=false;
+    showToast("\u274c Erro ao carregar Meta Ads: "+e.message,"#f43f5e");
+  });
+}
+function metaSyncAgora(){
+  var key=prompt("Digite a chave de sincroniza\u00e7\u00e3o (SYNC_KEY):");
+  if(!key)return;
+  window.open("https://southamerica-east1-studio-ar-gestao.cloudfunctions.net/syncMetaAdsAgora?key="+encodeURIComponent(key.trim()),"_blank");
+  showToast("\uD83D\uDD04 Sincroniza\u00e7\u00e3o disparada em nova aba. Aguarde o ok:true e clique em Atualizar dados.");
+}
+function rMetaAds(){
+  var mes=metaMesKey();
+  if(META_CACHE.mes!==mes){
+    loadMetaAds();
+    return'<div class="pg"><div class="ph"><h2>\uD83D\uDCE3 Meta Ads</h2></div><div class="emp" style="padding:30px 0">\u23F3 Carregando m\u00e9tricas de '+MESES[S.month]+'...</div></div>';
+  }
+  var ins=META_CACHE.insights;
+  var hoje=hj();
+  /* Totais do mês */
+  var tInv=0,tImp=0,tAlc=0,tCli=0,tConv=0,tLeads=0,invHoje=0,leadsHoje=0;
+  var porDia={},porCamp={};
+  ins.forEach(function(r){
+    tInv+=r.investido||0;tImp+=r.impressoes||0;tAlc+=r.alcance||0;tCli+=r.cliques||0;
+    tConv+=r.conversas||0;tLeads+=r.leads||0;
+    if(r.date===hoje){invHoje+=r.investido||0;leadsHoje+=r.leads||0;}
+    if(!porDia[r.date])porDia[r.date]={inv:0,leads:0};
+    porDia[r.date].inv+=r.investido||0;porDia[r.date].leads+=r.leads||0;
+    var k=r.campanhaId;
+    if(!porCamp[k])porCamp[k]={id:k,nome:r.campanhaNome||k,inv:0,imp:0,alc:0,cli:0,conv:0,leads:0};
+    var c=porCamp[k];
+    c.inv+=r.investido||0;c.imp+=r.impressoes||0;c.alc+=r.alcance||0;
+    c.cli+=r.cliques||0;c.conv+=r.conversas||0;c.leads+=r.leads||0;
+  });
+  var cpl=tLeads>0?tInv/tLeads:0;
+  /* Gráfico diário (barras) */
+  var diasOrd=Object.keys(porDia).sort();
+  var maxInv=0;diasOrd.forEach(function(d){if(porDia[d].inv>maxInv)maxInv=porDia[d].inv;});
+  var barras=diasOrd.map(function(d){
+    var v=porDia[d];
+    var hpc=maxInv>0?Math.max(4,Math.round(v.inv/maxInv*100)):4;
+    return'<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;min-width:22px" title="'+fdt(d)+' \u2014 '+fmt(v.inv)+' \u00b7 '+v.leads+' leads">'
+      +'<div style="font-size:8px;color:#34d399">'+(v.leads||"")+'</div>'
+      +'<div style="width:70%;height:'+hpc+'px;max-height:100px;background:'+(d===hoje?"#f43f5e":"#f43f5e66")+';border-radius:3px 3px 0 0"></div>'
+      +'<div style="font-size:8px;color:#71717a">'+d.slice(8)+'</div></div>';
+  }).join("");
+  var grafico=diasOrd.length?'<div style="display:flex;align-items:flex-end;gap:2px;height:130px;padding:8px 4px 0">'+barras+'</div>'
+    +'<div style="font-size:9px;color:#52525b;margin-top:4px">Barras: investimento por dia \u00b7 n\u00famero verde: leads do dia</div>'
+    :'<div class="emp">Sem dados neste m\u00eas ainda</div>';
+  /* Tabela por campanha */
+  var statusById={};META_CACHE.camps.forEach(function(c){statusById[c.id]=c.status||"";});
+  var camps=Object.values(porCamp).sort(function(a,b){return b.inv-a.inv;});
+  var rows=camps.length?camps.map(function(c){
+    var st=statusById[c.id]||"";
+    var dot=st==="ACTIVE"?'<span style="color:#34d399">\u25CF</span> ':'<span style="color:#52525b">\u25CF</span> ';
+    var ctr=c.imp>0?(c.cli/c.imp*100):0;
+    var cpc=c.cli>0?(c.inv/c.cli):0;
+    var cplC=c.leads>0?(c.inv/c.leads):0;
+    return'<tr><td style="max-width:220px;white-space:normal">'+dot+es(c.nome)+'</td>'
+      +'<td class="hi">'+fmt(c.inv)+'</td>'
+      +'<td>'+c.imp.toLocaleString("pt-BR")+'</td>'
+      +'<td>'+c.alc.toLocaleString("pt-BR")+'</td>'
+      +'<td>'+c.cli.toLocaleString("pt-BR")+'</td>'
+      +'<td>'+ctr.toFixed(2).replace(".",",")+'%</td>'
+      +'<td>'+fmt(cpc)+'</td>'
+      +'<td style="color:#38bdf8">'+c.conv+'</td>'
+      +'<td style="color:#34d399">'+c.leads+'</td>'
+      +'<td>'+(c.leads>0?fmt(cplC):"\u2014")+'</td></tr>';
+  }).join(""):'<tr><td colspan="10" style="text-align:center;color:#52525b;padding:16px">Nenhuma campanha com dados em '+MESES[S.month]+'</td></tr>';
+  return'<div class="pg"><div class="ph"><h2>\uD83D\uDCE3 Meta Ads \u2014 '+MESES[S.month]+' '+S.year+'</h2>'
+    +'<div class="ph-btns"><button class="gb" onclick="loadMetaAds(true);render()">\uD83D\uDD04 Atualizar dados</button>'
+    +'<button class="ab" onclick="metaSyncAgora()">\u26A1 Sincronizar agora</button></div></div>'
+    +'<div class="cg" style="grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:12px;margin-bottom:18px">'
+    +kp("Investido Hoje",fmt(invHoje),leadsHoje+" leads hoje")
+    +kp("Investido no M\u00eas",fmt(tInv),MESES[S.month]+" "+S.year)
+    +kp("Leads no M\u00eas",tLeads,tConv+" conversas iniciadas")
+    +kp("Custo por Lead",tLeads>0?fmt(cpl):"\u2014","m\u00e9dia do m\u00eas")
+    +kp("Cliques",tCli.toLocaleString("pt-BR"),tImp.toLocaleString("pt-BR")+" impress\u00f5es")
+    +'</div>'
+    +'<div class="cd" style="margin-bottom:14px"><div class="ct">\uD83D\uDCC8 Evolu\u00e7\u00e3o Di\u00e1ria \u2014 Investimento e Leads</div>'+grafico+'</div>'
+    +'<div class="cd"><div class="ct">\uD83C\uDFAF Campanhas em '+MESES[S.month]+' (dados sincronizados \u00e0s 6h)</div>'
+    +'<div class="ox"><table class="dt"><thead><tr><th>Campanha</th><th>Investido</th><th>Impress\u00f5es</th><th>Alcance</th><th>Cliques</th><th>CTR</th><th>CPC</th><th>Conversas</th><th>Leads</th><th>Custo/Lead</th></tr></thead><tbody>'+rows+'</tbody></table></div>'
+    +'<div style="font-size:10px;color:#52525b;margin-top:8px">Leads = formul\u00e1rios + conversas iniciadas no WhatsApp/Direct reportados pela Meta. A sincroniza\u00e7\u00e3o autom\u00e1tica roda todo dia \u00e0s 06h e cobre os \u00faltimos 7 dias; o hist\u00f3rico vai se acumulando a partir de julho/2026.</div>'
+    +'</div></div>';
+}
+
 function rT(){
   var fs=fmy(D.svc,S.month,S.year);
   var fp=fmy(D.prd,S.month,S.year);
@@ -3164,6 +3266,7 @@ function rT(){
   else if(S.tab==="audit"){S.bdTab="auditoria";h=rDB();}
   else if(S.tab==="estoque")h=rEstoque();
   else if(S.tab==="arprof")h=rArProf();
+  else if(S.tab==="metaads")h=rMetaAds();
   else if(S.tab==="fornecedores")h=rFornecedores();
   else if(S.tab==="caixa")h=rCaixa();
   else if(S.tab==="mensagens")h=rMensagens();
