@@ -3126,25 +3126,119 @@ function saveStockEntry(){
 }
 
 /* ─ META ADS (Etapa 1: leitura das métricas sincronizadas) ─ */
-var META_CACHE={mes:null,insights:[],camps:[],carregando:false};
+var META_CACHE={mes:null,insights:[],camps:[],carregando:false,periodo:"mes"};
 function metaMesKey(){var mm=(S.month+1)<10?"0"+(S.month+1):String(S.month+1);return S.year+"-"+mm;}
-function loadMetaAds(force){
+function metaRange(){
+  var p=META_CACHE.periodo||"mes";
+  function iso(d){return d.toISOString().slice(0,10);}
+  var hojeD=new Date();
+  if(p==="30d"){var i=new Date(hojeD);i.setDate(i.getDate()-29);return{ini:iso(i),fim:iso(hojeD),label:"\u00daltimos 30 dias",key:"30d_"+iso(hojeD)};}
+  if(p==="90d"){var i9=new Date(hojeD);i9.setDate(i9.getDate()-89);return{ini:iso(i9),fim:iso(hojeD),label:"\u00daltimos 90 dias",key:"90d_"+iso(hojeD)};}
+  if(p==="ano"){return{ini:S.year+"-01-01",fim:S.year+"-12-31",label:"Ano de "+S.year,key:"ano_"+S.year};}
   var mes=metaMesKey();
+  return{ini:mes+"-01",fim:mes+"-31",label:MESES[S.month]+" "+S.year,key:"mes_"+mes};
+}
+function metaSetPeriodo(sel){META_CACHE.periodo=sel.value;loadMetaAds(true);}
+function loadMetaAds(force){
+  var rg=metaRange();
   if(META_CACHE.carregando)return;
-  if(!force&&META_CACHE.mes===mes)return;
+  if(!force&&META_CACHE.mes===rg.key)return;
   META_CACHE.carregando=true;
   Promise.all([
     db.collection("metaCampanhas").get(),
-    db.collection("metaInsights").where("date",">=",mes+"-01").where("date","<=",mes+"-31").get()
+    db.collection("metaInsights").where("date",">=",rg.ini).where("date","<=",rg.fim).get()
   ]).then(function(res){
     META_CACHE.camps=[];res[0].forEach(function(d){META_CACHE.camps.push(d.data());});
     META_CACHE.insights=[];res[1].forEach(function(d){META_CACHE.insights.push(d.data());});
-    META_CACHE.mes=mes;META_CACHE.carregando=false;
-    if(S.tab==="metaads")render();
+    META_CACHE.mes=rg.key;META_CACHE.carregando=false;
+    if(S.tab==="metaads")rAll();
   }).catch(function(e){
     META_CACHE.carregando=false;
     showToast("\u274c Erro ao carregar Meta Ads: "+e.message,"#f43f5e");
   });
+}
+function metaRelatorioPdf(){
+  var rg=metaRange();
+  if(META_CACHE.mes!==rg.key)return showToast("Aguarde os dados carregarem antes de gerar o PDF.","#fbbf24");
+  var ins=META_CACHE.insights;
+  if(!ins.length)return showToast("Sem dados no per\u00edodo para gerar o relat\u00f3rio.","#fbbf24");
+  var hoje=hj();
+  var tInv=0,tImp=0,tAlc=0,tCli=0,tConv=0,tLeads=0;
+  var porDia={},porCamp={};
+  ins.forEach(function(r){
+    tInv+=r.investido||0;tImp+=r.impressoes||0;tAlc+=r.alcance||0;tCli+=r.cliques||0;
+    tConv+=r.conversas||0;tLeads+=r.leads||0;
+    if(!porDia[r.date])porDia[r.date]={inv:0,leads:0};
+    porDia[r.date].inv+=r.investido||0;porDia[r.date].leads+=r.leads||0;
+    var k=r.campanhaId;
+    if(!porCamp[k])porCamp[k]={id:k,nome:r.campanhaNome||k,inv:0,imp:0,alc:0,cli:0,conv:0,leads:0};
+    var c=porCamp[k];
+    c.inv+=r.investido||0;c.imp+=r.impressoes||0;c.alc+=r.alcance||0;
+    c.cli+=r.cliques||0;c.conv+=r.conversas||0;c.leads+=r.leads||0;
+  });
+  var cpl=tLeads>0?tInv/tLeads:0;
+  var ctrG=tImp>0?(tCli/tImp*100):0;
+  var statusById={};META_CACHE.camps.forEach(function(c){statusById[c.id]=c.status||"";});
+  var camps=Object.values(porCamp).sort(function(a,b){return b.inv-a.inv;});
+  var CORES=["#e11d48","#2563eb","#059669","#d97706","#7c3aed","#0891b2","#db2777","#65a30d"];
+  /* Grafico diario */
+  var diasOrd=Object.keys(porDia).sort();
+  var maxInv=0;diasOrd.forEach(function(d){if(porDia[d].inv>maxInv)maxInv=porDia[d].inv;});
+  var barras=diasOrd.map(function(d){
+    var v=porDia[d];
+    var hpc=maxInv>0?Math.max(4,Math.round(v.inv/maxInv*120)):4;
+    return'<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:16px">'
+      +'<div style="font-size:8px;color:#059669;font-weight:700">'+(v.leads||"")+'</div>'
+      +'<div style="width:72%;height:'+hpc+'px;background:linear-gradient(180deg,#e11d48,#be123c);border-radius:3px 3px 0 0"></div>'
+      +'<div style="font-size:8px;color:#666">'+d.slice(8)+"/"+d.slice(5,7)+'</div></div>';
+  }).join("");
+  /* Barras horizontais por campanha */
+  var maxCampInv=camps.length?camps[0].inv:0;
+  var campBars=camps.map(function(c,i){
+    var pc=maxCampInv>0?Math.max(2,Math.round(c.inv/maxCampInv*100)):2;
+    return'<div style="margin-bottom:9px"><div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:3px"><span style="font-weight:600">'+es(c.nome)+'</span><span style="color:#444">'+fmt(c.inv)+' \u00b7 '+c.leads+' leads'+(c.leads>0?' \u00b7 '+fmt(c.inv/c.leads)+'/lead':'')+'</span></div>'
+      +'<div style="background:#eee;border-radius:6px;height:14px;overflow:hidden"><div style="width:'+pc+'%;height:100%;background:'+CORES[i%CORES.length]+'"></div></div></div>';
+  }).join("");
+  var rows=camps.map(function(c,i){
+    var st=statusById[c.id]||"";
+    var ctr=c.imp>0?(c.cli/c.imp*100):0;
+    var cpc=c.cli>0?(c.inv/c.cli):0;
+    var cplC=c.leads>0?(c.inv/c.leads):0;
+    return'<tr><td><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:'+CORES[i%CORES.length]+';margin-right:5px"></span>'+es(c.nome)+(st==="ACTIVE"?' <span style="color:#059669;font-size:8px">(ATIVA)</span>':' <span style="color:#999;font-size:8px">(pausada)</span>')+'</td>'
+      +'<td class="r"><strong>'+fmt(c.inv)+'</strong></td><td class="r">'+c.imp.toLocaleString("pt-BR")+'</td><td class="r">'+c.alc.toLocaleString("pt-BR")+'</td>'
+      +'<td class="r">'+c.cli.toLocaleString("pt-BR")+'</td><td class="r">'+ctr.toFixed(2).replace(".",",")+'%</td><td class="r">'+fmt(cpc)+'</td>'
+      +'<td class="r" style="color:#2563eb">'+c.conv+'</td><td class="r" style="color:#059669;font-weight:700">'+c.leads+'</td><td class="r">'+(c.leads>0?fmt(cplC):"\u2014")+'</td></tr>';
+  }).join("");
+  function kpi(l,v,s,cor){return'<div style="flex:1;min-width:120px;border:1px solid #e5e5e5;border-left:4px solid '+cor+';border-radius:8px;padding:10px 12px"><div style="font-size:9px;color:#888;text-transform:uppercase;letter-spacing:.5px">'+l+'</div><div style="font-size:18px;font-weight:800;color:#111;margin:2px 0">'+v+'</div><div style="font-size:9px;color:#999">'+s+'</div></div>';}
+  var html='<!DOCTYPE html><html><head><meta charset="utf-8"><title>Relat\u00f3rio Meta Ads \u2014 Studio A R</title><style>'
+    +'body{font-family:Arial,Helvetica,sans-serif;color:#111;margin:26px}'
+    +'h1{font-size:19px;margin:0;color:#0a0a0a}h2{font-size:11px;font-weight:normal;color:#666;margin:4px 0 18px}'
+    +'h3{font-size:12px;margin:20px 0 10px;color:#0a0a0a;border-bottom:2px solid #e11d48;padding-bottom:4px;display:inline-block}'
+    +'table{width:100%;border-collapse:collapse;font-size:9.5px}th,td{border:1px solid #ddd;padding:5px 7px;text-align:left}th{background:#f5f5f5;font-size:9px;text-transform:uppercase}'
+    +'.r{text-align:right}'
+    +'@media print{button{display:none}}'
+    +'</style></head><body>'
+    +'<h1>\uD83D\uDCE3 Relat\u00f3rio Meta Ads \u2014 Studio A R / A R Professional</h1>'
+    +'<h2>Per\u00edodo: <strong>'+rg.label+'</strong> \u00b7 Gerado em '+fdt(hoje)+' por '+es(CURRENT_USER?CURRENT_USER.nome:"")+' \u00b7 Fonte: Meta Marketing API (sincroniza\u00e7\u00e3o autom\u00e1tica di\u00e1ria)</h2>'
+    +'<div style="display:flex;gap:10px;flex-wrap:wrap">'
+    +kpi("Investido",fmt(tInv),rg.label,"#e11d48")
+    +kpi("Leads",tLeads,tConv+" conversas iniciadas","#059669")
+    +kpi("Custo por Lead",tLeads>0?fmt(cpl):"\u2014","m\u00e9dia do per\u00edodo","#2563eb")
+    +kpi("Cliques",tCli.toLocaleString("pt-BR"),"CTR m\u00e9dio "+ctrG.toFixed(2).replace(".",",")+"%","#d97706")
+    +kpi("Alcance",tAlc.toLocaleString("pt-BR"),tImp.toLocaleString("pt-BR")+" impress\u00f5es","#7c3aed")
+    +'</div>'
+    +'<h3>Evolu\u00e7\u00e3o di\u00e1ria \u2014 investimento (barras) e leads (n\u00famero verde)</h3>'
+    +'<div style="display:flex;align-items:flex-end;gap:2px;height:160px;border:1px solid #eee;border-radius:8px;padding:10px 8px 6px">'+barras+'</div>'
+    +'<h3>Investimento por campanha</h3>'+campBars
+    +'<h3>Detalhamento por campanha</h3>'
+    +'<table><thead><tr><th>Campanha</th><th class="r">Investido</th><th class="r">Impress\u00f5es</th><th class="r">Alcance</th><th class="r">Cliques</th><th class="r">CTR</th><th class="r">CPC</th><th class="r">Conversas</th><th class="r">Leads</th><th class="r">Custo/Lead</th></tr></thead><tbody>'+rows+'</tbody></table>'
+    +'<div style="margin-top:14px;font-size:9px;color:#888">Leads = formul\u00e1rios + conversas iniciadas (WhatsApp/Direct) reportados pela Meta \u00b7 Hist\u00f3rico sincronizado a partir de 11/07/2026 \u00b7 Studio A R Gest\u00e3o</div>'
+    +'<button onclick="window.print()" style="margin-top:18px;padding:9px 18px;cursor:pointer;background:#e11d48;color:#fff;border:none;border-radius:8px;font-weight:700">Imprimir / Salvar como PDF</button>'
+    +'</body></html>';
+  var w=window.open("","_blank");
+  if(!w)return showToast("\u274c Pop-up bloqueado. Libere pop-ups para gerar o PDF.","#f43f5e");
+  w.document.write(html);w.document.close();
+  setTimeout(function(){try{w.print();}catch(e){}},500);
 }
 function metaSyncAgora(){
   var key=prompt("Digite a chave de sincroniza\u00e7\u00e3o (SYNC_KEY):");
@@ -3153,10 +3247,10 @@ function metaSyncAgora(){
   showToast("\uD83D\uDD04 Sincroniza\u00e7\u00e3o disparada em nova aba. Aguarde o ok:true e clique em Atualizar dados.");
 }
 function rMetaAds(){
-  var mes=metaMesKey();
-  if(META_CACHE.mes!==mes){
+  var rg=metaRange();
+  if(META_CACHE.mes!==rg.key){
     loadMetaAds();
-    return'<div class="pg"><div class="ph"><h2>\uD83D\uDCE3 Meta Ads</h2></div><div class="emp" style="padding:30px 0">\u23F3 Carregando m\u00e9tricas de '+MESES[S.month]+'...</div></div>';
+    return'<div class="pg"><div class="ph"><h2>\uD83D\uDCE3 Meta Ads</h2></div><div class="emp" style="padding:30px 0">\u23F3 Carregando m\u00e9tricas \u2014 '+rg.label+'...</div></div>';
   }
   var ins=META_CACHE.insights;
   var hoje=hj();
@@ -3209,19 +3303,26 @@ function rMetaAds(){
       +'<td style="color:#38bdf8">'+c.conv+'</td>'
       +'<td style="color:#34d399">'+c.leads+'</td>'
       +'<td>'+(c.leads>0?fmt(cplC):"\u2014")+'</td></tr>';
-  }).join(""):'<tr><td colspan="10" style="text-align:center;color:#52525b;padding:16px">Nenhuma campanha com dados em '+MESES[S.month]+'</td></tr>';
-  return'<div class="pg"><div class="ph"><h2>\uD83D\uDCE3 Meta Ads \u2014 '+MESES[S.month]+' '+S.year+'</h2>'
-    +'<div class="ph-btns"><button class="gb" onclick="loadMetaAds(true);render()">\uD83D\uDD04 Atualizar dados</button>'
+  }).join(""):'<tr><td colspan="10" style="text-align:center;color:#52525b;padding:16px">Nenhuma campanha com dados \u2014 '+rg.label+'</td></tr>';
+  var selP='<select onchange="metaSetPeriodo(this)" style="background:#18181b;color:#f1f5f9;border:1px solid #3f3f46;border-radius:8px;padding:7px 10px;font-size:12px">'
+    +'<option value="mes"'+(META_CACHE.periodo==="mes"?" selected":"")+'>M\u00eas do seletor lateral</option>'
+    +'<option value="30d"'+(META_CACHE.periodo==="30d"?" selected":"")+'>\u00daltimos 30 dias</option>'
+    +'<option value="90d"'+(META_CACHE.periodo==="90d"?" selected":"")+'>\u00daltimos 90 dias</option>'
+    +'<option value="ano"'+(META_CACHE.periodo==="ano"?" selected":"")+'>Ano de '+S.year+'</option></select>';
+  return'<div class="pg"><div class="ph"><h2>\uD83D\uDCE3 Meta Ads \u2014 '+rg.label+'</h2>'
+    +'<div class="ph-btns" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">'+selP
+    +'<button class="gb" onclick="metaRelatorioPdf()">\uD83D\uDDA8 Relat\u00f3rio PDF</button>'
+    +'<button class="gb" onclick="loadMetaAds(true)">\uD83D\uDD04 Atualizar dados</button>'
     +'<button class="ab" onclick="metaSyncAgora()">\u26A1 Sincronizar agora</button></div></div>'
     +'<div class="cg" style="grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:12px;margin-bottom:18px">'
     +kp("Investido Hoje",fmt(invHoje),leadsHoje+" leads hoje")
-    +kp("Investido no M\u00eas",fmt(tInv),MESES[S.month]+" "+S.year)
-    +kp("Leads no M\u00eas",tLeads,tConv+" conversas iniciadas")
-    +kp("Custo por Lead",tLeads>0?fmt(cpl):"\u2014","m\u00e9dia do m\u00eas")
+    +kp("Investido no Per\u00edodo",fmt(tInv),rg.label)
+    +kp("Leads no Per\u00edodo",tLeads,tConv+" conversas iniciadas")
+    +kp("Custo por Lead",tLeads>0?fmt(cpl):"\u2014","m\u00e9dia do per\u00edodo")
     +kp("Cliques",tCli.toLocaleString("pt-BR"),tImp.toLocaleString("pt-BR")+" impress\u00f5es")
     +'</div>'
     +'<div class="cd" style="margin-bottom:14px"><div class="ct">\uD83D\uDCC8 Evolu\u00e7\u00e3o Di\u00e1ria \u2014 Investimento e Leads</div>'+grafico+'</div>'
-    +'<div class="cd"><div class="ct">\uD83C\uDFAF Campanhas em '+MESES[S.month]+' (dados sincronizados \u00e0s 6h)</div>'
+    +'<div class="cd"><div class="ct">\uD83C\uDFAF Campanhas \u2014 '+rg.label+' (dados sincronizados \u00e0s 6h)</div>'
     +'<div class="ox"><table class="dt"><thead><tr><th>Campanha</th><th>Investido</th><th>Impress\u00f5es</th><th>Alcance</th><th>Cliques</th><th>CTR</th><th>CPC</th><th>Conversas</th><th>Leads</th><th>Custo/Lead</th></tr></thead><tbody>'+rows+'</tbody></table></div>'
     +'<div style="font-size:10px;color:#52525b;margin-top:8px">Leads = formul\u00e1rios + conversas iniciadas no WhatsApp/Direct reportados pela Meta. A sincroniza\u00e7\u00e3o autom\u00e1tica roda todo dia \u00e0s 06h e cobre os \u00faltimos 7 dias; o hist\u00f3rico vai se acumulando a partir de julho/2026.</div>'
     +'</div></div>';
