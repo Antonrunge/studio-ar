@@ -1141,7 +1141,16 @@ function openAgn(date,time,prof,editId){
     +'</div>'
     +'<div class="fi"><label>Observa\u00e7\u00f5es</label><textarea id="ag-obs">'+es(r?r.obs:"")+'</textarea></div>'
     +'<div class="fi"><label>Divulgador (quem agendou)</label><select id="ag-div"><option value="">Nenhum / Cliente direta</option>'+getDivulgadores().map(function(n){return'<option value="'+n+'"'+(r&&r.divulgador===n?' selected':'')+'>'+n+'</option>';}).join("")+'</select></div>'
-    +'<input type="hidden" id="ag-id" value="'+(editId||"")+'"><button class="pb" onclick="savAgn()">Salvar Agendamento</button>');
+    +'<input type="hidden" id="ag-id" value="'+(editId||"")+'">'
+    +((editId&&CURRENT_USER&&CURRENT_USER.role==="admin")?'<button style="width:100%;margin-bottom:8px;padding:11px;border-radius:10px;cursor:pointer;background:transparent;border:1px solid #f43f5e;color:#f87171;font-weight:600" onclick="delAgn(\''+editId+'\')">\uD83D\uDDD1 Excluir Agendamento (cliente desmarcou)</button>':'')
+    +'<button class="pb" onclick="savAgn()">Salvar Agendamento</button>');
+}
+function delAgn(id){
+  if(!id)return;
+  if(!confirm("Excluir este agendamento definitivamente?\n\nUse quando a cliente desmarcar. Esta a\u00e7\u00e3o n\u00e3o pode ser desfeita."))return;
+  db.collection("agendamentos").doc(id).delete().then(function(){
+    cmod();showToast("\uD83D\uDDD1 Agendamento exclu\u00eddo.");
+  }).catch(function(e){showToast("\u274c Erro ao excluir: "+e.message,"#f43f5e");});
 }
 function savAgn(){
   var c=document.getElementById("ag-c").value.trim();if(!c)return alert("Preencha o nome da cliente.");
@@ -2653,7 +2662,8 @@ function rLeadsDailyReport(){
   var agendadosDia=mudaram.filter(function(m){return m.hist.etapaNova==="agendado";});
   var agnDia=(D.agn||[]).filter(function(a){return(a.date||"")===dia;}).sort(function(a,b){return(a.time||"").localeCompare(b.time||"");});
   var leadByAgn={};leads.forEach(function(l){if(l.agendamentoId)leadByAgn[l.agendamentoId]=true;});
-  var interCount={};leads.forEach(function(l){if(l.interesse)interCount[l.interesse]=(interCount[l.interesse]||0)+1;});
+  var intSrc=(INT_FILTRO==="dia")?leads.filter(function(l){return(l.dataCriacao||"").slice(0,10)===dia;}):leads;
+  var interCount={};intSrc.forEach(function(l){if(l.interesse)interCount[l.interesse]=(interCount[l.interesse]||0)+1;});
   var topInt=Object.keys(interCount).map(function(k){return{nome:k,qtd:interCount[k]};}).sort(function(a,b){return b.qtd-a.qtd;}).slice(0,8);
   var maxInt=topInt.length?topInt[0].qtd:1;
   var datePicker='<div style="display:flex;align-items:center;gap:10px;margin-bottom:18px"><label style="font-size:11px;color:#71717a">Dia:</label><input type="date" value="'+dia+'" onchange="S.leadsDay=this.value;rT()" style="width:auto"><button class="gb" onclick="S.leadsDay=\''+hj()+'\';rT()">Hoje</button></div>';
@@ -2669,7 +2679,10 @@ function rLeadsDailyReport(){
       +'</div>';
   }).join(""):'<div class="emp" style="padding:16px 0">Nenhum agendamento neste dia</div>';
   var intHtml=topInt.map(function(i){var pct=Math.round(i.qtd/maxInt*100);return'<div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;font-size:11px;color:#d4d4d8;margin-bottom:3px"><span>'+es(i.nome)+'</span><span style="color:#a1a1aa">'+i.qtd+'</span></div><div style="background:#27272a;border-radius:4px;height:7px"><div style="width:'+pct+'%;height:100%;background:#f43f5e;border-radius:4px"></div></div></div>';}).join("");
-  return datePicker+'<div class="cg" style="grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;margin-bottom:18px">'+kp("Novos Leads",novos.length,"em "+fdt(dia))+kp("Mudaram de Etapa",mudaram.length,"movimenta\u00e7\u00f5es")+kp("Agendados no Dia",agendadosDia.length,"leads viraram agendado")+kp("Total no Funil",leads.length,"leads")+'</div>'+'<div class="cg" style="grid-template-columns:1fr 1fr"><div><div class="cd"><div class="ct">Novos em '+fdt(dia)+'</div>'+novosHtml+'</div><div class="cd"><div class="ct">Mudan\u00e7as de Etapa</div>'+mudouHtml+'</div></div><div><div class="cd"><div class="ct">\uD83C\uDFF7 Interesses Mais Procurados</div>'+(intHtml||'<div class="emp">Sem dados</div>')+'</div><div class="cd"><div class="ct">\uD83D\uDCC5 Agendamentos do Dia \u2014 '+fdt(dia)+'</div>'+agnHtml+'</div></div></div>';
+  return datePicker+'<div class="cg" style="grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;margin-bottom:18px">'+kp("Novos Leads",novos.length,"em "+fdt(dia))+kp("Mudaram de Etapa",mudaram.length,"movimenta\u00e7\u00f5es")+kp("Agendados no Dia",agendadosDia.length,"leads viraram agendado")+kp("Total no Funil",leads.length,"leads")+'</div>'+'<div class="cg" style="grid-template-columns:1fr 1fr"><div><div class="cd"><div class="ct">Novos em '+fdt(dia)+'</div>'+novosHtml+'</div><div class="cd"><div class="ct">Mudan\u00e7as de Etapa</div>'+mudouHtml+'</div></div><div><div class="cd"><div class="ct" style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span>\uD83C\uDFF7 Interesses Mais Procurados</span><span style="display:flex;gap:6px">'
++'<button onclick="setIntFiltro(\'geral\')" style="font-size:10px;padding:3px 10px;border-radius:6px;cursor:pointer;border:1px solid #3f3f46;background:'+(INT_FILTRO==="geral"?"#f43f5e":"#18181b")+';color:'+(INT_FILTRO==="geral"?"#fff":"#a1a1aa")+'">Geral</button>'
++'<button onclick="setIntFiltro(\'dia\')" style="font-size:10px;padding:3px 10px;border-radius:6px;cursor:pointer;border:1px solid #3f3f46;background:'+(INT_FILTRO==="dia"?"#f43f5e":"#18181b")+';color:'+(INT_FILTRO==="dia"?"#fff":"#a1a1aa")+'">S\u00f3 o dia</button>'
++'</span></div>'+(intHtml||'<div class="emp">Sem dados'+(INT_FILTRO==="dia"?" no dia selecionado":"")+'</div>')+'</div><div class="cd"><div class="ct">\uD83D\uDCC5 Agendamentos do Dia \u2014 '+fdt(dia)+'</div>'+agnHtml+'</div></div></div>';
 }
 function rLeads(){
   var isAdmin=CURRENT_USER&&CURRENT_USER.role==="admin";
@@ -3126,6 +3139,7 @@ function saveStockEntry(){
 }
 
 /* ─ META ADS (Etapa 1: leitura das métricas sincronizadas) ─ */
+var INT_FILTRO="geral";function setIntFiltro(v){INT_FILTRO=v;rAll();}
 var META_CACHE={mes:null,insights:[],camps:[],carregando:false,periodo:"mes"};
 function metaMesKey(){var mm=(S.month+1)<10?"0"+(S.month+1):String(S.month+1);return S.year+"-"+mm;}
 function metaRange(){
