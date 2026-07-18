@@ -2740,7 +2740,10 @@ function buildLeadCols(){
       return'<div class="lead-card" draggable="true" data-lead-id="'+l.id+'" style="border-left-color:'+LEAD_STAGE_COLOR[st]+'" data-lead-open="'+l.id+'">'
         +'<div class="nm">'+es(l.nome)+'</div>'
         +'<div class="it">'+es(l.interesse||"")+'</div>'
-        +'<div class="mt"><span>'+es(l.responsavel||"")+'</span>'+(l.proximoContato?'<span class="'+(due?"lead-due":"")+'">'+(due?"\u26a0 ":"\uD83D\uDCC5 ")+fdt(l.proximoContato)+'</span>':'')+'</div>'
+        +'<div class="mt"><span>'+es(l.responsavel||"")+'</span><span style="display:flex;gap:6px;align-items:center">'
+        +((l.historico&&l.historico.length)?'<span style="color:#52525b" title="\u00daltimo contato">\uD83D\uDD52 '+fdt(l.historico[l.historico.length-1].data)+'</span>':'')
+        +(l.proximoContato?'<span class="'+(due?"lead-due":"")+'">'+(due?"\u26a0 ":"\uD83D\uDCC5 ")+fdt(l.proximoContato)+'</span>':'')
+        +'</span></div>'
         +agInfo+acoes+'</div>';
     }).join("");
     return'<div class="lead-col"><div class="lead-col-hd"><span style="color:'+LEAD_STAGE_COLOR[st]+'">'+LEAD_STAGE_LABELS[st]+'</span><span style="color:#52525b">'+items.length+'</span></div>'
