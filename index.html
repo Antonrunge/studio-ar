@@ -3256,10 +3256,27 @@ function metaRelatorioPdf(){
   setTimeout(function(){try{w.print();}catch(e){}},500);
 }
 function metaSyncAgora(){
-  var key=prompt("Digite a chave de sincroniza\u00e7\u00e3o (SYNC_KEY):");
+  var key=localStorage.getItem("metaSyncKey")||prompt("Digite a chave de sincroniza\u00e7\u00e3o (SYNC_KEY):");
   if(!key)return;
-  window.open("https://southamerica-east1-studio-ar-gestao.cloudfunctions.net/syncMetaAdsAgora?key="+encodeURIComponent(key.trim()),"_blank");
-  showToast("\uD83D\uDD04 Sincroniza\u00e7\u00e3o disparada em nova aba. Aguarde o ok:true e clique em Atualizar dados.");
+  key=key.trim();
+  var btn=event&&event.target;if(btn)btn.disabled=true;
+  showToast("\uD83D\uDD04 Sincronizando com a Meta... isso leva alguns segundos.");
+  fetch("https://southamerica-east1-studio-ar-gestao.cloudfunctions.net/syncMetaAdsAgora?key="+encodeURIComponent(key))
+    .then(function(r){return r.json();})
+    .then(function(j){
+      if(btn)btn.disabled=false;
+      if(j.ok){
+        localStorage.setItem("metaSyncKey",key);
+        showToast("\u2705 Sincronizado! "+j.campanhas+" campanhas \u00b7 "+j.linhas+" linhas \u00b7 "+(j.despesasDias||0)+" dias de despesa");
+        loadMetaAds(true);
+      }else{
+        showToast("\u274c "+(j.erro||"Erro na sincroniza\u00e7\u00e3o")+" \u2014 confira a chave.","#f43f5e");
+      }
+    })
+    .catch(function(e){
+      if(btn)btn.disabled=false;
+      showToast("\u274c Falha de conex\u00e3o: "+e.message,"#f43f5e");
+    });
 }
 function metaRoasPanel(rg,tInv){
   /* Cruza o investimento com o funil (leads criadas no per\u00edodo) e o faturamento
