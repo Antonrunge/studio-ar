@@ -264,6 +264,7 @@ var LEAD_MOTIVOS=["Pre\u00e7o / condi\u00e7\u00e3o financeira","N\u00e3o respond
 var LEAD_REGUA_DEFAULT=[1,3,7];
 var LEAD_REGUA_CUSTOM=null;
 var LEAD_BOOKING_ID=null;
+var WA_CONFIG={};
 function getLeadRegua(){return LEAD_REGUA_CUSTOM||LEAD_REGUA_DEFAULT;}
 function leadNextSuggested(lead){var r=getLeadRegua();var n=(lead.historico||[]).length;var off=r[Math.min(n,r.length-1)]||1;return dateAddDays(hj(),off);}
 var EXP_CATS=["Fixo","Insumos","Pessoal","Marketing","Administrativo","Outros"];
@@ -584,6 +585,43 @@ var SD_EXP=[
 var SD_ADV=[{id:uid(),date:"2026-06-05",colaborador:"J\u00dALIA",valor:200}];
 
 function showToast(msg,color){var t=document.getElementById("toast");t.textContent=msg;t.style.background=color||"#34d399";t.style.color=color?"#fff":"#000";t.style.opacity="1";setTimeout(function(){t.style.opacity="0";},2800);}
+/* ───────── WHATSAPP EMBEDDED SIGNUP (coexist\u00eancia com o app do celular) ─────────
+   O config_id vem do Firestore (config/whatsapp), gerado quando o app "Studio A R Gest\u00e3o"
+   estiver aprovado na An\u00e1lise do Aplicativo da Meta. At\u00e9 l\u00e1, o bot\u00e3o mostra aviso pedindo
+   para configurar. O SDK s\u00f3 \u00e9 carregado quando o admin de fato clica em conectar (lazy-load). */
+function loadFacebookSDK(cb){
+  if(window.FB){cb();return;}
+  window.fbAsyncInit=function(){
+    FB.init({appId:"1580476020463245",autoLogAppEvents:true,xfbml:false,version:"v23.0"});
+    cb();
+  };
+  if(document.getElementById("facebook-jssdk"))return;
+  var s=document.createElement("script");
+  s.id="facebook-jssdk";s.src="https://connect.facebook.net/pt_BR/sdk.js";s.async=true;s.defer=true;
+  document.body.appendChild(s);
+}
+function conectarWhatsApp(){
+  if(!WA_CONFIG.configId){
+    showToast("\u26A0\uFE0F Cadastro Incorporado ainda n\u00e3o configurado \u2014 aguardando aprova\u00e7\u00e3o da Meta (An\u00e1lise do App).","#fbbf24");
+    return;
+  }
+  loadFacebookSDK(function(){
+    FB.login(function(response){
+      if(response&&response.authResponse&&response.authResponse.code){
+        var code=response.authResponse.code;
+        console.log("WhatsApp Embedded Signup \u2014 code recebido:",code);
+        showToast("\u2705 Autoriza\u00e7\u00e3o conclu\u00edda! Copie o c\u00f3digo do console e envie para o pr\u00f3ximo passo (processar no backend).","#34d399");
+      } else {
+        showToast("Conex\u00e3o cancelada ou n\u00e3o conclu\u00edda.","#f43f5e");
+      }
+    },{
+      config_id:WA_CONFIG.configId,
+      response_type:"code",
+      override_default_response_type:true,
+      extras:{setup:{},sessionInfoVersion:"3"}
+    });
+  });
+}
 function exportJSON(){
   var payload={version:"online-1.0",exportedAt:new Date().toISOString(),svc:D.svc,prd:D.prd,exp:D.exp,adv:D.adv,agn:D.agn,contacts:D.contacts,pl:PL_CUSTOM,profs:PROFS_CUSTOM};
   var blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
@@ -655,7 +693,8 @@ function setupListeners(){
   var u6=db.collection("config").doc("divulgadores").onSnapshot(function(doc){DIVULGADORES_CUSTOM=doc.exists&&doc.data().list?doc.data().list:null;rT();});
   var u7=db.collection("config").doc("profissionaisDesligados").onSnapshot(function(doc){PROFS_DESLIGADOS_CUSTOM=doc.exists?doc.data().values:null;rT();});
   var u8=db.collection("config").doc("profissionaisAuxiliares").onSnapshot(function(doc){PROFS_AUXILIARES_CUSTOM=doc.exists?doc.data().values:null;rT();});
-  _listeners.push(u1,u2,u3,u4,u5,u6,u7,u8);
+  var u9=db.collection("config").doc("whatsapp").onSnapshot(function(doc){WA_CONFIG=doc.exists?doc.data():{};});
+  _listeners.push(u1,u2,u3,u4,u5,u6,u7,u8,u9);
   rAll();
 }
 
@@ -3357,10 +3396,15 @@ function metaRoasPanel(rg,tInv){
     +'<div style="font-size:10px;color:#52525b;margin-top:8px">Leads criadas pela Isabela no per\u00edodo \u00d7 quem virou cliente \u00d7 servi\u00e7os realmente lan\u00e7ados para elas. ROAS acima de 1x = an\u00fancios se pagando; acima de 2x = retorno saud\u00e1vel. Convertidas de per\u00edodos anteriores que voltam a consumir n\u00e3o entram nesta conta.</div></div>';
 }
 function rMetaAds(){
+  var waCard='<div class="cd" style="margin-bottom:14px"><div class="ct">\uD83D\uDCF1 WhatsApp Business \u2014 conex\u00e3o do n\u00famero do sal\u00e3o</div>'
+    +(WA_CONFIG.configId
+      ?'<div style="font-size:12px;color:#a1a1aa;margin-bottom:10px">Clique para conectar o n\u00famero +55 12 98898-7942 mantendo o app do celular funcionando (coexist\u00eancia).</div><button class="ab" onclick="conectarWhatsApp()">\uD83D\uDCF2 Conectar WhatsApp</button>'
+      :'<div style="font-size:12px;color:#a1a1aa">\u23F3 Aguardando aprova\u00e7\u00e3o da Meta (An\u00e1lise do Aplicativo) para liberar a op\u00e7\u00e3o de coexist\u00eancia. O bot\u00e3o de conex\u00e3o ser\u00e1 ativado assim que o config_id for cadastrado.</div>')
+    +'</div>';
   var rg=metaRange();
   if(META_CACHE.mes!==rg.key){
     loadMetaAds();
-    return'<div class="pg"><div class="ph"><h2>\uD83D\uDCE3 Meta Ads</h2></div><div class="emp" style="padding:30px 0">\u23F3 Carregando m\u00e9tricas \u2014 '+rg.label+'...</div></div>';
+    return'<div class="pg"><div class="ph"><h2>\uD83D\uDCE3 Meta Ads</h2></div>'+waCard+'<div class="emp" style="padding:30px 0">\u23F3 Carregando m\u00e9tricas \u2014 '+rg.label+'...</div></div>';
   }
   var ins=META_CACHE.insights;
   var hoje=hj();
