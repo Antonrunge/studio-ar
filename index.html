@@ -2878,7 +2878,7 @@ function openLeadDetail(id){
   var convertidoHtml=convertido?'<div style="background:#34d39920;border:1px solid #34d39940;color:#34d399;padding:6px 10px;border-radius:6px;font-size:11px;font-weight:600;margin-bottom:10px">\u2713 Convertido em cliente</div>':'';
   var botoesAcao=(!perdido&&!convertido)?'<div class="g2"><button class="gb" onclick="openLead(\''+l.id+'\')">Editar dados</button><button class="gb" data-lead-agendar="'+l.id+'">Agendar</button></div>'
     +'<div class="g2" style="margin-top:8px"><button class="gb" style="color:#34d399" onclick="leadConvert(\''+l.id+'\')">\u2713 Converter em cliente</button><button class="gb" style="color:#f87171" data-lead-perdido="'+l.id+'">\u2717 Marcar perdido</button></div>'
-    :(perdido?'<div class="g2"><button class="gb" onclick="retomar(\''+l.id+'\')">Retomar lead</button></div>':'');
+    :(perdido?'<div class="g2"><button class="gb" onclick="retomar(\''+l.id+'\')">Retomar lead</button></div>':'<div class="g2"><button class="gb" onclick="openLead(\''+l.id+'\')">Editar dados</button></div>');
   omod(mhdr(es(l.nome))
     +convertidoHtml+motivoHtml
     +'<div class="com-info">'+es(l.telefone||"sem telefone")+' &middot; '+es(l.interesse||"")+' &middot; <span style="color:'+LEAD_STAGE_COLOR[l.etapa]+'">'+LEAD_STAGE_LABELS[l.etapa]+'</span>'+(l.responsavel?' &middot; '+es(l.responsavel):'')+'</div>'
