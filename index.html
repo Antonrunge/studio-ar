@@ -2127,7 +2127,14 @@ function rPrd(fp){
     {k:"formaPagamento",l:"Pagamento",fn:function(r){return es(r.formaPagamento||"");}},
     {k:"cs",l:"Com.Sal\u00e3o",fn:function(r){return fmt(r.valorUnitario*r.quantidade*r.comissaoSalao);}}
   ];
+  // Filtro por cliente
+  var prdCF=(S.prdClientFilter||"").trim().toLowerCase();
+  if(prdCF){
+    fpSal=fpSal.filter(function(r){return(r.cliente||"").toLowerCase().indexOf(prdCF)>=0;});
+    fpExt=fpExt.filter(function(r){return(r.cliente||"").toLowerCase().indexOf(prdCF)>=0;});
+  }
   return'<div class="pg"><div class="ph"><h2>Produtos \u2014 '+MESES[S.month]+' '+S.year+'</h2><button class="ab" onclick="openP()">\uFF0B Nova Venda</button></div>'
+    +'<div class="srow" style="margin-bottom:12px"><input type="text" placeholder="\uD83D\uDD0D Buscar cliente..." value="'+es(S.prdClientFilter||"")+'" oninput="S.prdClientFilter=this.value;rT()" style="width:260px;padding:6px 10px;border-radius:6px;border:1px solid #3f3f46;background:#1c1c1e;color:#f4f4f5"></div>'
     +'<div class="kg">'+kp("Vendas Sal\u00e3o (Bruto)",fmt(tVBruto),fpSal.length+" itens")+kp("Fat. L\u00edquido",fmt(tV),"-"+fmt(tMaqPrd)+" maq.")+kp("Vendas Externas",fmt(tVE),fpExt.length+" itens")+kp("Com.Sal\u00e3o",fmt(cS))+'</div>'
     +'<div class="cd"><div class="ct">Vendas no Sal\u00e3o</div>'+tbl(fpSal,cols,"prd")+'</div>'
     +(fpExt.length?'<div class="cd"><div class="ct" style="color:#fbbf24">Vendas Externas</div>'+tbl(fpExt,cols,"prd")+'</div>':"")
@@ -2161,6 +2168,13 @@ function rExp(fe){
 }
 
 function rAdv(fa){
+  // Ordenar por data crescente
+  fa=fa.slice().sort(function(a,b){return(a.date||"").localeCompare(b.date||"");});
+  // Filtro por colaborador
+  var advNF=S.advNameFilter||"";
+  var nomes=[];fa.forEach(function(r){if(r.colaborador&&nomes.indexOf(r.colaborador)<0)nomes.push(r.colaborador);});nomes.sort();
+  var nomeOpts='<option value="">Todos</option>'+nomes.map(function(n){return'<option value="'+es(n)+'"'+( advNF===n?' selected':'')+'>'+es(n)+'</option>';}).join("");
+  if(advNF)fa=fa.filter(function(r){return r.colaborador===advNF;});
   var tot=fa.reduce(function(s,r){return s+r.valor;},0);
   var cols=[
     {k:"date",l:"Data",fn:function(r){return fdt(r.date);}},
@@ -2168,6 +2182,7 @@ function rAdv(fa){
     {k:"valor",l:"Valor",fn:function(r){return fmt(r.valor);},hi:true}
   ];
   return'<div class="pg"><div class="ph"><h2>Adiantamentos \u2014 '+MESES[S.month]+' '+S.year+'</h2><button class="ab" onclick="openA()">\uFF0B Novo Adiantamento</button></div>'
+    +'<div class="srow" style="margin-bottom:12px"><select onchange="S.advNameFilter=this.value;rT()" style="width:auto;min-width:200px">'+nomeOpts+'</select></div>'
     +'<div class="kg">'+kp("Total Adiantado",fmt(tot),fa.length+" lan\u00e7amentos")+kp("Colaboradores",new Set(fa.map(function(r){return r.colaborador;})).size,"com adiantamentos")+'</div>'
     +'<div class="cd">'+tbl(fa,cols,"adv")+'</div></div>';
 }
