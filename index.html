@@ -2107,6 +2107,7 @@ function rSvc(fs){
     +'<div class="cd">'+tableHtml+'</div></div>';
 }
 
+function setPrdClientFilter(v){S.prdClientFilter=v;rT();setTimeout(function(){var i=document.getElementById("prd-cli-search");if(i){var l=i.value.length;i.focus();i.setSelectionRange(l,l);}},0);}
 function rPrd(fp){
   var fpSal=fp.filter(function(r){return!r.externa;}),fpExt=fp.filter(function(r){return r.externa;});
   var tVBruto=fpSal.reduce(function(s,r){return s+r.valorUnitario*r.quantidade;},0);
@@ -2134,7 +2135,7 @@ function rPrd(fp){
     fpExt=fpExt.filter(function(r){return(r.cliente||"").toLowerCase().indexOf(prdCF)>=0;});
   }
   return'<div class="pg"><div class="ph"><h2>Produtos \u2014 '+MESES[S.month]+' '+S.year+'</h2><button class="ab" onclick="openP()">\uFF0B Nova Venda</button></div>'
-    +'<div class="srow" style="margin-bottom:12px"><input type="text" placeholder="\uD83D\uDD0D Buscar cliente..." value="'+es(S.prdClientFilter||"")+'" oninput="S.prdClientFilter=this.value;rT()" style="width:260px;padding:6px 10px;border-radius:6px;border:1px solid #3f3f46;background:#1c1c1e;color:#f4f4f5"></div>'
+    +'<div class="srow" style="margin-bottom:12px"><input id="prd-cli-search" type="text" placeholder="\uD83D\uDD0D Buscar cliente..." value="'+es(S.prdClientFilter||"")+'" oninput="setPrdClientFilter(this.value)" style="width:260px;padding:6px 10px;border-radius:6px;border:1px solid #3f3f46;background:#1c1c1e;color:#f4f4f5"></div>'
     +'<div class="kg">'+kp("Vendas Sal\u00e3o (Bruto)",fmt(tVBruto),fpSal.length+" itens")+kp("Fat. L\u00edquido",fmt(tV),"-"+fmt(tMaqPrd)+" maq.")+kp("Vendas Externas",fmt(tVE),fpExt.length+" itens")+kp("Com.Sal\u00e3o",fmt(cS))+'</div>'
     +'<div class="cd"><div class="ct">Vendas no Sal\u00e3o</div>'+tbl(fpSal,cols,"prd")+'</div>'
     +(fpExt.length?'<div class="cd"><div class="ct" style="color:#fbbf24">Vendas Externas</div>'+tbl(fpExt,cols,"prd")+'</div>':"")
@@ -2168,12 +2169,10 @@ function rExp(fe){
 }
 
 function rAdv(fa){
-  // Ordenar por data crescente
   fa=fa.slice().sort(function(a,b){return(a.date||"").localeCompare(b.date||"");});
-  // Filtro por colaborador
   var advNF=S.advNameFilter||"";
   var nomes=[];fa.forEach(function(r){if(r.colaborador&&nomes.indexOf(r.colaborador)<0)nomes.push(r.colaborador);});nomes.sort();
-  var nomeOpts='<option value="">Todos</option>'+nomes.map(function(n){return'<option value="'+es(n)+'"'+( advNF===n?' selected':'')+'>'+es(n)+'</option>';}).join("");
+  var nomeOpts='<option value="">Todos</option>'+nomes.map(function(n){return'<option value="'+es(n)+'"'+(advNF===n?' selected':'')+'>'+es(n)+'</option>';}).join("");
   if(advNF)fa=fa.filter(function(r){return r.colaborador===advNF;});
   var tot=fa.reduce(function(s,r){return s+r.valor;},0);
   var cols=[
