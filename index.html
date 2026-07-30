@@ -3711,6 +3711,7 @@ function rAll(){rSb();rT();}
 document.addEventListener("click",function(e){
   var nb=e.target.closest("[data-tab]");if(nb){S.tab=nb.dataset.tab;rSb();rT();closeMobileSidebar();return;}
   var wst=e.target.closest("[data-wa-subtab]");if(wst){WA_SUBTAB=wst.dataset.waSubtab;rT();return;}
+  var wvol=e.target.closest("[data-wa-voltar]");if(wvol){WA_CONV_SELECIONADA=null;WA_RR_ABERTA=false;WA_BIB_ABERTA=false;rT();return;}
   var wth=e.target.closest("[data-wa-tema]");if(wth){S.waThema=S.waThema==="light"?"dark":"light";rT();return;}
   var wfs=e.target.closest("[data-wa-fullscreen]");if(wfs){WA_FULLSCREEN=!WA_FULLSCREEN;rT();return;}
   var wper=e.target.closest("[data-wa-periodo]");if(wper){S.waRelPeriodo=wper.dataset.waPeriodo;rT();return;}
@@ -5351,53 +5352,90 @@ function rConversas(){
   }
 
   // ── KPIs ─────────────────────────────────────
-  var kpisHTML='<div style="display:flex;gap:9px;flex-wrap:wrap;margin-bottom:14px">'
-    +'<div class="kp" style="flex:1;min-width:80px;background:'+T.kpBg+';border-color:'+T.kpBorder+'"><div class="kl">Total</div><div class="kv" style="color:'+T.txt+'">'+convsMock.length+'</div><div class="ks">conversas</div></div>'
-    +'<div class="kp" style="flex:1;min-width:80px;background:'+T.kpBg+';border-color:#fbbf2440"><div class="kl" style="color:#fbbf24">⏳ Aguardando</div><div class="kv" style="color:#fbbf24">'+totAguard+'</div><div class="ks">sem atendente</div></div>'
-    +'<div class="kp" style="flex:1;min-width:80px;background:'+T.kpBg+';border-color:#34d39940"><div class="kl" style="color:#34d399">🟢 Atendimento</div><div class="kv" style="color:#34d399">'+totAtend+'</div><div class="ks">em andamento</div></div>'
-    +'<div class="kp" style="flex:1;min-width:80px;background:'+T.kpBg+';border-color:'+T.kpBorder+'"><div class="kl">✓ Finalizados</div><div class="kv" style="color:'+T.txt+'">'+totFin+'</div><div class="ks">hoje</div></div>'
-    +(totNaoLidas>0?'<div class="kp" style="flex:1;min-width:80px;background:'+T.kpBg+';border-color:#f43f5e40"><div class="kl" style="color:#f43f5e">🔴 Não lidas</div><div class="kv" style="color:#f43f5e">'+totNaoLidas+'</div><div class="ks">msgs</div></div>':'')
+  var mob=window.innerWidth<=860;
+  var kpisHTML='<div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:'+(mob?"10px":"14px")+'">'
+    +'<div class="kp" style="flex:1;min-width:'+(mob?"70px":"80px")+';background:'+T.kpBg+';border-color:'+T.kpBorder+'"><div class="kl">Total</div><div class="kv" style="color:'+T.txt+'">'+convsMock.length+'</div><div class="ks">conversas</div></div>'
+    +'<div class="kp" style="flex:1;min-width:'+(mob?"70px":"80px")+';background:'+T.kpBg+';border-color:#fbbf2440"><div class="kl" style="color:#fbbf24">⏳ Aguard.</div><div class="kv" style="color:#fbbf24">'+totAguard+'</div><div class="ks">sem atend.</div></div>'
+    +'<div class="kp" style="flex:1;min-width:'+(mob?"70px":"80px")+';background:'+T.kpBg+';border-color:#34d39940"><div class="kl" style="color:#34d399">🟢 Atend.</div><div class="kv" style="color:#34d399">'+totAtend+'</div><div class="ks">em andamento</div></div>'
+    +'<div class="kp" style="flex:1;min-width:'+(mob?"70px":"80px")+';background:'+T.kpBg+';border-color:'+T.kpBorder+'"><div class="kl">✓ Fin.</div><div class="kv" style="color:'+T.txt+'">'+totFin+'</div><div class="ks">hoje</div></div>'
+    +(totNaoLidas>0?'<div class="kp" style="flex:1;min-width:'+(mob?"70px":"80px")+';background:'+T.kpBg+';border-color:#f43f5e40"><div class="kl" style="color:#f43f5e">🔴 N.lidas</div><div class="kv" style="color:#f43f5e">'+totNaoLidas+'</div><div class="ks">msgs</div></div>':'')
   +'</div>';
 
   // ── Filtros ──────────────────────────────────
   function fBtn(v,label,cor){
     var on=filtro===v;
-    return '<button data-wa-filtro="'+v+'" style="background:'+(on?(cor||"#f43f5e"):"#27272a")+';border:1px solid '+(on?(cor||"#f43f5e")+"88":"#3f3f46")+';color:'+(on?"#fff":"#a1a1aa")+';border-radius:20px;padding:4px 12px;font-size:10px;font-weight:'+(on?"600":"400")+';cursor:pointer">'+label+'</button>';
+    return '<button data-wa-filtro="'+v+'" style="background:'+(on?(cor||"#f43f5e"):"#27272a")+';border:1px solid '+(on?(cor||"#f43f5e")+"88":"#3f3f46")+';color:'+(on?"#fff":"#a1a1aa")+';border-radius:20px;padding:'+(mob?"3px 9px":"4px 12px")+';font-size:'+(mob?"9px":"10px")+';font-weight:'+(on?"600":"400")+';cursor:pointer;white-space:nowrap">'+label+'</button>';
   }
-  var filtrosHTML='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">'
-    +fBtn("todos","Todos")+fBtn("aguardando","⏳ Aguardando","#fbbf24")+fBtn("atendimento","🟢 Atendimento","#34d399")+fBtn("finalizado","✓ Finalizados","#52525b")
+  var filtrosHTML='<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px">'
+    +fBtn("todos","Todos")+fBtn("aguardando","⏳ Aguardando","#fbbf24")+fBtn("atendimento","🟢 Atend.","#34d399")+fBtn("finalizado","✓ Final.","#52525b")
   +'</div>';
 
-  var avisoInteg='<div style="background:#fbbf2408;border:1px solid #fbbf2430;border-radius:8px;padding:9px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px">'
-    +'<span style="font-size:16px">⏳</span>'
-    +'<div><div style="font-size:11px;font-weight:600;color:#fbbf24">Integração WhatsApp pendente de aprovação da Meta</div>'
-    +'<div style="font-size:10px;color:#71717a;margin-top:1px">Estrutura pronta — conversas e notas reais aparecem aqui após a Etapa 4. Dados abaixo são ilustrativos.</div></div>'
+  var avisoInteg='<div style="background:#fbbf2408;border:1px solid #fbbf2430;border-radius:8px;padding:'+(mob?"7px 10px":"9px 14px")+';margin-bottom:12px;display:flex;align-items:center;gap:8px">'
+    +'<span style="font-size:14px;flex-shrink:0">⏳</span>'
+    +'<div><div style="font-size:'+(mob?"10px":"11px")+';font-weight:600;color:#fbbf24">Integração WhatsApp pendente da Meta</div>'
+    +(!mob?'<div style="font-size:10px;color:#71717a;margin-top:1px">Estrutura pronta — dados reais aparecem após Etapa 4.</div>':'')+'</div>'
   +'</div>';
 
-  // ── Sub-tabs + botão de tema ──────────────────
-  var themeBtn='<button data-wa-tema style="background:'+(tema==="light"?"#111115":"#fff")+';border:1px solid '+(tema==="light"?"#27272a":"#e0e0e0")+';color:'+(tema==="light"?"#f1f5f9":"#111")+';border-radius:20px;padding:4px 12px;font-size:10px;cursor:pointer;white-space:nowrap">'+(tema==="light"?"🌙 Tema escuro":"☀️ Tema WhatsApp")+'</button>';
-  var fsBtn='<button data-wa-fullscreen style="background:'+(WA_FULLSCREEN?"#f43f5e14":"#27272a")+';border:1px solid '+(WA_FULLSCREEN?"#f43f5e66":"#3f3f46")+';color:'+(WA_FULLSCREEN?"#f43f5e":"#a1a1aa")+';border-radius:20px;padding:4px 12px;font-size:10px;cursor:pointer;white-space:nowrap">'+(WA_FULLSCREEN?"⬜ Sair da tela cheia":"⛶ Tela cheia")+'</button>';
+  // ── Sub-tabs + botões de controle ────────────
+  var themeBtn='<button data-wa-tema style="background:'+(tema==="light"?"#111115":"#fff")+';border:1px solid '+(tema==="light"?"#27272a":"#e0e0e0")+';color:'+(tema==="light"?"#f1f5f9":"#111")+';border-radius:20px;padding:4px 10px;font-size:10px;cursor:pointer;white-space:nowrap">'+(tema==="light"?"🌙":"☀️ WA")+'</button>';
+  var fsBtn=mob?"":'<button data-wa-fullscreen style="background:'+(WA_FULLSCREEN?"#f43f5e14":"#27272a")+';border:1px solid '+(WA_FULLSCREEN?"#f43f5e66":"#3f3f46")+';color:'+(WA_FULLSCREEN?"#f43f5e":"#a1a1aa")+';border-radius:20px;padding:4px 10px;font-size:10px;cursor:pointer;white-space:nowrap">'+(WA_FULLSCREEN?"⬜ Sair":"⛶ Tela cheia")+'</button>';
 
-  var tabsHTML='<div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">'
-    +'<button data-wa-subtab="conversas" style="border:1px solid '+(subtab==="conversas"?"#f43f5e88":"#3f3f46")+';background:'+(subtab==="conversas"?"#f43f5e":"#27272a")+';color:'+(subtab==="conversas"?"#fff":"#a1a1aa")+';border-radius:20px;padding:4px 14px;font-size:11px;font-weight:'+(subtab==="conversas"?"600":"400")+';cursor:pointer">💬 Conversas</button>'
-    +'<button data-wa-subtab="relatorio" style="border:1px solid '+(subtab==="relatorio"?"#f43f5e88":"#3f3f46")+';background:'+(subtab==="relatorio"?"#f43f5e":"#27272a")+';color:'+(subtab==="relatorio"?"#fff":"#a1a1aa")+';border-radius:20px;padding:4px 14px;font-size:11px;font-weight:'+(subtab==="relatorio"?"600":"400")+';cursor:pointer">📊 Relatórios</button>'
-    +'<div style="margin-left:auto;display:flex;gap:6px">'+fsBtn+themeBtn+'</div>'
+  var tabsHTML='<div style="display:flex;align-items:center;gap:7px;margin-bottom:12px;flex-wrap:wrap">'
+    +'<button data-wa-subtab="conversas" style="border:1px solid '+(subtab==="conversas"?"#f43f5e88":"#3f3f46")+';background:'+(subtab==="conversas"?"#f43f5e":"#27272a")+';color:'+(subtab==="conversas"?"#fff":"#a1a1aa")+';border-radius:20px;padding:4px 12px;font-size:11px;font-weight:'+(subtab==="conversas"?"600":"400")+';cursor:pointer">💬 Conversas</button>'
+    +'<button data-wa-subtab="relatorio" style="border:1px solid '+(subtab==="relatorio"?"#f43f5e88":"#3f3f46")+';background:'+(subtab==="relatorio"?"#f43f5e":"#27272a")+';color:'+(subtab==="relatorio"?"#fff":"#a1a1aa")+';border-radius:20px;padding:4px 12px;font-size:11px;font-weight:'+(subtab==="relatorio"?"600":"400")+';cursor:pointer">📊 Rel.</button>'
+    +'<div style="margin-left:auto;display:flex;gap:5px">'+fsBtn+themeBtn+'</div>'
   +'</div>';
 
   // ── Montagem ─────────────────────────────────
-  var corpo=subtab==="relatorio"
-    ?'<div style="flex:1;overflow-y:auto;background:'+T.bg+'">'+rRelatorio()+'</div>'
-    :'<div style="flex:1;display:flex;overflow:hidden">'
+  var corpo;
+  if(subtab==="relatorio"){
+    corpo='<div style="flex:1;overflow-y:auto;background:'+T.bg+'">'+rRelatorio()+'</div>';
+  } else if(mob){
+    // MOBILE: uma coluna — ou lista ou conversa
+    var temConvSel=sel&&WA_CONV_SELECIONADA;
+    if(temConvSel){
+      // Tela de conversa — tela cheia, botão voltar no topo
+      var voltarBtn='<div style="padding:10px 12px;background:'+T.hdr+';border-bottom:1px solid '+T.hdrBorder+';display:flex;align-items:center;gap:10px;flex-shrink:0">'
+        +'<button data-wa-voltar style="background:none;border:none;color:'+T.hdrTxt+';font-size:18px;cursor:pointer;padding:0 6px 0 0;line-height:1">←</button>'
+        +av(sel.nome,coresConv[sel.id]||"#3f3f46",30)
+        +'<div style="flex:1;min-width:0">'
+          +'<div style="font-size:13px;font-weight:700;color:'+T.hdrTxt+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+es(sel.nome)+'</div>'
+          +'<div style="font-size:9px;color:'+(tema==="light"?"#d4f5f0":"#71717a")+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+es(sel.interesse)+'</div>'
+        +'</div>'
+        +badgeEtapa(sel.etapa)
+      +'</div>';
+      // Botões de ação compactos abaixo do header
+      var comissaoFaixaMob=painelDir.match(/<div style="padding:[^"]*border-bottom[^"]*display:flex[^>]*>[\s\S]*?<\/div>\s*<\/div>/)?.[0]||"";
+      corpo='<div style="flex:1;display:flex;flex-direction:column;overflow:hidden;background:'+T.bg+';position:relative">'
+        +voltarBtn
+        +comissaoFaixa
+        +'<div id="wa-feed" style="flex:1;overflow-y:auto;padding:12px;background:'+T.feed+'">'+bubbles+'</div>'
+        +inputArea
+        +bibModal
+      +'</div>';
+    } else {
+      // Tela de lista — tela cheia com cabeçalho compacto
+      corpo='<div style="flex:1;overflow-y:auto;background:'+T.sb+'">'
+        +(isAdmin||isRecepcao?equipePainel:"")
+        +listaHTML
+      +'</div>';
+    }
+  } else {
+    // DESKTOP: duas colunas
+    corpo='<div style="flex:1;display:flex;overflow:hidden">'
         +'<div style="width:300px;flex-shrink:0;overflow-y:auto;border-right:1px solid '+T.sbBorder+';background:'+T.sb+'">'
           +equipePainel+listaHTML
         +'</div>'
         +'<div style="flex:1;display:flex;flex-direction:column;overflow:hidden;background:'+T.bg+';position:relative">'+painelDir+bibModal+'</div>'
       +'</div>';
+  }
 
-  var fsStyle=WA_FULLSCREEN?"position:fixed;inset:0;z-index:200;":"padding:0;height:calc(100vh - 0px);";
+  var fsStyle=WA_FULLSCREEN&&!mob?"position:fixed;inset:0;z-index:200;":"padding:0;height:calc(100vh - 0px);";
+  // Em mobile com conversa aberta, ocultar o cabeçalho fixo para dar mais espaço
+  var headerDisplay=mob&&sel&&WA_CONV_SELECIONADA&&subtab==="conversas"?"none":"block";
   return '<div style="'+fsStyle+'display:flex;flex-direction:column;overflow:hidden;background:'+T.bg+'">'
-    +'<div style="padding:14px 18px 10px;border-bottom:1px solid '+T.sbBorder+';background:'+T.sb+';flex-shrink:0">'
-      +'<div style="display:flex;align-items:center;margin-bottom:10px"><h2 style="font-size:17px;font-weight:700;color:'+T.txt+'">💬 Central de Conversas — WhatsApp</h2></div>'
+    +'<div id="wa-hdr" style="display:'+headerDisplay+';padding:'+(mob?"10px 12px 8px":"14px 18px 10px")+';border-bottom:1px solid '+T.sbBorder+';background:'+T.sb+';flex-shrink:0">'
+      +'<div style="display:flex;align-items:center;margin-bottom:8px"><h2 style="font-size:'+(mob?"14px":"17px")+';font-weight:700;color:'+T.txt+'">💬 '+(mob?"Conversas WA":"Central de Conversas — WhatsApp")+'</h2></div>'
       +avisoInteg+kpisHTML+tabsHTML
       +(subtab==="conversas"?filtrosHTML:"")
     +'</div>'
