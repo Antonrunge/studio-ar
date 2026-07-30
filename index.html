@@ -335,12 +335,12 @@ function openAdminAuthModal(onSuccess){
 
 var CURRENT_USER = null; // {uid, email, role, nome}
 var ROLE_TABS = {
-  admin: ["dashboard","agenda","followup","leads","services","products","expenses","advances","prolabore","dre","clients","db","requests","audit","estoque","arprof","metaads","fornecedores","caixa","mensagens"],
-  recepcao: ["agenda","followup","services","products","clients","requests","estoque","mensagens"],
+  admin: ["dashboard","agenda","followup","leads","services","products","expenses","advances","prolabore","dre","clients","db","requests","audit","estoque","arprof","metaads","conversas","fornecedores","caixa","mensagens"],
+  recepcao: ["agenda","followup","services","products","clients","requests","estoque","conversas","mensagens"],
   financeiro: ["dashboard","expenses","advances","prolabore","dre","arprof","caixa","mensagens"],
   marketing: ["clients","mensagens"],
   profissional: ["agenda","prolabore","mensagens"],
-  comercial: ["agenda","leads","mensagens"]
+  comercial: ["agenda","leads","conversas","mensagens"]
 };
 var ROLE_LABELS = {admin:"Administrador",recepcao:"Recep\u00e7\u00e3o",financeiro:"Financeiro",marketing:"Marketing",profissional:"Profissional",comercial:"Comercial"};
 var COL_MAP = {svc:"servicos",prd:"produtos",exp:"despesas",adv:"adiantamentos",agn:"agendamentos",contacts:"contatos"};
@@ -511,6 +511,13 @@ function fday(a,d){return a.filter(function(r){return r.date===d;});}
 function es(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
 function fl(v,f){return v*(1-(TAXAS[f]||0));}
 function cm(v,f,t){return fl(v,f)*(t||0.1);}
+// cmR: comissão correta considerando o tipo de serviço (corrige sobrancelha em todos os registros)
+function cmR(r){
+  var v=effVal(r),f=r.formaPagamento;
+  var t=r.taxaComissao||0.1;
+  if((r.trabalho||"").toUpperCase().indexOf("SOBRANCELH")>=0) t=0.8;
+  return fl(v,f)*t;
+}
 function autoTax(n){return n<=1?0.10:n===2?0.05:n===3?0.03:0.025;}
 function sg(k){try{var v=localStorage.getItem(k);return v?JSON.parse(v):null;}catch(e){return null;}}
 function ss(k,d){try{localStorage.setItem(k,JSON.stringify(d));}catch(e){}}
@@ -792,7 +799,7 @@ function tbl(rows,cols,type){
 function kp(l,v,s){return'<div class="kp"><div class="kl">'+l+'</div><div class="kv">'+v+'</div>'+(s?'<div class="ks">'+s+'</div>':'')+'</div>';}
 
 /* SIDEBAR */
-var NAV=[["dashboard","\uD83D\uDCCA","Dashboard"],["agenda","\uD83D\uDCC5","Agenda"],["followup","\uD83D\uDCF2","Follow-up"],["services","\u2702\uFE0F","Servi\u00e7os"],["products","\uD83E\uDDF4","Produtos"],["expenses","\uD83D\uDCB8","Despesas"],["advances","\uD83D\uDCB5","Adiantamentos"],["prolabore","\uD83D\uDC65","Pr\u00f3-Labore"],["dre","\uD83D\uDCC8","DRE / DFC"],["clients","\uD83D\uDC69","Clientes"],["leads","\uD83C\uDFAF","Leads"],["db","\uD83D\uDDC4\uFE0F","Banco de Dados"],["requests","\uD83D\uDCE5","Solicita\u00e7\u00f5es Online"],["audit","\uD83D\uDD0D","Auditoria"],["estoque","\uD83E\uDDF4","Estoque"],["arprof","\uD83C\uDFF7\uFE0F","A R Professional"],["metaads","\uD83D\uDCE3","Meta Ads"],["fornecedores","\uD83D\uDE9A","Fornecedores"],["caixa","\uD83C\uDFE6","Caixa Banc\u00e1rio"],["mensagens","\uD83D\uDCAC","Mensagens"]];
+var NAV=[["dashboard","\uD83D\uDCCA","Dashboard"],["agenda","\uD83D\uDCC5","Agenda"],["followup","\uD83D\uDCF2","Follow-up"],["services","\u2702\uFE0F","Servi\u00e7os"],["products","\uD83E\uDDF4","Produtos"],["expenses","\uD83D\uDCB8","Despesas"],["advances","\uD83D\uDCB5","Adiantamentos"],["prolabore","\uD83D\uDC65","Pr\u00f3-Labore"],["dre","\uD83D\uDCC8","DRE / DFC"],["clients","\uD83D\uDC69","Clientes"],["leads","\uD83C\uDFAF","Leads"],["db","\uD83D\uDDC4\uFE0F","Banco de Dados"],["requests","\uD83D\uDCE5","Solicita\u00e7\u00f5es Online"],["audit","\uD83D\uDD0D","Auditoria"],["estoque","\uD83E\uDDF4","Estoque"],["arprof","\uD83C\uDFF7\uFE0F","A R Professional"],["metaads","\uD83D\uDCE3","Meta Ads"],["conversas","\uD83D\uDCAC","Conversas WA"],["fornecedores","\uD83D\uDE9A","Fornecedores"],["caixa","\uD83C\uDFE6","Caixa Banc\u00e1rio"],["mensagens","\uD83D\uDCAC","Mensagens"]];
 var DIVULGADORES_CUSTOM=null;
 var DIVULGADORES_DEFAULT=["Lorran","Isabela","Diane","Anton"];
 function getDivulgadores(){return DIVULGADORES_CUSTOM||DIVULGADORES_DEFAULT;}
@@ -911,7 +918,9 @@ function openS(editId){
   if(editId){
     function upCom(){
       var checked=Array.from(document.querySelectorAll('input[name="ms-prof"]:checked')).map(function(x){return x.value;});
-      var n=checked.length||1;document.getElementById("ms-tc").value=autoTax(n);
+      var n=checked.length||1;
+      var svAtual=(document.getElementById("ms-t")||{}).value||"";
+      document.getElementById("ms-tc").value=(svAtual.toUpperCase().indexOf("SOBRANCELH")>=0)?0.8:autoTax(n);
       var info=n===1?"10%":n===2?"5% cada":n===3?"3% cada":"2,5% cada";
       document.getElementById("ms-com-info").innerHTML='<span style="color:#fbbf24">'+n+' prof. \u2192 '+info+'</span>';
       upPrev();
@@ -926,7 +935,16 @@ function openS(editId){
     document.querySelectorAll('input[name="ms-prof"]').forEach(function(el){el.onchange=upCom;});
     var msv=document.getElementById("ms-v");if(msv)msv.oninput=upPrev;
     var msf=document.getElementById("ms-f");if(msf)msf.onchange=upPrev;
-    var mst=document.getElementById("ms-t");if(mst)mst.onchange=function(){var cm2=document.getElementById("ms-cm");if(cm2)cm2.value=materialCostFor(this.value);upPrev();};
+    var mst=document.getElementById("ms-t");if(mst)mst.onchange=function(){
+      var cm2=document.getElementById("ms-cm");if(cm2)cm2.value=materialCostFor(this.value);
+      var tcEl=document.getElementById("ms-tc");
+      if(tcEl){
+        var ehSob=this.value.toUpperCase().indexOf("SOBRANCELH")>=0;
+        if(ehSob){tcEl.value=0.8;}
+        else{var n=Array.from(document.querySelectorAll('input[name="ms-prof"]:checked')).length||1;tcEl.value=autoTax(n);}
+      }
+      upPrev();
+    };
     var mstc=document.getElementById("ms-tc");if(mstc)mstc.oninput=upPrev;
     var msDesc=document.getElementById("ms-desc");if(msDesc&&r&&r.desconto)msDesc.value=String(r.desconto);
     upCom();
@@ -1911,7 +1929,7 @@ function rDash(fsOrig,fpOrig,feOrig,faOrig){
   var cS=fpSal.reduce(function(s,r){return s+fl(r.valorUnitario*r.quantidade,r.formaPagamento||"PIX")*r.comissaoSalao;},0);
   var tD=fe.reduce(function(s,r){return s+r.valorPago;},0);
   var tA=fa.reduce(function(s,r){return s+r.valor;},0);
-  var tC=fs.reduce(function(s,r){return s+cm(effVal(r),r.formaPagamento,r.taxaComissao);},0);
+  var tC=fs.reduce(function(s,r){return s+cmR(r);},0);
   var uniqCli=new Set(fs.map(function(r){return r.cliente;})).size;
   var uniqCliHj=new Set(fsToday.map(function(r){return r.cliente;})).size;
   var titulo=isDay?("Dashboard \u2014 "+fdt(dayStr)):("Dashboard \u2014 "+MESES[S.month]+" "+S.year);
@@ -2058,7 +2076,7 @@ function openSvcValuesAuth(){
 function rSvc(fs){
   var tB=fs.reduce(function(s,r){return s+effVal(r);},0);
   var tL=fs.reduce(function(s,r){return s+fl(effVal(r),r.formaPagamento);},0);
-  var tC=fs.reduce(function(s,r){return s+cm(effVal(r),r.formaPagamento,r.taxaComissao);},0);
+  var tC=fs.reduce(function(s,r){return s+cmR(r);},0);
   var tM=fs.reduce(function(s,r){return s+(r.custoMaterial||0);},0);
   var tDesc=fs.reduce(function(s,r){return s+r.valor*(r.desconto||0);},0);
   var pendentes=fs.filter(function(r){return r.pagamento==="pendente";}).length;
@@ -2070,7 +2088,7 @@ function rSvc(fs){
     {k:"valor",l:"Valor",fn:function(r){return fmt(r.valor);},hi:true},
     {k:"mat",l:"Material",fn:function(r){return r.custoMaterial>0?fmt(r.custoMaterial):"\u2014";}},
     {k:"fl",l:"Fat.L\u00edq.",fn:function(r){return fmt(fl(r.valor,r.formaPagamento));}},
-    {k:"fc",l:"Comiss\u00e3o",fn:function(r){return fmt(cm(r.valor,r.formaPagamento,r.taxaComissao));}},
+    {k:"fc",l:"Comiss\u00e3o",fn:function(r){return fmt(cmR(r));}},
     {k:"desconto",l:"Desc.",fn:function(r){return r.desconto>0?'<span style="color:#fbbf24">-'+(r.desconto*100).toFixed(0)+"%</span>":"\u2014";}},
     {k:"formaPagamento",l:"Pgto",fn:function(r){return es(r.formaPagamento);}},
     {k:"obs",l:"Observa\u00e7\u00f5es",fn:function(r){var o=r.observacoes||"";return o?'<span title="'+es(o)+'" style="color:#fbbf24;cursor:help">\uD83D\uDCDD '+es(o.slice(0,20))+(o.length>20?"...":"")+'</span>':"\u2014";}},
@@ -2193,7 +2211,7 @@ function rPL(fs,fp,fa){
   fs.forEach(function(r){
     var ns=(r.profissionais||[r.profissional]).filter(function(n){return n;});
     if(!ns.length)ns=[r.profissional];
-    var c=cm(effVal(r),r.formaPagamento,r.taxaComissao);
+    var c=cmR(r);
     ns.forEach(function(n){if(!isAuxiliarNoMes(n,S.month,S.year))cByP[n]=(cByP[n]||0)+c;});
   });
   var cpByP={};fp.forEach(function(r){cpByP[r.profissional]=(cpByP[r.profissional]||0)+fl(r.valorUnitario*r.quantidade,r.formaPagamento||"PIX")*r.comissaoVendedor;});
@@ -2257,7 +2275,7 @@ function rPL(fs,fp,fa){
     }).slice().sort(function(a,b){return b.date.localeCompare(a.date);});
     var myAux=isAuxiliarNoMes(myName,S.month,S.year);
     var histRows=myServices.map(function(r){
-      var c=myAux?0:cm(effVal(r),r.formaPagamento,r.taxaComissao);
+      var c=myAux?0:cmR(r);
       var ns=(r.profissionais||[r.profissional]).filter(function(n){return n;});
       var teamTag=ns.length>1?'<span style="color:#71717a;font-size:9px"> (equipe de '+ns.length+')</span>':"";
       return'<tr><td>'+fdt(r.date)+'</td><td style="color:#f1f5f9">'+es(r.trabalho)+teamTag+'</td><td>'+es(r.cliente||"")+'</td><td class="hi">'+fmt(c)+'</td></tr>';
@@ -2291,7 +2309,7 @@ function rDRE(fs,fp,fe,fa){
     var _n=(r.profissionais||[r.profissional]).filter(function(x){return x;});
     var _nComissionavel=_n.filter(function(x){return !isAuxiliarNoMes(x,S.month,S.year);});
     var _mult=_n.length?_nComissionavel.length:1;
-    return s+cm(effVal(r),r.formaPagamento,r.taxaComissao)*_mult;
+    return s+cmR(r)*_mult;
   },0);
   var byCateg={};fe.forEach(function(r){var c=r.categoria||"Outros";byCateg[c]=(byCateg[c]||0)+r.valorPago;});
   var despFixas=byCateg["Fixo"]||0;
@@ -2300,7 +2318,7 @@ function rDRE(fs,fp,fe,fa){
   var ebitda=margemBruta-cE-despOp-despFixas-despMkt;
   /* plT = base + comissões serviços + comissões produtos (igual ao Total a Pagar do Pró-Labore) */
   var _pl=getPL(),_profs=getProfs();
-  var _cByP={};fs.forEach(function(r){var ns=(r.profissionais||[r.profissional]).filter(function(n){return n;});if(!ns.length)ns=[r.profissional];var c=cm(effVal(r),r.formaPagamento,r.taxaComissao);ns.forEach(function(n){if(!isAuxiliarNoMes(n,S.month,S.year))_cByP[n]=(_cByP[n]||0)+c;});});
+  var _cByP={};fs.forEach(function(r){var ns=(r.profissionais||[r.profissional]).filter(function(n){return n;});if(!ns.length)ns=[r.profissional];var c=cmR(r);ns.forEach(function(n){if(!isAuxiliarNoMes(n,S.month,S.year))_cByP[n]=(_cByP[n]||0)+c;});});
   var _cpByP={};fp.forEach(function(r){_cpByP[r.profissional]=(_cpByP[r.profissional]||0)+fl(r.valorUnitario*r.quantidade,r.formaPagamento||"PIX")*r.comissaoVendedor;});
   var _aByP={};fa.forEach(function(r){_aByP[r.colaborador]=(_aByP[r.colaborador]||0)+r.valor;});
   var deslig=getDesligados();
@@ -3540,6 +3558,7 @@ function rT(){
   else if(S.tab==="metaads")h=rMetaAds();
   else if(S.tab==="fornecedores")h=rFornecedores();
   else if(S.tab==="caixa")h=rCaixa();
+  else if(S.tab==="conversas")h=rConversas();
   else if(S.tab==="mensagens")h=rMensagens();
   }catch(errRT){
     console.error("Erro ao renderizar aba "+S.tab,errRT);
@@ -3552,6 +3571,44 @@ function rAll(){rSb();rT();}
 /* EVENTS */
 document.addEventListener("click",function(e){
   var nb=e.target.closest("[data-tab]");if(nb){S.tab=nb.dataset.tab;rSb();rT();closeMobileSidebar();return;}
+  var wst=e.target.closest("[data-wa-subtab]");if(wst){WA_SUBTAB=wst.dataset.waSubtab;rT();return;}
+  var wth=e.target.closest("[data-wa-tema]");if(wth){S.waThema=S.waThema==="light"?"dark":"light";rT();return;}
+  var wfs=e.target.closest("[data-wa-fullscreen]");if(wfs){WA_FULLSCREEN=!WA_FULLSCREEN;rT();return;}
+  var wper=e.target.closest("[data-wa-periodo]");if(wper){S.waRelPeriodo=wper.dataset.waPeriodo;rT();return;}
+  var wf=e.target.closest("[data-wa-filtro]");if(wf){S.wafiltro=wf.dataset.waFiltro;WA_CONV_SELECIONADA=null;rT();return;}
+  var wc=e.target.closest("[data-wa-conv]");if(wc){WA_CONV_SELECIONADA=wc.dataset.waConv;WA_MODO_INPUT="cliente";WA_RR_ABERTA=false;WA_BIB_ABERTA=false;rT();setTimeout(function(){var f=document.getElementById("wa-feed");if(f)f.scrollTop=f.scrollHeight;},80);return;}
+  var wak=e.target.closest("[data-wa-abrir-kanban]");if(wak){S.tab="leads";showToast("🎯 Abrindo Kanban de Leads...");rSb();rT();return;}
+  var wa=e.target.closest("[data-wa-assumir]");if(wa){showToast("✅ Conversa assumida! Lead adicionado ao Kanban (disponível após integração Meta)");return;}
+  var wfi=e.target.closest("[data-wa-finalizar]");if(wfi){showToast("✅ Conversa finalizada! Registre o resultado quando o cliente comparecer.");return;}
+  var wtr=e.target.closest("[data-wa-transferir]");if(wtr){showToast("↔ Transferência de atendente disponível após integração Meta");return;}
+  var wres=e.target.closest("[data-wa-resultado]");if(wres){
+    var rtipo=wres.dataset.waResTipo;
+    var msgs={"servico":"✅ Resultado registrado! Comissão gerada e lançada nas Comissões do atendente.","avaliacao":"📋 Resultado registrado — só avaliação, sem comissão para o atendente.","nao_compareceu":"❌ Registrado como não compareceu. Sem comissão."};
+    showToast(msgs[rtipo]||"Resultado registrado!");
+    return;}
+  var wm=e.target.closest("[data-wa-modo]");if(wm){WA_MODO_INPUT=wm.dataset.waModo;rT();setTimeout(function(){var inp=document.getElementById("wa-nota-input");if(inp)inp.focus();},60);return;}
+  var wte=e.target.closest("[data-wa-toggle-equipe]");if(wte){S.waEquipeAberta=S.waEquipeAberta===false?true:false;rT();return;}
+  var wne=e.target.closest("[data-wa-enviar-nota]");if(wne){var ninp=document.getElementById("wa-nota-input");if(ninp&&ninp.value.trim()){showToast("📝 Nota interna salva! (será gravada no Firestore após integração)");ninp.value="";}return;}
+  // Respostas rápidas
+  var wrrt=e.target.closest("[data-wa-toggle-rr]");if(wrrt){WA_RR_ABERTA=!WA_RR_ABERTA;WA_BIB_ABERTA=false;rT();return;}
+  var wrrcat=e.target.closest("[data-wa-rr-cat]");if(wrrcat){S.waRrCat=wrrcat.dataset.waRrCat;rT();return;}
+  var wrruso=e.target.closest("[data-wa-usar-rr]");if(wrruso){
+    var WA_MSGS_ALL=[{id:"m01",texto:"Olá! 😊 Aqui é o Studio A R, de Jacareí. Vi que você entrou em contato — em que posso te ajudar hoje?"},{id:"m02",texto:"Oi! 🌟 Bem-vinda ao Studio A R! Vi que você veio pelo nosso anúncio. Qual serviço chamou mais sua atenção?"},{id:"m03",texto:"Olá! Desculpe a demora em responder 🙏 Estou aqui agora, pode falar!"},{id:"m04",texto:"Posso te agendar! 📅 Qual dia e horário fica melhor pra você? Atendemos de terça a sábado, das 9h às 19h."},{id:"m05",texto:"✅ Agendamento confirmado! Te esperamos aqui no Studio A R. Qualquer dúvida antes do dia, é só chamar 😊"},{id:"m06",texto:"Oi! 💫 Passando para lembrar que amanhã é o seu dia aqui no Studio A R! Confirma sua presença?"},{id:"m07",texto:"Sem problema! 😊 Vamos remarcar. Qual outro dia fica bom pra você? Verifico a agenda e já te confirmo."},{id:"m08",texto:"Nossas luzes começam a partir de R$ 180 dependendo do comprimento e quantidade. Posso te passar um orçamento mais certinho se você me mandar uma foto do seu cabelo atual 📸"},{id:"m09",texto:"Nossa progressiva tem duração de 4 a 6 meses e começa em R$ 150. O valor exato depende do comprimento — você tem cabelo curto, médio ou longo?"},{id:"m10",texto:"A coloração completa começa em R$ 120. Posso te dar um orçamento preciso com uma foto do seu cabelo atual? 📸 Assim já te falo o valor certinho e o tempo de serviço."},{id:"m11",texto:"Nossa recuperação capilar (cronograma) é feita em etapas personalizadas para o seu cabelo. Os valores variam — vou te chamar para conversarmos melhor sobre o que você precisa 💆‍♀️"},{id:"m12",texto:"Oi! 😊 Como ficou seu cabelo depois do serviço aqui conosco? Se tiver alguma dúvida sobre os cuidados em casa, pode perguntar à vontade!"},{id:"m13",texto:"Adoramos te receber aqui no Studio A R! 🌟 Se tiver um minutinho, sua avaliação no Google faz muita diferença pra gente: [link]. Obrigada! 💕"},{id:"m14",texto:"Para manter o resultado em casa, recomendamos o Kit da A R Professional — é o mesmo tratamento que usamos aqui no salão 💛 Quer saber mais?"},{id:"m15",texto:"Oi! Já faz uma semana desde que você esteve aqui no Studio A R 😊 Tudo bem com seu cabelo? Qualquer dúvida pode chamar! Já pensou na próxima visita?"},{id:"m16",texto:"Oi! Tudo bem? 💛 Passando para ver se ainda posso te ajudar com algum serviço. Estamos com agenda aberta essa semana, caso queira marcar!"},{id:"m17",texto:"⚡ Promoção relâmpago! Esta semana temos condição especial em [serviço]. Vagas limitadas — quer aproveitar? Responde aqui que te mando os detalhes!"}];
+    var mid=wrruso.dataset.waUsarRr;var msg=WA_MSGS_ALL.find(function(m){return m.id===mid;});
+    if(msg){navigator.clipboard.writeText(msg.texto).then(function(){showToast("📋 Copiado! Cole no campo de envio após aprovação da Meta.");}).catch(function(){showToast("📋 Mensagem copiada para uso!");});}
+    return;}
+  // Biblioteca
+  var wbib=e.target.closest("[data-wa-biblioteca]");if(wbib){WA_BIB_ABERTA=true;WA_RR_ABERTA=false;WA_BIB_CAT="todos";rT();return;}
+  var wbfc=e.target.closest("[data-wa-fechar-bib]");if(wbfc){WA_BIB_ABERTA=false;rT();return;}
+  var wbcat=e.target.closest("[data-wa-bib-cat]");if(wbcat){WA_BIB_CAT=wbcat.dataset.waBibCat;rT();return;}
+  var wbuso=e.target.closest("[data-wa-usar-bib]");if(wbuso){
+    var WA_MSGS_ALL2=[{id:"m01",texto:"Olá! 😊 Aqui é o Studio A R, de Jacareí. Vi que você entrou em contato — em que posso te ajudar hoje?"},{id:"m02",texto:"Oi! 🌟 Bem-vinda ao Studio A R! Vi que você veio pelo nosso anúncio. Qual serviço chamou mais sua atenção?"},{id:"m03",texto:"Olá! Desculpe a demora em responder 🙏 Estou aqui agora, pode falar!"},{id:"m04",texto:"Posso te agendar! 📅 Qual dia e horário fica melhor pra você? Atendemos de terça a sábado, das 9h às 19h."},{id:"m05",texto:"✅ Agendamento confirmado! Te esperamos aqui no Studio A R. Qualquer dúvida antes do dia, é só chamar 😊"},{id:"m06",texto:"Oi! 💫 Passando para lembrar que amanhã é o seu dia aqui no Studio A R! Confirma sua presença?"},{id:"m07",texto:"Sem problema! 😊 Vamos remarcar. Qual outro dia fica bom pra você? Verifico a agenda e já te confirmo."},{id:"m08",texto:"Nossas luzes começam a partir de R$ 180 dependendo do comprimento e quantidade. Posso te passar um orçamento mais certinho se você me mandar uma foto do seu cabelo atual 📸"},{id:"m09",texto:"Nossa progressiva tem duração de 4 a 6 meses e começa em R$ 150. O valor exato depende do comprimento — você tem cabelo curto, médio ou longo?"},{id:"m10",texto:"A coloração completa começa em R$ 120. Posso te dar um orçamento preciso com uma foto do seu cabelo atual? 📸 Assim já te falo o valor certinho e o tempo de serviço."},{id:"m11",texto:"Nossa recuperação capilar (cronograma) é feita em etapas personalizadas para o seu cabelo. Os valores variam — vou te chamar para conversarmos melhor sobre o que você precisa 💆‍♀️"},{id:"m12",texto:"Oi! 😊 Como ficou seu cabelo depois do serviço aqui conosco? Se tiver alguma dúvida sobre os cuidados em casa, pode perguntar à vontade!"},{id:"m13",texto:"Adoramos te receber aqui no Studio A R! 🌟 Se tiver um minutinho, sua avaliação no Google faz muita diferença pra gente: [link]. Obrigada! 💕"},{id:"m14",texto:"Para manter o resultado em casa, recomendamos o Kit da A R Professional — é o mesmo tratamento que usamos aqui no salão 💛 Quer saber mais?"},{id:"m15",texto:"Oi! Já faz uma semana desde que você esteve aqui no Studio A R 😊 Tudo bem com seu cabelo? Qualquer dúvida pode chamar! Já pensou na próxima visita?"},{id:"m16",texto:"Oi! Tudo bem? 💛 Passando para ver se ainda posso te ajudar com algum serviço. Estamos com agenda aberta essa semana, caso queira marcar!"},{id:"m17",texto:"⚡ Promoção relâmpago! Esta semana temos condição especial em [serviço]. Vagas limitadas — quer aproveitar? Responde aqui que te mando os detalhes!"}];
+    var mid2=wbuso.dataset.waUsarBib;var msg2=WA_MSGS_ALL2.find(function(m){return m.id===mid2;});
+    if(msg2){navigator.clipboard.writeText(msg2.texto).then(function(){showToast("📋 Mensagem copiada! Cole no campo de envio após aprovação da Meta.");}).catch(function(){showToast("📋 Mensagem copiada!");});WA_BIB_ABERTA=false;rT();}
+    return;}
+  var wbger=e.target.closest("[data-wa-gerenciar-bib]");if(wbger){showToast("⚙️ Gerenciamento de mensagens disponível em breve — será salvo no Firestore.");return;}
+  var wimp=e.target.closest("[data-wa-imprimir]");if(wimp){imprimirRelatorioWA(false);return;}
+  var wpdf=e.target.closest("[data-wa-pdf]");if(wpdf){imprimirRelatorioWA(true);return;}
   var db=e.target.closest("[data-del]");if(db){delR(db.dataset.del,db.dataset.id);return;}
   var eb=e.target.closest("[data-edit]");if(eb){var t=eb.dataset.edit,id=eb.dataset.id;
     if(t==="svc")openS(id);else if(t==="prd")openP(id);else if(t==="exp")openE(id);else if(t==="adv")openA(id);
@@ -4637,6 +4694,647 @@ function savBaixarPrateleira(prodId){
 }
 
 /* ─ MENSAGENS INTERNAS ─ */
+/* ── CENTRAL DE CONVERSAS WHATSAPP ─────────────────────────────── */
+var WA_CONV_SELECIONADA=null;
+var WA_MODO_INPUT="cliente"; // "cliente" | "nota"
+var WA_SUBTAB="conversas";   // "conversas" | "relatorio"
+var WA_RR_ABERTA=false;      // painel de respostas rápidas aberto
+var WA_BIB_ABERTA=false;     // modal de biblioteca de mensagens aberta
+var WA_BIB_CAT="todos";      // categoria selecionada na biblioteca
+var WA_FULLSCREEN=false;     // tela cheia
+
+function rConversas(){
+  var isAdmin=CURRENT_USER&&CURRENT_USER.role==="admin";
+  var isRecepcao=CURRENT_USER&&CURRENT_USER.role==="recepcao";
+  var podeNota=isAdmin; // só admin vê/envia notas internas
+  var tema=S.waThema||"dark"; // "dark" | "light" (WhatsApp Web)
+  var subtab=WA_SUBTAB||"conversas"; // "conversas" | "relatorio"
+
+  // ── Paleta de cores por tema ──────────────────
+  var T= tema==="light"
+    ?{bg:"#E8E2DA",sb:"#F5F2EE",sbBorder:"#d8d3cc",hdr:"#128C7E",hdrTxt:"#fff",hdrBorder:"#128C7E",
+      feed:"#E8E2DA",mineBg:"#DFF5D9",mineBorder:"#bce8b4",mineTxt:"#111",
+      delesBg:"#F5F2EE",delesBorder:"#d8d3cc",delesTxt:"#111",
+      inp:"#F5F2EE",inpBorder:"#d8d3cc",inpTxt:"#111",inpPlh:"#888",
+      cardBg:"#F5F2EE",cardBorder:"#d8d3cc",cardSel:"#d9fdd320",cardBorderSel:"#25d366",
+      txt:"#111",txt2:"#444",txt3:"#666",
+      kpBg:"#F5F2EE",kpBorder:"#d8d3cc"}
+    :{bg:"#0e0e11",sb:"#111115",sbBorder:"#1f1f23",hdr:"#111115",hdrTxt:"#f1f5f9",hdrBorder:"#27272a",
+      feed:"#0e0e11",mineBg:"#f43f5e22",mineBorder:"#f43f5e44",mineTxt:"#f4f4f5",
+      delesBg:"#27272a",delesBorder:"#52525b",delesTxt:"#e4e4e7",
+      inp:"#0e0e11",inpBorder:"#27272a",inpTxt:"#f1f5f9",inpPlh:"#71717a",
+      cardBg:"#111115",cardBorder:"#27272a",cardSel:"#f43f5e14",cardBorderSel:"#f43f5e",
+      txt:"#f4f4f5",txt2:"#c4c4c8",txt3:"#71717a",
+      kpBg:"#18181b",kpBorder:"#27272a"};
+
+  // ── Dados mock de conversas ───────────────────
+  // campanha / anuncio: atribuição via ctwa_clid (disponível na Etapa 5)
+  var convsMock=[
+    {id:"c1",nome:"Adriana Ferreira",tel:"12991234567",etapa:"aguardando",interesse:"Luzes + Hidratação",atendente:null,ultima:"Olá, vim pelo anúncio! Tem horário essa semana?",ts:"09:14",naoLidas:2,kanbanId:"lead-abc1",campanha:"Luzes Inverno — Mulheres 25-40",anuncio:"Foto antes/depois — luzes",tipo:"novo",tipo_lead:"servico",resultado:null},
+    {id:"c2",nome:"Fernanda Lima",tel:"12998765432",etapa:"atendimento",interesse:"Progressiva",atendente:"Isabela",ultima:"Ótimo! Confirmo na quinta às 14h 👍",ts:"08:52",naoLidas:0,kanbanId:"lead-abc2",campanha:"Progressiva Dia das Mães",anuncio:"Vídeo depoimento — Ana",tipo:"novo",tipo_lead:"servico",resultado:null},
+    {id:"c3",nome:"Mariana Costa",tel:"12994561230",etapa:"atendimento",interesse:"Coloração",atendente:"Lorran",ultima:"Qual o valor da coloração completa?",ts:"08:31",naoLidas:1,kanbanId:"lead-abc3",campanha:"Luzes Inverno — Mulheres 25-40",anuncio:"Carrossel serviços",tipo:"remarketing",tipo_lead:"servico",resultado:null},
+    {id:"c4",nome:"Patrícia Souza",tel:"12997890123",etapa:"finalizado",interesse:"Corte",atendente:"Isabela",ultima:"Muito obrigada! Adorei o atendimento 😍",ts:"Ter",naoLidas:0,kanbanId:"lead-abc4",campanha:"Corte Expresso",anuncio:"Foto salão — ambiente",tipo:"novo",tipo_lead:"servico",resultado:"servico_novo"},
+    {id:"c5",nome:"Renata Alves",tel:"12993216540",etapa:"aguardando",interesse:"Recuperação Capilar",atendente:null,ultima:"Boa tarde! Vocês fazem cronograma?",ts:"Seg",naoLidas:3,kanbanId:"lead-abc5",campanha:"Stop Quebra — A R Professional",anuncio:"Produto em destaque",tipo:"novo",tipo_lead:"produto",resultado:null},
+    {id:"c6",nome:"Juliana Mendes",tel:"12996543210",etapa:"finalizado",interesse:"Luzes",atendente:"Lorran",ultima:"Agendado para sexta! Nos vemos lá ✨",ts:"Seg",naoLidas:0,kanbanId:"lead-abc6",campanha:"Luzes Inverno — Mulheres 25-40",anuncio:"Foto antes/depois — luzes",tipo:"remarketing",tipo_lead:"servico",resultado:"servico_remarketing"},
+    {id:"c7",nome:"Camila Ramos",tel:"12995551234",etapa:"finalizado",interesse:"Kit Stop Quebra",atendente:"Diane",ultima:"Vou pensar e te aviso, obrigada!",ts:"Seg",naoLidas:0,kanbanId:"lead-abc7",campanha:"Stop Quebra — A R Professional",anuncio:"Produto em destaque",tipo:"novo",tipo_lead:"produto",resultado:"avaliacao"}
+  ];
+
+  // ── Dados mock de atendentes ──────────────────
+  var atendentes=[
+    {nome:"Isabela",cor:"#8b5cf6",online:true, convs:2,finalizados:3,tMedioMin:4},
+    {nome:"Lorran", cor:"#0ea5e9",online:true, convs:1,finalizados:2,tMedioMin:6},
+    {nome:"Diane",  cor:"#f97316",online:false,convs:0,finalizados:0,tMedioMin:0}
+  ];
+  var filaOrdenada=atendentes.filter(function(a){return a.online;}).slice().sort(function(a,b){return a.convs-b.convs;});
+  var proximoAtendente=filaOrdenada[0]?filaOrdenada[0].nome:null;
+
+  // ── Filtros e seleção ────────────────────────
+  var filtro=S.wafiltro||"todos";
+  var convsFiltradas=filtro==="todos"?convsMock:convsMock.filter(function(c){return c.etapa===filtro;});
+  var sel=WA_CONV_SELECIONADA?convsMock.find(function(c){return c.id===WA_CONV_SELECIONADA;})||convsFiltradas[0]:convsFiltradas[0]||null;
+
+  // ── KPIs ─────────────────────────────────────
+  var totAguard=convsMock.filter(function(c){return c.etapa==="aguardando";}).length;
+  var totAtend =convsMock.filter(function(c){return c.etapa==="atendimento";}).length;
+  var totFin   =convsMock.filter(function(c){return c.etapa==="finalizado";}).length;
+  var totNaoLidas=convsMock.reduce(function(acc,c){return acc+c.naoLidas;},0);
+
+  // ── Msgs mock ────────────────────────────────
+  var msgsMock={
+    c1:[
+      {tipo:"cliente",  texto:"Olá, vim pelo anúncio! Tem horário essa semana?",ts:"09:12"},
+      {tipo:"cliente",  texto:"Gostaria de fazer luzes e hidratação juntos",ts:"09:14"}
+    ],
+    c2:[
+      {tipo:"atendente",texto:"Olá Fernanda! 😊 Vi que você tem interesse em progressiva. Posso te ajudar!",ts:"08:40",de:"Isabela"},
+      {tipo:"cliente",  texto:"Oi! Sim, quero fazer. Tem horário quinta à tarde?",ts:"08:44"},
+      {tipo:"nota",     texto:"Isabela: ela já veio antes, cliente fiel. Pode oferecer 10% na hidratação junto.",ts:"08:45",de:"Anton"},
+      {tipo:"atendente",texto:"Tenho sim! 14h está bom pra você?",ts:"08:47",de:"Isabela"},
+      {tipo:"cliente",  texto:"Ótimo! Confirmo na quinta às 14h 👍",ts:"08:52"}
+    ],
+    c3:[
+      {tipo:"cliente",  texto:"Qual o valor da coloração completa?",ts:"08:31"},
+      {tipo:"nota",     texto:"Lorran: orçamento cheio. Tente oferecer o pacote coloração + hidratação.",ts:"08:33",de:"Anton"}
+    ],
+    c4:[
+      {tipo:"atendente",texto:"Oi Patrícia! Vou te passar os valores do corte 😊",ts:"Ter",de:"Isabela"},
+      {tipo:"cliente",  texto:"Muito obrigada! Adorei o atendimento 😍",ts:"Ter"}
+    ],
+    c5:[
+      {tipo:"cliente",  texto:"Boa tarde! Vocês fazem cronograma?",ts:"Seg"},
+      {tipo:"cliente",  texto:"Vi no story de vocês e fiquei interessada!",ts:"Seg"},
+      {tipo:"cliente",  texto:"Aguardando retorno 🙏",ts:"Seg"}
+    ],
+    c6:[
+      {tipo:"atendente",texto:"Olá Juliana! Tudo pronto para suas luzes 💫",ts:"Seg",de:"Lorran"},
+      {tipo:"cliente",  texto:"Agendado para sexta! Nos vemos lá ✨",ts:"Seg"}
+    ]
+  };
+  var msgsConv=sel&&msgsMock[sel.id]||[];
+
+  // ── Helpers visuais ──────────────────────────
+  function badgeEtapa(etapa){
+    if(etapa==="aguardando") return '<span style="background:#fbbf2420;border:1px solid #fbbf2455;color:#fbbf24;border-radius:20px;padding:1px 7px;font-size:9px;font-weight:600">⏳ Aguardando</span>';
+    if(etapa==="atendimento") return '<span style="background:#34d39920;border:1px solid #34d39955;color:#34d399;border-radius:20px;padding:1px 7px;font-size:9px;font-weight:600">🟢 Em atendimento</span>';
+    return '<span style="background:#3f3f4660;border:1px solid #3f3f46;color:#71717a;border-radius:20px;padding:1px 7px;font-size:9px;font-weight:600">✓ Finalizado</span>';
+  }
+  function av(nome,cor,sz){
+    sz=sz||38;
+    return '<div style="width:'+sz+'px;height:'+sz+'px;border-radius:50%;background:'+cor+';display:flex;align-items:center;justify-content:center;font-size:'+(sz*0.38|0)+'px;font-weight:700;flex-shrink:0;color:#fff">'+(nome||"?")[0].toUpperCase()+'</div>';
+  }
+  var coresConv={"c1":"#f43f5e","c2":"#8b5cf6","c3":"#0ea5e9","c4":"#f97316","c5":"#10b981","c6":"#ec4899"};
+
+  // ────────────────────────────────────────────
+  // SUB-ABA: RELATÓRIO
+  // ────────────────────────────────────────────
+  function rRelatorio(){
+    var periodo=S.waRelPeriodo||"hoje";
+    var pOpts=[["hoje","Hoje"],["3","3 dias"],["7","7 dias"],["15","15 dias"],["30","30 dias"]];
+    var periodoHTML='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px">'
+      +pOpts.map(function(p){
+        var on=periodo===p[0];
+        return '<button data-wa-periodo="'+p[0]+'" style="border:1px solid '+(on?"#f43f5e88":"#3f3f46")+';background:'+(on?"#f43f5e":"#27272a")+';color:'+(on?"#fff":"#a1a1aa")+';border-radius:20px;padding:4px 14px;font-size:11px;font-weight:'+(on?"600":"400")+';cursor:pointer">'+p[1]+'</button>';
+      }).join("")
+    +'</div>';
+
+    // Dados mock de desempenho dos atendentes
+    var perfAt=[
+      {nome:"Isabela",cor:"#8b5cf6",assumidas:12,finalizadas:10,convertidas:7,tMedio:"3min 40s",satisf:"98%"},
+      {nome:"Lorran", cor:"#0ea5e9",assumidas:9, finalizadas:8, convertidas:5,tMedio:"5min 10s",satisf:"95%"},
+      {nome:"Diane",  cor:"#f97316",assumidas:5, finalizadas:5, convertidas:3,tMedio:"4min 20s",satisf:"97%"}
+    ];
+    var tabelaAt='<table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:18px">'
+      +'<thead><tr style="background:#18181b;border-bottom:1px solid #27272a">'
+        +'<th style="padding:8px 10px;text-align:left;color:#71717a;font-weight:500">Atendente</th>'
+        +'<th style="padding:8px 10px;text-align:center;color:#71717a;font-weight:500">Assumidas</th>'
+        +'<th style="padding:8px 10px;text-align:center;color:#71717a;font-weight:500">Finalizadas</th>'
+        +'<th style="padding:8px 10px;text-align:center;color:#71717a;font-weight:500">Convertidas</th>'
+        +'<th style="padding:8px 10px;text-align:center;color:#71717a;font-weight:500">T. médio resp.</th>'
+        +'<th style="padding:8px 10px;text-align:center;color:#71717a;font-weight:500">Taxa conv.</th>'
+      +'</tr></thead><tbody>'
+      +perfAt.map(function(a){
+        var taxa=Math.round(a.convertidas/a.assumidas*100)+"%";
+        return '<tr style="border-bottom:1px solid #1f1f23">'
+          +'<td style="padding:8px 10px"><div style="display:flex;align-items:center;gap:7px">'+av(a.nome,a.cor,24)+'<span style="font-weight:600;color:#f1f5f9">'+es(a.nome)+'</span></div></td>'
+          +'<td style="padding:8px 10px;text-align:center;color:#a1a1aa">'+a.assumidas+'</td>'
+          +'<td style="padding:8px 10px;text-align:center;color:#a1a1aa">'+a.finalizadas+'</td>'
+          +'<td style="padding:8px 10px;text-align:center;color:#34d399;font-weight:600">'+a.convertidas+'</td>'
+          +'<td style="padding:8px 10px;text-align:center;color:#fbbf24">'+es(a.tMedio)+'</td>'
+          +'<td style="padding:8px 10px;text-align:center"><span style="background:#34d39920;border:1px solid #34d39940;color:#34d399;border-radius:12px;padding:2px 8px;font-size:10px;font-weight:700">'+taxa+'</span></td>'
+        +'</tr>';
+      }).join("")
+    +'</tbody></table>';
+
+    // Dados mock de desempenho por campanha
+    var perfCamp=[
+      {nome:"Luzes Inverno — Mulheres 25-40",leads:18,conv:10,gasto:320.00,cpa:32.00,roas:4.2},
+      {nome:"Progressiva Dia das Mães",       leads:9, conv:6, gasto:180.00,cpa:30.00,roas:5.1},
+      {nome:"Stop Quebra — A R Professional", leads:7, conv:3, gasto:140.00,cpa:46.67,roas:2.8},
+      {nome:"Corte Expresso",                 leads:5, conv:3, gasto:90.00, cpa:30.00,roas:3.9}
+    ];
+    var tabelaCamp='<table style="width:100%;border-collapse:collapse;font-size:11px">'
+      +'<thead><tr style="background:#18181b;border-bottom:1px solid #27272a">'
+        +'<th style="padding:8px 10px;text-align:left;color:#71717a;font-weight:500">Campanha</th>'
+        +'<th style="padding:8px 10px;text-align:center;color:#71717a;font-weight:500">Leads</th>'
+        +'<th style="padding:8px 10px;text-align:center;color:#71717a;font-weight:500">Convertidas</th>'
+        +'<th style="padding:8px 10px;text-align:center;color:#71717a;font-weight:500">Gasto</th>'
+        +'<th style="padding:8px 10px;text-align:center;color:#71717a;font-weight:500">CPA real</th>'
+        +'<th style="padding:8px 10px;text-align:center;color:#71717a;font-weight:500">ROAS real</th>'
+      +'</tr></thead><tbody>'
+      +perfCamp.map(function(c){
+        var roasOk=c.roas>=4;
+        return '<tr style="border-bottom:1px solid #1f1f23">'
+          +'<td style="padding:8px 10px;color:#f1f5f9;max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">📣 '+es(c.nome)+'</td>'
+          +'<td style="padding:8px 10px;text-align:center;color:#a1a1aa">'+c.leads+'</td>'
+          +'<td style="padding:8px 10px;text-align:center;color:#34d399;font-weight:600">'+c.conv+'</td>'
+          +'<td style="padding:8px 10px;text-align:center;color:#a1a1aa">R$ '+c.gasto.toFixed(2)+'</td>'
+          +'<td style="padding:8px 10px;text-align:center;color:#fbbf24;font-weight:600">R$ '+c.cpa.toFixed(2)+'</td>'
+          +'<td style="padding:8px 10px;text-align:center"><span style="background:'+(roasOk?"#34d39920":"#f43f5e18")+';border:1px solid '+(roasOk?"#34d39940":"#f43f5e33")+';color:'+(roasOk?"#34d399":"#f87171")+';border-radius:12px;padding:2px 8px;font-size:10px;font-weight:700">'+c.roas.toFixed(1)+'x</span></td>'
+        +'</tr>';
+      }).join("")
+    +'</tbody></table>';
+
+    return '<div class="pg" style="padding:18px;overflow-y:auto">'
+      +'<div class="ph" style="margin-bottom:4px">'
+        +'<h2>📊 Relatório de Desempenho — WhatsApp</h2>'
+        +'<div class="ph-btns">'
+          +'<button data-wa-imprimir style="background:#27272a;border:1px solid #3f3f46;color:#a1a1aa;border-radius:7px;padding:6px 14px;font-size:11px;cursor:pointer">🖨️ Imprimir</button>'
+          +'<button data-wa-pdf style="background:#f43f5e14;border:1px solid #f43f5e44;color:#f43f5e;border-radius:7px;padding:6px 14px;font-size:11px;font-weight:600;cursor:pointer">📥 Baixar PDF</button>'
+        +'</div>'
+      +'</div>'
+      +'<div style="font-size:11px;color:#71717a;margin-bottom:16px">Dados ilustrativos · reais disponíveis após integração Meta (Etapa 5)</div>'
+      +periodoHTML
+      // Comissões WhatsApp
+      +'<div style="font-size:12px;font-weight:700;color:#a1a1aa;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">💰 Comissões WhatsApp</div>'
+      +'<div style="display:flex;gap:9px;flex-wrap:wrap;margin-bottom:8px">'
+        +'<div class="kp" style="flex:1;min-width:120px;border-color:#34d39940"><div class="kl" style="color:#34d399">Serviços (novos)</div><div class="kv" style="color:#34d399">R$ 35,00</div><div class="ks">7 clientes × R$ 5,00</div></div>'
+        +'<div class="kp" style="flex:1;min-width:120px;border-color:#38bdf840"><div class="kl" style="color:#38bdf8">Remarketing</div><div class="kv" style="color:#38bdf8">R$ 8,00</div><div class="ks">4 clientes × R$ 2,00</div></div>'
+        +'<div class="kp" style="flex:1;min-width:120px"><div class="kl">Total a pagar</div><div class="kv">R$ 43,00</div><div class="ks">todas as comissões</div></div>'
+        +'<div class="kp" style="flex:1;min-width:120px;border-color:#fbbf2440"><div class="kl" style="color:#fbbf24">Só avaliação</div><div class="kv" style="color:#fbbf24">3</div><div class="ks">sem comissão</div></div>'
+      +'</div>'
+      +'<table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:22px">'
+        +'<thead><tr style="background:#18181b;border-bottom:1px solid #27272a">'
+          +'<th style="padding:7px 10px;text-align:left;color:#71717a;font-weight:500">Atendente</th>'
+          +'<th style="padding:7px 10px;text-align:center;color:#71717a;font-weight:500">Serviços novos</th>'
+          +'<th style="padding:7px 10px;text-align:center;color:#71717a;font-weight:500">Remarketing</th>'
+          +'<th style="padding:7px 10px;text-align:center;color:#71717a;font-weight:500">Só avaliação</th>'
+          +'<th style="padding:7px 10px;text-align:center;color:#71717a;font-weight:500">Total comissão</th>'
+        +'</tr></thead><tbody>'
+        +[{nome:"Isabela",cor:"#8b5cf6",novos:4,rmkt:2,aval:1,total:24},{nome:"Lorran",cor:"#0ea5e9",novos:2,rmkt:2,aval:1,total:14},{nome:"Diane",cor:"#f97316",novos:1,rmkt:0,aval:1,total:5}].map(function(a){
+          return '<tr style="border-bottom:1px solid #1f1f23">'
+            +'<td style="padding:7px 10px"><div style="display:flex;align-items:center;gap:6px"><div style="width:22px;height:22px;border-radius:50%;background:'+a.cor+';display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff">'+a.nome[0]+'</div><span style="font-weight:600;color:#f1f5f9">'+a.nome+'</span></div></td>'
+            +'<td style="padding:7px 10px;text-align:center;color:#a1a1aa">'+a.novos+' × R$ 5,00 = <span style="color:#34d399">R$ '+(a.novos*5).toFixed(2)+'</span></td>'
+            +'<td style="padding:7px 10px;text-align:center;color:#a1a1aa">'+a.rmkt+' × R$ 2,00 = <span style="color:#38bdf8">R$ '+(a.rmkt*2).toFixed(2)+'</span></td>'
+            +'<td style="padding:7px 10px;text-align:center;color:#52525b">'+a.aval+'</td>'
+            +'<td style="padding:7px 10px;text-align:center"><span style="background:#34d39920;border:1px solid #34d39940;color:#34d399;border-radius:12px;padding:2px 10px;font-size:11px;font-weight:700">R$ '+a.total.toFixed(2)+'</span></td>'
+          +'</tr>';
+        }).join("")
+      +'</tbody></table>'
+      // Atendentes
+      +'<div style="font-size:12px;font-weight:700;color:#a1a1aa;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">👥 Desempenho dos atendentes</div>'
+      +'<div style="overflow-x:auto;margin-bottom:22px">'+tabelaAt+'</div>'
+      +'<div style="font-size:12px;font-weight:700;color:#a1a1aa;text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">📣 Desempenho das campanhas</div>'
+      +'<div style="overflow-x:auto">'+tabelaCamp+'</div>'
+    +'</div>';
+  }
+
+  // ────────────────────────────────────────────
+  // SUB-ABA: CONVERSAS
+  // ────────────────────────────────────────────
+
+  // ── Painel de equipe (admin/recepcao) ─────────
+  var equipePainel="";
+  if(isAdmin||isRecepcao){
+    var listaAt=atendentes.map(function(a){
+      var ehProximo=a.nome===proximoAtendente;
+      return '<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid #1a1a1e">'
+        +'<div style="position:relative;flex-shrink:0">'+av(a.nome,a.cor,30)
+          +'<div style="position:absolute;bottom:0;right:0;width:9px;height:9px;border-radius:50%;background:'+(a.online?"#34d399":"#3f3f46")+';border:2px solid #111115"></div>'
+        +'</div>'
+        +'<div style="flex:1;min-width:0">'
+          +'<div style="display:flex;align-items:center;gap:5px">'
+            +'<span style="font-size:11px;font-weight:600;color:'+T.txt+'">'+es(a.nome)+'</span>'
+            +(ehProximo?'<span style="background:#f43f5e;color:#fff;border-radius:20px;padding:0 5px;font-size:8px;font-weight:700">PRÓXIMO</span>':'')
+          +'</div>'
+          +'<div style="font-size:9px;color:'+T.txt3+'">'+(a.online?a.convs+' ativa'+(a.convs!==1?"s":"")+" · "+a.finalizados+" finaliz. · ⏱ "+a.tMedioMin+"min":"Offline")+'</div>'
+        +'</div>'
+        +(a.online?'<div style="font-size:9px;color:#3f3f46;font-weight:700">#'+(filaOrdenada.findIndex(function(x){return x.nome===a.nome;})+1)+'</div>':'')
+      +'</div>';
+    }).join("");
+    equipePainel='<div style="border-bottom:1px solid '+T.sbBorder+'">'
+      +'<div style="padding:8px 10px;display:flex;align-items:center;justify-content:space-between;cursor:pointer" data-wa-toggle-equipe>'
+        +'<span style="font-size:10px;font-weight:700;color:'+T.txt2+';text-transform:uppercase;letter-spacing:.05em">👥 Equipe</span>'
+        +(proximoAtendente?'<span style="font-size:9px;color:#34d399">Próximo: '+es(proximoAtendente)+'</span>':'')
+      +'</div>'
+      +(S.waEquipeAberta===false?'':'<div>'+listaAt+'</div>')
+    +'</div>';
+  }
+
+  // ── Lista de conversas ───────────────────────
+  var listaHTML=convsFiltradas.map(function(c){
+    var ativo=sel&&sel.id===c.id;
+    var cor=coresConv[c.id]||"#3f3f46";
+    var notif=c.naoLidas>0?'<span style="background:#f43f5e;color:#fff;border-radius:10px;padding:1px 6px;font-size:9px;font-weight:700;margin-left:auto;flex-shrink:0">'+c.naoLidas+'</span>':'';
+    return '<div data-wa-conv="'+c.id+'" style="display:flex;align-items:center;gap:10px;padding:10px 12px;cursor:pointer;border-bottom:1px solid '+(ativo?T.cardBorderSel+"22":T.sbBorder)+';background:'+(ativo?T.cardSel:"transparent")+';border-left:3px solid '+(ativo?T.cardBorderSel:"transparent")+'">'
+      +av(c.nome,cor,38)
+      +'<div style="flex:1;min-width:0">'
+        +'<div style="display:flex;align-items:center;justify-content:space-between;gap:4px;margin-bottom:2px">'
+          +'<span style="font-size:12px;font-weight:600;color:'+T.txt+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+es(c.nome)+'</span>'
+          +'<span style="font-size:9px;color:'+T.txt3+';flex-shrink:0">'+es(c.ts)+'</span>'
+        +'</div>'
+        +'<div style="font-size:10px;color:'+T.txt3+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px">'+es(c.ultima)+'</div>'
+        +'<div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">'
+          +badgeEtapa(c.etapa)
+          +(c.campanha?'<span style="font-size:8px;color:'+T.txt3+';background:'+T.kpBg+';border:1px solid '+T.kpBorder+';border-radius:4px;padding:1px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px">📣 '+es(c.campanha)+'</span>':'')
+          +notif
+        +'</div>'
+      +'</div>'
+    +'</div>';
+  }).join("")||'<div class="emp">Nenhuma conversa encontrada.</div>';
+
+  // ── Feed de mensagens ────────────────────────
+  var bubbles=(!sel)?"":(msgsConv.map(function(m){
+    if(m.tipo==="nota"){
+      if(!podeNota) return ""; // recepcao/comercial não vê nota
+      return '<div style="display:flex;align-items:flex-start;gap:7px;margin-bottom:10px;padding:0 4px">'
+        +'<div style="width:22px;height:22px;border-radius:50%;background:#78350f;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0;color:#fbbf24;margin-top:2px">'+es((m.de||"A")[0].toUpperCase())+'</div>'
+        +'<div style="flex:1"><div style="background:#78350f22;border:1px dashed #d9770655;border-radius:8px;padding:7px 11px">'
+          +'<div style="display:flex;align-items:center;gap:5px;margin-bottom:4px">'
+            +'<span style="font-size:9px;font-weight:700;color:#d97706">🔒 Nota interna</span>'
+            +'<span style="font-size:9px;color:#92400e">• '+es(m.de||"Admin")+'</span>'
+            +'<span style="font-size:9px;color:#78350f;margin-left:auto">'+es(m.ts)+'</span>'
+          +'</div>'
+          +'<div style="font-size:11px;color:#fbbf24;font-style:italic">'+es(m.texto)+'</div>'
+        +'</div>'
+        +'<div style="font-size:8px;color:#78350f;margin-top:2px;padding-left:2px">🙈 Não visível pelo cliente</div></div>'
+      +'</div>';
+    }
+    var mine=m.tipo==="atendente";
+    return '<div style="display:flex;flex-direction:'+(mine?"row-reverse":"row")+';align-items:flex-end;gap:8px;margin-bottom:10px">'
+      +'<div style="width:28px;height:28px;border-radius:50%;background:'+(mine?"#f43f5e":"#27272a")+';display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;color:#fff">'+(mine?(m.de||"A")[0].toUpperCase():sel.nome[0].toUpperCase())+'</div>'
+      +'<div style="max-width:70%">'
+        +(mine&&m.de?'<div style="font-size:9px;color:'+T.txt3+';margin-bottom:2px;text-align:right">'+es(m.de)+'</div>':'')
+        +'<div style="background:'+(mine?T.mineBg:T.delesBg)+';border:1px solid '+(mine?T.mineBorder:T.delesBorder)+';border-radius:'+(mine?"12px 12px 2px 12px":"12px 12px 12px 2px")+';padding:7px 11px;font-size:12px;color:'+(mine?T.mineTxt:T.delesTxt)+'">'+es(m.texto)+'</div>'
+        +'<div style="font-size:9px;color:'+T.txt3+';margin-top:2px;text-align:'+(mine?"right":"left")+'">'+es(m.ts)+'</div>'
+      +'</div>'
+    +'</div>';
+  }).join(""))||'<div class="emp" style="margin-top:40px">Nenhuma mensagem ainda.</div>';
+
+  // ── Dados: respostas rápidas e biblioteca ────
+  var WA_MSGS=[
+    // Boas-vindas
+    {id:"m01",cat:"Boas-vindas",titulo:"Boas-vindas padrão",texto:"Olá! 😊 Aqui é o Studio A R, de Jacareí. Vi que você entrou em contato — em que posso te ajudar hoje?"},
+    {id:"m02",cat:"Boas-vindas",titulo:"Boas-vindas anúncio",texto:"Oi! 🌟 Bem-vinda ao Studio A R! Vi que você veio pelo nosso anúncio. Qual serviço chamou mais sua atenção?"},
+    {id:"m03",cat:"Boas-vindas",titulo:"Retorno após ausência",texto:"Olá! Desculpe a demora em responder 🙏 Estou aqui agora, pode falar!"},
+    // Agendamento
+    {id:"m04",cat:"Agendamento",titulo:"Perguntar disponibilidade",texto:"Posso te agendar! 📅 Qual dia e horário fica melhor pra você? Atendemos de terça a sábado, das 9h às 19h."},
+    {id:"m05",cat:"Agendamento",titulo:"Confirmação de agendamento",texto:"✅ Agendamento confirmado! Te esperamos aqui no Studio A R. Qualquer dúvida antes do dia, é só chamar 😊"},
+    {id:"m06",cat:"Agendamento",titulo:"Lembrete véspera",texto:"Oi! 💫 Passando para lembrar que amanhã é o seu dia aqui no Studio A R! Confirma sua presença?"},
+    {id:"m07",cat:"Agendamento",titulo:"Reagendamento",texto:"Sem problema! 😊 Vamos remarcar. Qual outro dia fica bom pra você? Verifico a agenda e já te confirmo."},
+    // Preços e serviços
+    {id:"m08",cat:"Preços",titulo:"Luzes",texto:"Nossas luzes começam a partir de R$ 180 dependendo do comprimento e quantidade. Posso te passar um orçamento mais certinho se você me mandar uma foto do seu cabelo atual 📸"},
+    {id:"m09",cat:"Preços",titulo:"Progressiva",texto:"Nossa progressiva tem duração de 4 a 6 meses e começa em R$ 150. O valor exato depende do comprimento — você tem cabelo curto, médio ou longo?"},
+    {id:"m10",cat:"Preços",titulo:"Coloração",texto:"A coloração completa começa em R$ 120. Posso te dar um orçamento preciso com uma foto do seu cabelo atual? 📸 Assim já te falo o valor certinho e o tempo de serviço."},
+    {id:"m11",cat:"Preços",titulo:"Recuperação capilar",texto:"Nossa recuperação capilar (cronograma) é feita em etapas personalizadas para o seu cabelo. Os valores variam — vou te chamar para conversarmos melhor sobre o que você precisa 💆‍♀️"},
+    // Pós-atendimento
+    {id:"m12",cat:"Pós-atendimento",titulo:"Após serviço",texto:"Oi! 😊 Como ficou seu cabelo depois do serviço aqui conosco? Se tiver alguma dúvida sobre os cuidados em casa, pode perguntar à vontade!"},
+    {id:"m13",cat:"Pós-atendimento",titulo:"Pedir avaliação",texto:"Adoramos te receber aqui no Studio A R! 🌟 Se tiver um minutinho, sua avaliação no Google faz muita diferença pra gente: [link]. Obrigada! 💕"},
+    {id:"m14",cat:"Pós-atendimento",titulo:"Indicação de produto",texto:"Para manter o resultado em casa, recomendamos o Kit da A R Professional — é o mesmo tratamento que usamos aqui no salão 💛 Quer saber mais?"},
+    // Follow-up
+    {id:"m15",cat:"Follow-up",titulo:"Retorno 7 dias",texto:"Oi! Já faz uma semana desde que você esteve aqui no Studio A R 😊 Tudo bem com seu cabelo? Qualquer dúvida pode chamar! Já pensou na próxima visita?"},
+    {id:"m16",cat:"Follow-up",titulo:"Reengajar lead frio",texto:"Oi! Tudo bem? 💛 Passando para ver se ainda posso te ajudar com algum serviço. Estamos com agenda aberta essa semana, caso queira marcar!"},
+    {id:"m17",cat:"Follow-up",titulo:"Promoção relâmpago",texto:"⚡ Promoção relâmpago! Esta semana temos condição especial em [serviço]. Vagas limitadas — quer aproveitar? Responde aqui que te mando os detalhes!"}
+  ];
+
+  // ── Painel de respostas rápidas ──────────────
+  var rrPanel="";
+  if(WA_RR_ABERTA&&sel&&sel.etapa!=="finalizado"){
+    var cats=["Boas-vindas","Agendamento","Preços","Pós-atendimento","Follow-up"];
+    var catAtiva=S.waRrCat||"Boas-vindas";
+    var rrFiltradas=WA_MSGS.filter(function(m){return m.cat===catAtiva;});
+    rrPanel=
+      '<div style="border-top:1px solid '+T.inpBorder+';background:'+(tema==="light"?"#f9f9f9":"#18181b")+';flex-shrink:0;max-height:220px;overflow-y:auto">'
+        // Tabs de categoria
+        +'<div style="display:flex;gap:0;overflow-x:auto;border-bottom:1px solid '+T.inpBorder+'">'
+          +cats.map(function(c){
+            var on=catAtiva===c;
+            return '<button data-wa-rr-cat="'+c+'" style="padding:6px 12px;font-size:10px;font-weight:'+(on?"700":"400")+';color:'+(on?"#f43f5e":T.txt3)+';background:transparent;border:none;border-bottom:2px solid '+(on?"#f43f5e":"transparent")+';cursor:pointer;white-space:nowrap">'+c+'</button>';
+          }).join("")
+        +'</div>'
+        // Lista de respostas
+        +'<div style="padding:8px 10px;display:flex;flex-direction:column;gap:5px">'
+          +rrFiltradas.map(function(m){
+            return '<div style="display:flex;align-items:center;gap:8px;background:'+(tema==="light"?"#fff":"#27272a")+';border:1px solid '+T.kpBorder+';border-radius:8px;padding:7px 10px">'
+              +'<div style="flex:1;min-width:0">'
+                +'<div style="font-size:10px;font-weight:600;color:'+T.txt+';margin-bottom:2px">'+es(m.titulo)+'</div>'
+                +'<div style="font-size:10px;color:'+T.txt3+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+es(m.texto)+'</div>'
+              +'</div>'
+              +'<button data-wa-usar-rr="'+es(m.id)+'" style="background:#f43f5e;border:none;color:#fff;border-radius:6px;padding:4px 10px;font-size:10px;font-weight:600;cursor:pointer;flex-shrink:0">Usar</button>'
+            +'</div>';
+          }).join("")||'<div style="color:'+T.txt3+';font-size:11px;text-align:center;padding:12px">Nenhuma resposta nesta categoria.</div>'
+        +'</div>'
+      +'</div>';
+  }
+
+  // ── Biblioteca de mensagens (modal overlay) ──
+  var bibModal="";
+  if(WA_BIB_ABERTA){
+    var bibCats=["todos","Boas-vindas","Agendamento","Preços","Pós-atendimento","Follow-up"];
+    var bibFiltradas=WA_BIB_CAT==="todos"?WA_MSGS:WA_MSGS.filter(function(m){return m.cat===WA_BIB_CAT;});
+    var bibGrupos={};
+    bibFiltradas.forEach(function(m){bibGrupos[m.cat]=(bibGrupos[m.cat]||[]).concat(m);});
+    var bibConteudo=Object.keys(bibGrupos).map(function(cat){
+      return '<div style="margin-bottom:16px">'
+        +'<div style="font-size:10px;font-weight:700;color:#a1a1aa;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">'+es(cat)+'</div>'
+        +bibGrupos[cat].map(function(m){
+          return '<div style="background:#27272a;border:1px solid #3f3f46;border-radius:8px;padding:10px 12px;margin-bottom:7px">'
+            +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">'
+              +'<span style="font-size:11px;font-weight:600;color:#f1f5f9">'+es(m.titulo)+'</span>'
+              +'<button data-wa-usar-bib="'+es(m.id)+'" style="background:#f43f5e;border:none;color:#fff;border-radius:6px;padding:3px 10px;font-size:10px;font-weight:600;cursor:pointer">📋 Copiar</button>'
+            +'</div>'
+            +'<div style="font-size:11px;color:#a1a1aa;line-height:1.5">'+es(m.texto)+'</div>'
+          +'</div>';
+        }).join("")
+      +'</div>';
+    }).join("");
+
+    bibModal='<div style="position:absolute;inset:0;z-index:50;background:rgba(0,0,0,.75);display:flex;align-items:flex-start;justify-content:flex-end;padding:10px">'
+      +'<div style="background:#111115;border:1px solid #27272a;border-radius:12px;width:420px;max-width:96vw;max-height:calc(100% - 20px);display:flex;flex-direction:column;overflow:hidden">'
+        // Header do modal
+        +'<div style="padding:14px 16px;border-bottom:1px solid #27272a;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">'
+          +'<div>'
+            +'<div style="font-size:14px;font-weight:700;color:#f1f5f9">📚 Biblioteca de Mensagens</div>'
+            +'<div style="font-size:10px;color:#71717a;margin-top:1px">Clique em Copiar e cole no campo de envio</div>'
+          +'</div>'
+          +'<button data-wa-fechar-bib style="background:none;border:none;color:#71717a;font-size:20px;cursor:pointer;line-height:1">✕</button>'
+        +'</div>'
+        // Filtros de categoria
+        +'<div style="padding:10px 14px;border-bottom:1px solid #27272a;flex-shrink:0;overflow-x:auto">'
+          +'<div style="display:flex;gap:5px">'
+            +bibCats.map(function(c){
+              var on=WA_BIB_CAT===c;
+              return '<button data-wa-bib-cat="'+c+'" style="border:1px solid '+(on?"#f43f5e88":"#3f3f46")+';background:'+(on?"#f43f5e":"#27272a")+';color:'+(on?"#fff":"#a1a1aa")+';border-radius:20px;padding:3px 12px;font-size:10px;font-weight:'+(on?"600":"400")+';cursor:pointer;white-space:nowrap">'+(c==="todos"?"Todas":c)+'</button>';
+            }).join("")
+          +'</div>'
+        +'</div>'
+        // Corpo
+        +'<div style="overflow-y:auto;padding:14px">'+bibConteudo+'</div>'
+        // Rodapé: botão para gerenciar (admin)
+        +(isAdmin?'<div style="padding:10px 14px;border-top:1px solid #27272a;flex-shrink:0"><button data-wa-gerenciar-bib style="width:100%;background:#27272a;border:1px solid #3f3f46;color:#a1a1aa;border-radius:7px;padding:7px;font-size:11px;cursor:pointer">⚙️ Gerenciar mensagens (em breve)</button></div>':'')
+      +'</div>'
+    +'</div>';
+  }
+
+  // ── Área de input ────────────────────────────
+  var modoNota=WA_MODO_INPUT==="nota";
+  var inputArea;
+  if(!sel||sel.etapa==="finalizado"){
+    inputArea='<div style="padding:10px 14px;border-top:1px solid '+T.inpBorder+';background:'+T.inp+';flex-shrink:0;text-align:center;font-size:10px;color:'+T.txt3+'">'+(sel?"✓ Conversa finalizada":"")+'</div>';
+  } else {
+    // Barra de ferramentas (respostas rápidas + biblioteca + nota)
+    var toolbar='<div style="display:flex;gap:5px;margin-bottom:7px;align-items:center;flex-wrap:wrap">'
+      +'<button data-wa-toggle-rr style="border:1px solid '+(WA_RR_ABERTA?"#f43f5e88":"#3f3f46")+';background:'+(WA_RR_ABERTA?"#f43f5e14":"#27272a")+';color:'+(WA_RR_ABERTA?"#f43f5e":"#a1a1aa")+';border-radius:20px;padding:3px 11px;font-size:10px;font-weight:600;cursor:pointer">⚡ Respostas rápidas</button>'
+      +'<button data-wa-biblioteca style="border:1px solid #3f3f46;background:#27272a;color:#a1a1aa;border-radius:20px;padding:3px 11px;font-size:10px;cursor:pointer">📚 Biblioteca</button>'
+      +(podeNota?'<div style="display:flex;gap:4px;margin-left:auto">'
+        +'<button data-wa-modo="cliente" style="border:1px solid '+(modoNota?"#3f3f46":"#f43f5e")+';background:'+(modoNota?"#27272a":"#f43f5e14")+';color:'+(modoNota?"#52525b":"#f43f5e")+';border-radius:6px;padding:3px 9px;font-size:10px;font-weight:600;cursor:pointer">💬 Cliente</button>'
+        +'<button data-wa-modo="nota" style="border:1px solid '+(modoNota?"#d97706":"#3f3f46")+';background:'+(modoNota?"#78350f22":"#27272a")+';color:'+(modoNota?"#d97706":"#52525b")+';border-radius:6px;padding:3px 9px;font-size:10px;font-weight:600;cursor:pointer">🔒 Nota</button>'
+      +'</div>':'')
+    +'</div>';
+
+    if(modoNota){
+      inputArea=rrPanel+'<div style="padding:10px 14px;border-top:2px solid #d9770633;background:'+T.inp+';flex-shrink:0">'
+        +toolbar
+        +'<div style="background:#78350f18;border:1px dashed #d9770644;border-radius:10px;padding:8px 12px;display:flex;align-items:center;gap:8px">'
+          +'<span style="font-size:13px">🔒</span>'
+          +'<input type="text" id="wa-nota-input" placeholder="Nota visível só para a equipe (não vai ao cliente)..." style="flex:1;background:transparent;border:none;color:#fbbf24;font-size:11px;outline:none;width:auto !important">'
+          +'<button data-wa-enviar-nota style="background:#d97706;border:none;color:#fff;border-radius:8px;padding:5px 12px;font-size:11px;font-weight:600;cursor:pointer;flex-shrink:0">Enviar</button>'
+        +'</div>'
+        +'<div style="font-size:9px;color:#78350f;margin-top:5px;padding-left:4px">Nota visível apenas para a equipe — o cliente nunca vê.</div>'
+      +'</div>';
+    } else {
+      inputArea=rrPanel+'<div style="padding:10px 14px;border-top:1px solid '+T.inpBorder+';background:'+T.inp+';flex-shrink:0">'
+        +toolbar
+        +'<div style="background:'+(tema==="light"?"#fff":"#1f1f23")+';border:1px solid '+T.inpBorder+';border-radius:20px;padding:8px 14px;display:flex;align-items:center;gap:10px;opacity:.5;cursor:not-allowed" title="Disponível após aprovação da Meta">'
+          +'<span style="font-size:11px;color:'+T.txt3+';flex:1">💬 Envio disponível após aprovação da Meta...</span>'
+          +'<div style="width:34px;height:34px;border-radius:50%;background:#25d36650;display:flex;align-items:center;justify-content:center;font-size:16px">➤</div>'
+        +'</div>'
+        +'<div style="text-align:center;margin-top:6px;font-size:9px;color:'+T.txt3+'">⏳ Análise em andamento — previsão de até 20 dias a partir de 21/07/2026</div>'
+      +'</div>';
+    }
+  }
+
+  // ── Painel direito (conversa) ─────────────────
+  var painelDir;
+  if(!sel){
+    painelDir='<div style="flex:1;display:flex;align-items:center;justify-content:center;color:'+T.txt3+';font-size:13px">Selecione uma conversa</div>';
+  } else {
+    var corSel=coresConv[sel.id]||"#3f3f46";
+    var campBadge=sel.campanha
+      ?'<div style="font-size:9px;color:'+(tema==="light"?"#d4f5f0":"#71717a")+';margin-top:2px">📣 '+es(sel.campanha)+(sel.anuncio?" · "+es(sel.anuncio):"")+'</div>':"";
+    var kanbanLink=sel.kanbanId
+      ?'<button data-wa-abrir-kanban style="background:#34d39914;border:1px solid #34d39933;color:#34d399;border-radius:7px;padding:4px 9px;font-size:9px;font-weight:600;cursor:pointer;white-space:nowrap">🎯 Kanban</button>':"";
+
+    // ── Faixa de resultado / comissão ───────────
+    var comissaoFaixa="";
+    var ehProduto=sel.tipo_lead==="produto";
+    var comValor=sel.tipo==="remarketing"?2:5;
+    var comLabel=sel.tipo==="remarketing"?"Remarketing — cliente já foi ao salão":"Cliente novo";
+    if(isAdmin&&sel.etapa==="finalizado"){
+      if(!sel.resultado){
+        comissaoFaixa='<div style="padding:8px 14px;border-bottom:1px solid '+(tema==="light"?"#d5f5e3":"#27272a")+';background:'+(tema==="light"?"#f0fff4":"#18181b")+';flex-shrink:0">'
+          +'<div style="font-size:10px;font-weight:700;color:'+(tema==="light"?"#166534":"#a1a1aa")+';margin-bottom:6px">📋 Registrar resultado da visita</div>'
+          +(ehProduto
+            ?'<div style="background:#38bdf815;border:1px solid #38bdf830;border-radius:7px;padding:7px 10px;font-size:10px;color:#38bdf8">📦 Lead de <strong>produto A R Professional</strong> — comissão de <strong>10% sobre a venda</strong>, gerenciada pelo módulo de Comissões do sistema (não aplica R$ 5,00 / R$ 2,00).</div>'
+            :'<div style="display:flex;gap:5px;flex-wrap:wrap">'
+              +'<button data-wa-resultado="'+sel.id+'" data-wa-res-tipo="servico" style="background:#34d39920;border:1px solid #34d39955;color:#34d399;border-radius:7px;padding:4px 10px;font-size:10px;font-weight:600;cursor:pointer">✅ Fez serviço (R$ '+comValor.toFixed(2)+')</button>'
+              +'<button data-wa-resultado="'+sel.id+'" data-wa-res-tipo="avaliacao" style="background:#fbbf2415;border:1px solid #fbbf2440;color:#fbbf24;border-radius:7px;padding:4px 10px;font-size:10px;cursor:pointer">📋 Só avaliação (sem comissão)</button>'
+              +'<button data-wa-resultado="'+sel.id+'" data-wa-res-tipo="nao_compareceu" style="background:#3f3f4620;border:1px solid #3f3f46;color:#71717a;border-radius:7px;padding:4px 10px;font-size:10px;cursor:pointer">❌ Não compareceu</button>'
+            +'</div>')
+          +'<div style="font-size:9px;color:'+(tema==="light"?"#4ade80":"#52525b")+';margin-top:5px">'+es(comLabel)+' · Atendente: '+es(sel.atendente||"—")+'</div>'
+        +'</div>';
+      } else {
+        var resInfo={
+          "servico_novo":       {icon:"✅",txt:"Serviço realizado — cliente novo",com:"R$ 5,00",cor:"#34d399"},
+          "servico_remarketing":{icon:"✅",txt:"Serviço realizado — remarketing",com:"R$ 2,00",cor:"#34d399"},
+          "avaliacao":          {icon:"📋",txt:"Só avaliação — sem comissão",com:"R$ 0,00",cor:"#fbbf24"},
+          "nao_compareceu":     {icon:"❌",txt:"Não compareceu",com:"R$ 0,00",cor:"#71717a"}
+        }[sel.resultado]||{icon:"❓",txt:"Resultado desconhecido",com:"—",cor:"#71717a"};
+        comissaoFaixa='<div style="padding:7px 14px;border-bottom:1px solid '+(tema==="light"?"#ddd":"#27272a")+';background:'+(tema==="light"?"#f9f9f9":"#111115")+';flex-shrink:0;display:flex;align-items:center;gap:8px">'
+          +'<span>'+resInfo.icon+'</span>'
+          +'<span style="font-size:10px;color:'+resInfo.cor+';font-weight:600">'+resInfo.txt+'</span>'
+          +(ehProduto?'<span style="font-size:9px;color:#38bdf8;margin-left:4px">(produto — 10% na venda)</span>':'')
+          +'<span style="font-size:10px;color:'+resInfo.cor+';background:'+resInfo.cor+'18;border:1px solid '+resInfo.cor+'44;border-radius:12px;padding:1px 8px;margin-left:auto">'+resInfo.com+'</span>'
+          +(sel.atendente?'<span style="font-size:9px;color:'+T.txt3+'">👤 '+es(sel.atendente)+'</span>':'')
+        +'</div>';
+      }
+    }
+
+    painelDir=
+      '<div style="padding:10px 14px;border-bottom:1px solid '+T.hdrBorder+';background:'+T.hdr+';display:flex;align-items:center;gap:10px;flex-shrink:0">'
+        +av(sel.nome,corSel,36)
+        +'<div style="flex:1;min-width:0">'
+          +'<div style="font-size:13px;font-weight:700;color:'+T.hdrTxt+'">'+es(sel.nome)+'</div>'
+          +'<div style="font-size:10px;color:'+(tema==="light"?"#d4f5f0":"#71717a")+'">'+es(sel.interesse)+' · '+es(sel.tel)+'</div>'
+          +campBadge
+        +'</div>'
+        +badgeEtapa(sel.etapa)
+        +'<div style="display:flex;gap:5px;align-items:center;margin-left:6px;flex-wrap:wrap">'
+          +kanbanLink
+          +(sel.etapa==="aguardando"?'<button class="ab" data-wa-assumir="'+sel.id+'" style="font-size:10px;padding:5px 10px">Assumir</button>':'')
+          +(sel.etapa==="atendimento"&&isAdmin?'<button class="tb" data-wa-transferir="'+sel.id+'" style="font-size:10px;padding:5px 9px">↔ Transf.</button>':'')
+          +(sel.etapa==="atendimento"?'<button style="background:#ef444420;border:1px solid #ef444444;color:#f87171;border-radius:7px;padding:5px 9px;font-size:10px;cursor:pointer" data-wa-finalizar="'+sel.id+'">Finalizar</button>':'')
+          +(sel.atendente&&sel.etapa!=="finalizado"?'<span style="font-size:10px;color:'+(tema==="light"?"#d4f5f0":"#71717a")+'">👤 '+es(sel.atendente)+'</span>':'')
+        +'</div>'
+      +'</div>'
+      +comissaoFaixa
+      +'<div id="wa-feed" style="flex:1;overflow-y:auto;padding:14px;background:'+T.feed+'">'+bubbles+'</div>'
+      +inputArea;
+  }
+
+  // ── KPIs ─────────────────────────────────────
+  var kpisHTML='<div style="display:flex;gap:9px;flex-wrap:wrap;margin-bottom:14px">'
+    +'<div class="kp" style="flex:1;min-width:80px;background:'+T.kpBg+';border-color:'+T.kpBorder+'"><div class="kl">Total</div><div class="kv" style="color:'+T.txt+'">'+convsMock.length+'</div><div class="ks">conversas</div></div>'
+    +'<div class="kp" style="flex:1;min-width:80px;background:'+T.kpBg+';border-color:#fbbf2440"><div class="kl" style="color:#fbbf24">⏳ Aguardando</div><div class="kv" style="color:#fbbf24">'+totAguard+'</div><div class="ks">sem atendente</div></div>'
+    +'<div class="kp" style="flex:1;min-width:80px;background:'+T.kpBg+';border-color:#34d39940"><div class="kl" style="color:#34d399">🟢 Atendimento</div><div class="kv" style="color:#34d399">'+totAtend+'</div><div class="ks">em andamento</div></div>'
+    +'<div class="kp" style="flex:1;min-width:80px;background:'+T.kpBg+';border-color:'+T.kpBorder+'"><div class="kl">✓ Finalizados</div><div class="kv" style="color:'+T.txt+'">'+totFin+'</div><div class="ks">hoje</div></div>'
+    +(totNaoLidas>0?'<div class="kp" style="flex:1;min-width:80px;background:'+T.kpBg+';border-color:#f43f5e40"><div class="kl" style="color:#f43f5e">🔴 Não lidas</div><div class="kv" style="color:#f43f5e">'+totNaoLidas+'</div><div class="ks">msgs</div></div>':'')
+  +'</div>';
+
+  // ── Filtros ──────────────────────────────────
+  function fBtn(v,label,cor){
+    var on=filtro===v;
+    return '<button data-wa-filtro="'+v+'" style="background:'+(on?(cor||"#f43f5e"):"#27272a")+';border:1px solid '+(on?(cor||"#f43f5e")+"88":"#3f3f46")+';color:'+(on?"#fff":"#a1a1aa")+';border-radius:20px;padding:4px 12px;font-size:10px;font-weight:'+(on?"600":"400")+';cursor:pointer">'+label+'</button>';
+  }
+  var filtrosHTML='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">'
+    +fBtn("todos","Todos")+fBtn("aguardando","⏳ Aguardando","#fbbf24")+fBtn("atendimento","🟢 Atendimento","#34d399")+fBtn("finalizado","✓ Finalizados","#52525b")
+  +'</div>';
+
+  var avisoInteg='<div style="background:#fbbf2408;border:1px solid #fbbf2430;border-radius:8px;padding:9px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px">'
+    +'<span style="font-size:16px">⏳</span>'
+    +'<div><div style="font-size:11px;font-weight:600;color:#fbbf24">Integração WhatsApp pendente de aprovação da Meta</div>'
+    +'<div style="font-size:10px;color:#71717a;margin-top:1px">Estrutura pronta — conversas e notas reais aparecem aqui após a Etapa 4. Dados abaixo são ilustrativos.</div></div>'
+  +'</div>';
+
+  // ── Sub-tabs + botão de tema ──────────────────
+  var themeBtn='<button data-wa-tema style="background:'+(tema==="light"?"#111115":"#fff")+';border:1px solid '+(tema==="light"?"#27272a":"#e0e0e0")+';color:'+(tema==="light"?"#f1f5f9":"#111")+';border-radius:20px;padding:4px 12px;font-size:10px;cursor:pointer;white-space:nowrap">'+(tema==="light"?"🌙 Tema escuro":"☀️ Tema WhatsApp")+'</button>';
+  var fsBtn='<button data-wa-fullscreen style="background:'+(WA_FULLSCREEN?"#f43f5e14":"#27272a")+';border:1px solid '+(WA_FULLSCREEN?"#f43f5e66":"#3f3f46")+';color:'+(WA_FULLSCREEN?"#f43f5e":"#a1a1aa")+';border-radius:20px;padding:4px 12px;font-size:10px;cursor:pointer;white-space:nowrap">'+(WA_FULLSCREEN?"⬜ Sair da tela cheia":"⛶ Tela cheia")+'</button>';
+
+  var tabsHTML='<div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">'
+    +'<button data-wa-subtab="conversas" style="border:1px solid '+(subtab==="conversas"?"#f43f5e88":"#3f3f46")+';background:'+(subtab==="conversas"?"#f43f5e":"#27272a")+';color:'+(subtab==="conversas"?"#fff":"#a1a1aa")+';border-radius:20px;padding:4px 14px;font-size:11px;font-weight:'+(subtab==="conversas"?"600":"400")+';cursor:pointer">💬 Conversas</button>'
+    +'<button data-wa-subtab="relatorio" style="border:1px solid '+(subtab==="relatorio"?"#f43f5e88":"#3f3f46")+';background:'+(subtab==="relatorio"?"#f43f5e":"#27272a")+';color:'+(subtab==="relatorio"?"#fff":"#a1a1aa")+';border-radius:20px;padding:4px 14px;font-size:11px;font-weight:'+(subtab==="relatorio"?"600":"400")+';cursor:pointer">📊 Relatórios</button>'
+    +'<div style="margin-left:auto;display:flex;gap:6px">'+fsBtn+themeBtn+'</div>'
+  +'</div>';
+
+  // ── Montagem ─────────────────────────────────
+  var corpo=subtab==="relatorio"
+    ?'<div style="flex:1;overflow-y:auto;background:'+T.bg+'">'+rRelatorio()+'</div>'
+    :'<div style="flex:1;display:flex;overflow:hidden">'
+        +'<div style="width:300px;flex-shrink:0;overflow-y:auto;border-right:1px solid '+T.sbBorder+';background:'+T.sb+'">'
+          +equipePainel+listaHTML
+        +'</div>'
+        +'<div style="flex:1;display:flex;flex-direction:column;overflow:hidden;background:'+T.bg+';position:relative">'+painelDir+bibModal+'</div>'
+      +'</div>';
+
+  var fsStyle=WA_FULLSCREEN?"position:fixed;inset:0;z-index:200;":"padding:0;height:calc(100vh - 0px);";
+  return '<div style="'+fsStyle+'display:flex;flex-direction:column;overflow:hidden;background:'+T.bg+'">'
+    +'<div style="padding:14px 18px 10px;border-bottom:1px solid '+T.sbBorder+';background:'+T.sb+';flex-shrink:0">'
+      +'<div style="display:flex;align-items:center;margin-bottom:10px"><h2 style="font-size:17px;font-weight:700;color:'+T.txt+'">💬 Central de Conversas — WhatsApp</h2></div>'
+      +avisoInteg+kpisHTML+tabsHTML
+      +(subtab==="conversas"?filtrosHTML:"")
+    +'</div>'
+    +corpo
+  +'</div>';
+}
+
+function imprimirRelatorioWA(modoDownload){
+  var periodo=S.waRelPeriodo||"hoje";
+  var pLabel={"hoje":"Hoje","3":"Últimos 3 dias","7":"Últimos 7 dias","15":"Últimos 15 dias","30":"Últimos 30 dias"}[periodo]||periodo;
+  var dataHoje=new Date().toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit",year:"numeric"});
+  var html='<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">'
+    +'<title>Relatório WhatsApp — Studio A R — '+pLabel+'</title>'
+    +'<style>'
+      +'body{font-family:system-ui,sans-serif;font-size:12px;color:#111;background:#fff;margin:0;padding:24px}'
+      +'h1{font-size:18px;font-weight:700;margin-bottom:4px}'
+      +'.sub{font-size:11px;color:#666;margin-bottom:20px}'
+      +'.section{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#555;margin:22px 0 10px}'
+      +'.kpis{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}'
+      +'.kp{border:1px solid #ddd;border-radius:8px;padding:10px 14px;flex:1;min-width:110px}'
+      +'.kl{font-size:9px;color:#888;font-weight:600;text-transform:uppercase;margin-bottom:4px}'
+      +'.kv{font-size:20px;font-weight:700}'
+      +'.ks{font-size:9px;color:#aaa;margin-top:2px}'
+      +'table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:10px}'
+      +'thead th{text-align:left;padding:7px 9px;background:#f4f4f4;border-bottom:2px solid #ddd;font-weight:600;color:#555}'
+      +'tbody tr{border-bottom:1px solid #eee}'
+      +'tbody td{padding:7px 9px}'
+      +'.badge{border-radius:12px;padding:2px 8px;font-size:10px;font-weight:700;display:inline-block}'
+      +'.green{background:#d1fae5;color:#065f46}'
+      +'.blue{background:#dbeafe;color:#1e40af}'
+      +'.warn{background:#fef3c7;color:#92400e}'
+      +'@media print{'
+        +'body{padding:12px}'
+        +'button{display:none}'
+        +'.no-break{page-break-inside:avoid}'
+      +'}'
+    +'</style></head><body>'
+    +'<h1>📊 Relatório de Desempenho — WhatsApp</h1>'
+    +'<div class="sub">Studio A R · Jacareí/SP · '+pLabel+' · Gerado em '+dataHoje+'</div>'
+    +'<div class="section">💰 Comissões WhatsApp</div>'
+    +'<div class="kpis">'
+      +'<div class="kp"><div class="kl">Serviços (novos)</div><div class="kv" style="color:#065f46">R$ 35,00</div><div class="ks">7 clientes × R$ 5,00</div></div>'
+      +'<div class="kp"><div class="kl">Remarketing</div><div class="kv" style="color:#1e40af">R$ 8,00</div><div class="ks">4 clientes × R$ 2,00</div></div>'
+      +'<div class="kp"><div class="kl">Total a pagar</div><div class="kv">R$ 43,00</div><div class="ks">todas as comissões</div></div>'
+      +'<div class="kp"><div class="kl">Só avaliação</div><div class="kv" style="color:#92400e">3</div><div class="ks">sem comissão</div></div>'
+    +'</div>'
+    +'<table class="no-break"><thead><tr><th>Atendente</th><th>Serviços novos</th><th>Remarketing</th><th>Só avaliação</th><th>Total comissão</th></tr></thead><tbody>'
+      +[{nome:"Isabela",novos:4,rmkt:2,aval:1,total:24},{nome:"Lorran",novos:2,rmkt:2,aval:1,total:14},{nome:"Diane",novos:1,rmkt:0,aval:1,total:5}].map(function(a){
+        return '<tr><td><strong>'+a.nome+'</strong></td>'
+          +'<td>'+a.novos+' × R$ 5,00 = R$ '+(a.novos*5).toFixed(2)+'</td>'
+          +'<td>'+a.rmkt+' × R$ 2,00 = R$ '+(a.rmkt*2).toFixed(2)+'</td>'
+          +'<td>'+a.aval+'</td>'
+          +'<td><span class="badge green">R$ '+a.total.toFixed(2)+'</span></td>'
+        +'</tr>';
+      }).join("")
+    +'</tbody></table>'
+    +'<div class="section">👥 Desempenho dos atendentes</div>'
+    +'<table class="no-break"><thead><tr><th>Atendente</th><th>Assumidas</th><th>Finalizadas</th><th>Convertidas</th><th>T. médio resp.</th><th>Taxa conv.</th></tr></thead><tbody>'
+      +[{nome:"Isabela",assumidas:12,fin:10,conv:7,tMedio:"3min 40s"},{nome:"Lorran",assumidas:9,fin:8,conv:5,tMedio:"5min 10s"},{nome:"Diane",assumidas:5,fin:5,conv:3,tMedio:"4min 20s"}].map(function(a){
+        return '<tr><td><strong>'+a.nome+'</strong></td><td>'+a.assumidas+'</td><td>'+a.fin+'</td><td>'+a.conv+'</td><td>'+a.tMedio+'</td><td><span class="badge green">'+Math.round(a.conv/a.assumidas*100)+'%</span></td></tr>';
+      }).join("")
+    +'</tbody></table>'
+    +'<div class="section">📣 Desempenho das campanhas</div>'
+    +'<table class="no-break"><thead><tr><th>Campanha</th><th>Leads</th><th>Convertidas</th><th>Gasto</th><th>CPA real</th><th>ROAS real</th></tr></thead><tbody>'
+      +[{nome:"Luzes Inverno — Mulheres 25-40",leads:18,conv:10,gasto:320,cpa:32,roas:4.2},{nome:"Progressiva Dia das Mães",leads:9,conv:6,gasto:180,cpa:30,roas:5.1},{nome:"Stop Quebra — A R Professional",leads:7,conv:3,gasto:140,cpa:46.67,roas:2.8},{nome:"Corte Expresso",leads:5,conv:3,gasto:90,cpa:30,roas:3.9}].map(function(c){
+        var ok=c.roas>=4;
+        return '<tr><td>'+c.nome+'</td><td>'+c.leads+'</td><td>'+c.conv+'</td><td>R$ '+c.gasto.toFixed(2)+'</td><td>R$ '+c.cpa.toFixed(2)+'</td><td><span class="badge '+(ok?"green":"warn")+'">'+c.roas.toFixed(1)+'x</span></td></tr>';
+      }).join("")
+    +'</tbody></table>'
+    +'<div style="margin-top:30px;font-size:10px;color:#aaa;border-top:1px solid #eee;padding-top:10px">Studio A R Gestão · Gerado em '+dataHoje+' · Dados ilustrativos — integração Meta (Etapa 5) pendente</div>'
+  +'</body></html>';
+  var w=window.open("","_blank","width=900,height=700");
+  if(w){w.document.write(html);w.document.close();setTimeout(function(){w.print();},400);}
+  else{showToast("⚠️ Permita pop-ups para imprimir/baixar o PDF.");}
+}
+
 function rMensagens(){
   var msgs=D.msgs||[];
   var eu=CURRENT_USER?CURRENT_USER.nome:"?";
