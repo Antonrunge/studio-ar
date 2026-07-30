@@ -2245,7 +2245,10 @@ function rPL(fs,fp,fa){
     tB+=base;tCS+=cs;tCP+=cp;tA+=av;tR+=rec;
     var safeName=p.replace(/'/g,"\\'");
     return'<tr><td>'+es(p)+'</td><td>'+fmt(base)+'</td><td>'+fmt(cs)+'</td><td>'+fmt(cp)+'</td><td>'+fmt(tot)+'</td><td>'+fmt(av)+'</td><td class="hi">'+fmt(rec)+'</td>'
-      +'<td style="text-align:center"><button onclick="plPdfIndividual(\''+safeName+'\')" style="background:#27272a;border:1px solid #3f3f46;color:#a1a1aa;border-radius:5px;padding:3px 8px;font-size:10px;cursor:pointer" title="PDF individual">📄</button></td>'
+      +'<td style="text-align:center;white-space:nowrap">'
+      +'<button onclick="plPdfIndividual(\''+safeName+'\')" style="background:#27272a;border:1px solid #3f3f46;color:#a1a1aa;border-radius:5px;padding:3px 7px;font-size:10px;cursor:pointer;margin-right:3px" title="PDF completo (com detalhes dos serviços)">📄 Completo</button>'
+      +'<button onclick="plPdfResumo(\''+safeName+'\')" style="background:#18181b;border:1px solid #3f3f46;color:#71717a;border-radius:5px;padding:3px 7px;font-size:10px;cursor:pointer" title="PDF resumido (só totais)">📋 Resumo</button>'
+      +'</td>'
     +'</tr>';
   }).join("");
 
@@ -2359,6 +2362,71 @@ function plPdfIndividual(nome){
     +'<div style="margin-top:24px;font-size:9px;color:#aaa;border-top:1px solid #eee;padding-top:8px">Studio A R Gestão · '+MESES[S.month]+' '+S.year+' · Gerado em '+dataHoje+'</div>'
     +'</body></html>';
   var w=window.open("","_blank","width=820,height:680");
+  if(w){w.document.write(html);w.document.close();setTimeout(function(){w.print();},400);}
+  else showToast("⚠️ Permita pop-ups para gerar o PDF.");
+}
+
+function plPdfResumo(nome){
+  var fs=fmy(D.svc,S.month,S.year);
+  var fp=fmy(D.prd,S.month,S.year);
+  var fa=fmy(D.adv,S.month,S.year);
+  var pl=getPL();
+  var desligados=getDesligados();
+  var d=desligados[nome];
+  var antesCorte=!d||(S.year<d.year)||(S.year===d.year&&S.month<d.month);
+  var base=antesCorte?(pl[nome]||0):0;
+  var myServices=fs.filter(function(r){var ns=(r.profissionais||[r.profissional]).filter(function(n){return n;});return ns.indexOf(nome)>=0;});
+  var cs=myServices.reduce(function(s,r){return s+(isAuxiliarNoMes(nome,S.month,S.year)?0:cmR(r));},0);
+  var myProds=fp.filter(function(r){return r.profissional===nome;});
+  var cp=myProds.reduce(function(s,r){return s+fl(r.valorUnitario*r.quantidade,r.formaPagamento||"PIX")*r.comissaoVendedor;},0);
+  var av=fa.filter(function(r){return r.colaborador===nome;}).reduce(function(s,r){return s+r.valor;},0);
+  var tot=base+cs+cp,rec=tot-av;
+  var dataHoje=new Date().toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit",year:"numeric"});
+  function brl(v){return"R$ "+v.toFixed(2).replace(".",",");}
+  var html='<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">'
+    +'<title>Resumo '+es(nome)+' — '+MESES[S.month]+' '+S.year+'</title>'
+    +'<style>'
+      +'*{box-sizing:border-box}'
+      +'body{font-family:system-ui,sans-serif;font-size:13px;color:#111;margin:0;padding:32px;max-width:480px}'
+      +'.logo{font-size:11px;font-weight:700;color:#888;letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px}'
+      +'h1{font-size:22px;font-weight:800;margin:0 0 2px}'
+      +'.periodo{font-size:12px;color:#666;margin-bottom:28px}'
+      +'.linha{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #eee}'
+      +'.linha:last-child{border-bottom:none}'
+      +'.label{color:#555}'
+      +'.val{font-weight:600}'
+      +'.bloco{border:1px solid #e5e7eb;border-radius:10px;padding:6px 16px;margin-bottom:20px}'
+      +'.total-linha{display:flex;justify-content:space-between;align-items:center;padding:14px 0 4px}'
+      +'.total-label{font-size:14px;font-weight:700}'
+      +'.total-val{font-size:22px;font-weight:800;color:#166534}'
+      +'.neg{color:#dc2626}'
+      +'.assinatura{margin-top:40px;padding-top:16px;border-top:1px solid #ddd}'
+      +'.ass-linha{display:flex;gap:20px;margin-top:24px}'
+      +'.ass-box{flex:1;text-align:center}'
+      +'.ass-linha-assin{border-top:1px solid #888;padding-top:6px;font-size:10px;color:#888;margin-top:36px}'
+      +'.rodape{margin-top:24px;font-size:9px;color:#aaa;text-align:center}'
+      +'@media print{body{padding:20px}}'
+    +'</style></head><body>'
+    +'<div class="logo">Studio A R · Jacareí/SP</div>'
+    +'<h1>'+es(nome)+'</h1>'
+    +'<div class="periodo">'+MESES[S.month]+' '+S.year+' · Gerado em '+dataHoje+'</div>'
+    +'<div class="bloco">'
+      +'<div class="linha"><span class="label">Salário base</span><span class="val">'+brl(base)+'</span></div>'
+      +'<div class="linha"><span class="label">Comissão de serviços ('+myServices.length+' atend.)</span><span class="val">'+brl(cs)+'</span></div>'
+      +'<div class="linha"><span class="label">Comissão de produtos ('+myProds.length+' vendas)</span><span class="val">'+brl(cp)+'</span></div>'
+      +'<div class="linha"><span class="label">Total bruto</span><span class="val">'+brl(tot)+'</span></div>'
+      +'<div class="linha"><span class="label">Adiantamentos descontados</span><span class="val neg">- '+brl(av)+'</span></div>'
+    +'</div>'
+    +'<div class="total-linha"><span class="total-label">Valor a receber</span><span class="total-val">'+brl(rec)+'</span></div>'
+    +'<div class="assinatura">'
+      +'<div class="ass-linha">'
+        +'<div class="ass-box"><div class="ass-linha-assin">Assinatura do Profissional</div><div style="font-size:10px;color:#888;margin-top:4px">'+es(nome)+'</div></div>'
+        +'<div class="ass-box"><div class="ass-linha-assin">Studio A R — Responsável</div></div>'
+      +'</div>'
+    +'</div>'
+    +'<div class="rodape">Studio A R Gestão · '+MESES[S.month]+' '+S.year+' · '+dataHoje+'</div>'
+    +'</body></html>';
+  var w=window.open("","_blank","width=600,height:700");
   if(w){w.document.write(html);w.document.close();setTimeout(function(){w.print();},400);}
   else showToast("⚠️ Permita pop-ups para gerar o PDF.");
 }
