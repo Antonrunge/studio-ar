@@ -335,9 +335,9 @@ function openAdminAuthModal(onSuccess){
 
 var CURRENT_USER = null; // {uid, email, role, nome}
 var ROLE_TABS = {
-  admin: ["dashboard","agenda","followup","leads","services","products","expenses","advances","prolabore","dre","clients","db","requests","audit","estoque","arprof","metaads","conversas","fornecedores","caixa","mensagens"],
+  admin: ["dashboard","agenda","followup","leads","services","products","expenses","advances","prolabore","dre","analise","clients","db","requests","audit","estoque","arprof","metaads","conversas","fornecedores","caixa","mensagens"],
   recepcao: ["agenda","followup","services","products","clients","requests","estoque","conversas","mensagens"],
-  financeiro: ["dashboard","expenses","advances","prolabore","dre","arprof","caixa","mensagens"],
+  financeiro: ["dashboard","expenses","advances","prolabore","dre","analise","arprof","caixa","mensagens"],
   marketing: ["clients","mensagens"],
   profissional: ["agenda","prolabore","mensagens"],
   comercial: ["agenda","leads","conversas","mensagens"]
@@ -799,7 +799,7 @@ function tbl(rows,cols,type){
 function kp(l,v,s){return'<div class="kp"><div class="kl">'+l+'</div><div class="kv">'+v+'</div>'+(s?'<div class="ks">'+s+'</div>':'')+'</div>';}
 
 /* SIDEBAR */
-var NAV=[["dashboard","\uD83D\uDCCA","Dashboard"],["agenda","\uD83D\uDCC5","Agenda"],["followup","\uD83D\uDCF2","Follow-up"],["services","\u2702\uFE0F","Servi\u00e7os"],["products","\uD83E\uDDF4","Produtos"],["expenses","\uD83D\uDCB8","Despesas"],["advances","\uD83D\uDCB5","Adiantamentos"],["prolabore","\uD83D\uDC65","Pr\u00f3-Labore"],["dre","\uD83D\uDCC8","DRE / DFC"],["clients","\uD83D\uDC69","Clientes"],["leads","\uD83C\uDFAF","Leads"],["db","\uD83D\uDDC4\uFE0F","Banco de Dados"],["requests","\uD83D\uDCE5","Solicita\u00e7\u00f5es Online"],["audit","\uD83D\uDD0D","Auditoria"],["estoque","\uD83E\uDDF4","Estoque"],["arprof","\uD83C\uDFF7\uFE0F","A R Professional"],["metaads","\uD83D\uDCE3","Meta Ads"],["conversas","\uD83D\uDCAC","Conversas WA"],["fornecedores","\uD83D\uDE9A","Fornecedores"],["caixa","\uD83C\uDFE6","Caixa Banc\u00e1rio"],["mensagens","\uD83D\uDCAC","Mensagens"]];
+var NAV=[["dashboard","\uD83D\uDCCA","Dashboard"],["agenda","\uD83D\uDCC5","Agenda"],["followup","\uD83D\uDCF2","Follow-up"],["services","\u2702\uFE0F","Servi\u00e7os"],["products","\uD83E\uDDF4","Produtos"],["expenses","\uD83D\uDCB8","Despesas"],["advances","\uD83D\uDCB5","Adiantamentos"],["prolabore","\uD83D\uDC65","Pr\u00f3-Labore"],["dre","\uD83D\uDCC8","DRE / DFC"],["clients","\uD83D\uDC69","Clientes"],["leads","\uD83C\uDFAF","Leads"],["db","\uD83D\uDDC4\uFE0F","Banco de Dados"],["requests","\uD83D\uDCE5","Solicita\u00e7\u00f5es Online"],["audit","\uD83D\uDD0D","Auditoria"],["estoque","\uD83E\uDDF4","Estoque"],["arprof","\uD83C\uDFF7\uFE0F","A R Professional"],["metaads","\uD83D\uDCE3","Meta Ads"],["conversas","\uD83D\uDCAC","Conversas WA"],["fornecedores","\uD83D\uDE9A","Fornecedores"],["caixa","\uD83C\uDFE6","Caixa Banc\u00e1rio"],["analise","\uD83D\uDCC9","An\u00e1lise Mensal"],["mensagens","\uD83D\uDCAC","Mensagens"]];
 var DIVULGADORES_CUSTOM=null;
 var DIVULGADORES_DEFAULT=["Lorran","Isabela","Diane","Anton"];
 function getDivulgadores(){return DIVULGADORES_CUSTOM||DIVULGADORES_DEFAULT;}
@@ -3655,6 +3655,156 @@ function rMetaAds(){
     +'</div></div>';
 }
 
+
+function rAnalise(){
+  var months=[];
+  for(var i=5;i>=0;i--){
+    var mo=S.month-i,yr=S.year;
+    while(mo<0){mo+=12;yr--;}
+    months.push({m:mo,y:yr});
+  }
+  var monthData=months.map(function(p){
+    var fs=fmy(D.svc,p.m,p.y);
+    var fp=fmy(D.prd,p.m,p.y);
+    var fe=fmy(D.exp,p.m,p.y);
+    var fa=fmy(D.adv,p.m,p.y);
+    var fatBruto=fs.reduce(function(s,r){return s+effVal(r);},0);
+    var fatLiq=fs.reduce(function(s,r){return s+fl(effVal(r),r.formaPagamento);},0);
+    var nSvcs=fs.length;
+    var cliArr=fs.map(function(r){return(r.cliente||"").trim().toUpperCase();}).filter(Boolean);
+    var cliSet=new Set(cliArr);
+    var nCli=cliSet.size;
+    var ticketMedio=nSvcs>0?fatBruto/nSvcs:0;
+    var totalDespesas=fe.reduce(function(s,r){return s+r.valorPago;},0);
+    var totalAdiant=fa.reduce(function(s,r){return s+r.valor;},0);
+    var totalComissoes=fs.reduce(function(s,r){return s+cmR(r);},0);
+    var fpSal=fp.filter(function(r){return!r.externa;});
+    var vendaProd=fpSal.reduce(function(s,r){return s+(r.valorUnitario*r.quantidade);},0);
+    var vendaProdLiq=fpSal.reduce(function(s,r){return s+fl(r.valorUnitario*r.quantidade,r.formaPagamento||"PIX");},0);
+    var pendente=fs.filter(function(r){return r.pagamento==="pendente";}).reduce(function(s,r){return s+effVal(r);},0);
+    var lucro=fatLiq+vendaProdLiq-totalDespesas-totalComissoes-totalAdiant;
+    var monthStart=p.y+"-"+((p.m+1)<10?"0"+(p.m+1):String(p.m+1))+"-01";
+    var cliAntes=new Set(D.svc.filter(function(r){return r.date&&r.date<monthStart&&r.cliente;}).map(function(r){return(r.cliente||"").trim().toUpperCase();}));
+    var nNovos=0,nRetorno=0;
+    cliSet.forEach(function(c){if(c){if(cliAntes.has(c))nRetorno++;else nNovos++;}});
+    var leadsCapt=(D.leads||[]).filter(function(r){var d=(r.dataCriacao||"").slice(0,10);if(!d||d.length<7)return false;var g=gmy(d);return g.m===p.m&&g.y===p.y;}).length;
+    var leadsConv=(D.leads||[]).reduce(function(s,r){
+      var conv=(r.historico||[]).some(function(h){
+        if(h.etapaNova!=="convertido")return false;
+        var d=(h.data||"").slice(0,10);
+        if(!d||d.length<7)return false;
+        var g=gmy(d);
+        return g.m===p.m&&g.y===p.y;
+      });
+      return s+(conv?1:0);
+    },0);
+    var txConv=leadsCapt>0?Math.round(leadsConv/leadsCapt*100):0;
+    var byPgto={};
+    fs.forEach(function(r){var f=r.formaPagamento||"N/A";byPgto[f]=(byPgto[f]||0)+effVal(r);});
+    return{m:p.m,y:p.y,label:MESES[p.m].slice(0,3)+"/"+String(p.y).slice(2),
+      fatBruto:fatBruto,fatLiq:fatLiq,nSvcs:nSvcs,nCli:nCli,ticketMedio:ticketMedio,
+      totalDespesas:totalDespesas,totalComissoes:totalComissoes,totalAdiant:totalAdiant,
+      vendaProd:vendaProd,pendente:pendente,lucro:lucro,
+      nNovos:nNovos,nRetorno:nRetorno,leadsCapt:leadsCapt,leadsConv:leadsConv,txConv:txConv,byPgto:byPgto};
+  });
+  var ref=monthData[monthData.length-1];
+  var prev=monthData.length>=2?monthData[monthData.length-2]:null;
+  function vari(cur,ant){if(!ant||ant===0)return null;return Math.round((cur-ant)/ant*100);}
+  function varBadge(pct){
+    if(pct===null)return"";
+    var c=pct>=0?"#34d399":"#f87171";
+    return'<span style="font-size:10px;color:'+c+';margin-left:5px">'+(pct>=0?"\u2191":"\u2193")+Math.abs(pct)+'%</span>';
+  }
+  function kpiCard(label,val,sub,varPct,cor){
+    return'<div style="background:#18181b;border:1px solid '+(cor||"#27272a")+';border-top:3px solid '+(cor||"#27272a")+';border-radius:9px;padding:13px 15px;flex:1;min-width:140px">'
+      +'<div style="font-size:10px;color:#71717a;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">'+label+'</div>'
+      +'<div style="font-size:19px;font-weight:700;color:#f1f5f9">'+val+varBadge(varPct)+'</div>'
+      +(sub?'<div style="font-size:10px;color:#52525b;margin-top:2px">'+sub+'</div>':'')
+      +'</div>';
+  }
+  var svcsRef=fmy(D.svc,ref.m,ref.y);
+  var bySvc={};
+  svcsRef.forEach(function(r){if(!bySvc[r.trabalho])bySvc[r.trabalho]={n:r.trabalho,v:0,q:0};bySvc[r.trabalho].v+=effVal(r);bySvc[r.trabalho].q+=1;});
+  var topSvcs=Object.keys(bySvc).map(function(k){return bySvc[k];}).sort(function(a,b){return b.q-a.q;}).slice(0,7);
+  var byProf={};
+  svcsRef.forEach(function(r){(r.profissionais||[r.profissional||""]).forEach(function(p){if(!p)return;if(!byProf[p])byProf[p]={n:p,v:0,q:0};byProf[p].v+=effVal(r);byProf[p].q+=1;});});
+  var topProfs=Object.keys(byProf).map(function(k){return byProf[k];}).sort(function(a,b){return b.v-a.v;}).slice(0,7);
+  var chartFat=monthData.map(function(d){return{d:d.label,v:Math.round(d.fatBruto)};});
+  var chartDesp=monthData.map(function(d){return{d:d.label,v:Math.round(d.totalDespesas)};});
+  var chartCli=monthData.map(function(d){return{d:d.label,v:d.nCli};});
+  var chartSvcs=monthData.map(function(d){return{d:d.label,v:d.nSvcs};});
+  var refLabel=MESES[ref.m]+" "+ref.y;
+  var pgtoRows=Object.keys(ref.byPgto).sort(function(a,b){return ref.byPgto[b]-ref.byPgto[a];}).map(function(k){
+    var pct=ref.fatBruto>0?Math.round(ref.byPgto[k]/ref.fatBruto*100):0;
+    return'<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #1f1f23">'
+      +'<span style="font-size:11px;color:#d4d4d8">'+es(k)+'</span>'
+      +'<span style="font-size:11px;color:#fbbf24">'+fms(ref.byPgto[k])+'</span>'
+      +'<span style="font-size:10px;color:#71717a;width:32px;text-align:right">'+pct+'%</span>'
+      +'</div>';
+  }).join("");
+  var tableRows=monthData.map(function(d,i){
+    var isRef=(i===monthData.length-1);
+    var bg=isRef?"background:#1f1f23;":"";
+    var fw=isRef?"font-weight:700;":"";
+    var lc=d.lucro>=0?"#34d399":"#f87171";
+    return'<tr style="'+bg+fw+'">'
+      +'<td style="color:#f1f5f9;white-space:nowrap">'+(isRef?'<span style="color:#f43f5e">\u25b6 </span>':'')+MESES[d.m]+' '+d.y+'</td>'
+      +'<td class="hi">'+fms(d.fatBruto)+'</td>'
+      +'<td>'+fms(d.fatLiq)+'</td>'
+      +'<td class="bd">'+fms(d.totalDespesas)+'</td>'
+      +'<td style="color:'+lc+'">'+fms(d.lucro)+'</td>'
+      +'<td>'+d.nSvcs+'</td>'
+      +'<td>'+d.nCli+'</td>'
+      +'<td>'+fms(d.ticketMedio)+'</td>'
+      +'<td class="gr">'+fms(d.vendaProd)+'</td>'
+      +'<td>'+fms(d.pendente)+'</td>'
+      +'<td>'+d.nNovos+'</td>'
+      +'<td>'+d.leadsCapt+'</td>'
+      +'<td>'+(d.txConv?d.txConv+"%":"\u2014")+'</td>'
+      +'</tr>';
+  }).join("");
+  return'<div class="pg">'
+    +'<div class="ph"><h2>\uD83D\uDCC9 An\u00e1lise Mensal \u2014 '+es(refLabel)+'</h2>'
+    +'<div class="ph-btns"><span style="font-size:11px;color:#71717a">Per\u00edodo: menu lateral</span></div></div>'
+    +'<div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px">'
+    +kpiCard("Faturamento Bruto",fmt(ref.fatBruto),ref.nSvcs+" atendimentos",prev?vari(ref.fatBruto,prev.fatBruto):null,"#f43f5e")
+    +kpiCard("Faturamento L\u00edquido",fmt(ref.fatLiq),"ap\u00f3s taxas de maq.",prev?vari(ref.fatLiq,prev.fatLiq):null,"#fb923c")
+    +kpiCard("Total Despesas",fmt(ref.totalDespesas),"adiant: "+fmt(ref.totalAdiant),prev?vari(ref.totalDespesas,prev.totalDespesas):null,"#f87171")
+    +kpiCard("Lucro Estimado",fmt(ref.lucro),"fat.l\u00edq \u2212 desp \u2212 com.",prev?vari(ref.lucro,prev.lucro):null,ref.lucro>=0?"#34d399":"#f87171")
+    +'</div>'
+    +'<div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px">'
+    +kpiCard("N\u00ba de Servi\u00e7os",String(ref.nSvcs),"atendimentos realizados",prev?vari(ref.nSvcs,prev.nSvcs):null,"#38bdf8")
+    +kpiCard("Clientes \u00danicas",String(ref.nCli),ref.nNovos+" novas \u00b7 "+ref.nRetorno+" retorno",prev?vari(ref.nCli,prev.nCli):null,"#818cf8")
+    +kpiCard("Ticket M\u00e9dio",fmt(ref.ticketMedio),"por atendimento",prev?vari(ref.ticketMedio,prev.ticketMedio):null,"#e879f9")
+    +kpiCard("Venda de Produtos",fmt(ref.vendaProd),"no sal\u00e3o",prev?vari(ref.vendaProd,prev.vendaProd):null,"#34d399")
+    +'</div>'
+    +'<div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:18px">'
+    +kpiCard("Pendente a Receber",fmt(ref.pendente),"pgtos em aberto",null,"#fbbf24")
+    +kpiCard("Leads Captados",String(ref.leadsCapt),"novos no m\u00eas",prev?vari(ref.leadsCapt,prev.leadsCapt):null,"#38bdf8")
+    +kpiCard("Taxa de Convers\u00e3o",ref.txConv+"%",ref.leadsConv+" convertidos",null,"#34d399")
+    +kpiCard("Comiss\u00f5es",fmt(ref.totalComissoes),"total profissionais",prev?vari(ref.totalComissoes,prev.totalComissoes):null,"#94a3b8")
+    +'</div>'
+    +'<div class="cg" style="margin-bottom:14px">'
+    +'<div class="cd"><div class="ct">Faturamento Bruto \u2014 \u00daltimos 6 Meses (R$)</div>'+lnC(chartFat)+'</div>'
+    +'<div class="cd"><div class="ct">Despesas \u2014 \u00daltimos 6 Meses (R$)</div>'+lnC(chartDesp)+'</div>'
+    +'</div>'
+    +'<div class="cg" style="margin-bottom:14px">'
+    +'<div class="cd"><div class="ct">Clientes \u00danicas por M\u00eas</div>'+bvC(chartCli,"#818cf8")+'</div>'
+    +'<div class="cd"><div class="ct">Servi\u00e7os por M\u00eas</div>'+bvC(chartSvcs,"#38bdf8")+'</div>'
+    +'</div>'
+    +'<div class="g3" style="margin-bottom:14px">'
+    +'<div class="cd"><div class="ct">Top Servi\u00e7os (Qtd.) \u2014 '+es(refLabel)+'</div>'+bhC(topSvcs.map(function(d){return{n:d.n,v:d.q}}),"#fb923c",false)+'</div>'
+    +'<div class="cd"><div class="ct">Por Profissional (R$) \u2014 '+es(refLabel)+'</div>'+bhC(topProfs,"#f43f5e",false)+'</div>'
+    +'<div class="cd"><div class="ct">Formas de Pagamento \u2014 '+es(refLabel)+'</div>'+(pgtoRows||'<div class="emp">Sem dados</div>')+'</div>'
+    +'</div>'
+    +'<div class="cd" style="margin-bottom:0"><div class="ct">Comparativo dos \u00daltimos 6 Meses</div><div class="ox"><table>'
+    +'<thead><tr><th>M\u00eas</th><th>Fat. Bruto</th><th>Fat. L\u00edq.</th><th>Despesas</th><th>Lucro Est.</th>'
+    +'<th>Servi\u00e7os</th><th>Clientes</th><th>Ticket M\u00e9d.</th><th>Venda Prod.</th><th>Pendente</th><th>Cli. Novas</th><th>Leads</th><th>Tx.Conv.</th></tr></thead>'
+    +'<tbody>'+tableRows+'</tbody>'
+    +'</table></div></div>'
+    +'</div>';
+}
+
 function rT(){
   var fs=fmy(D.svc,S.month,S.year);
   var fp=fmy(D.prd,S.month,S.year);
@@ -3697,6 +3847,7 @@ function rT(){
   else if(S.tab==="metaads")h=rMetaAds();
   else if(S.tab==="fornecedores")h=rFornecedores();
   else if(S.tab==="caixa")h=rCaixa();
+  else if(S.tab==="analise")h=rAnalise();
   else if(S.tab==="conversas")h=rConversas();
   else if(S.tab==="mensagens")h=rMensagens();
   }catch(errRT){
