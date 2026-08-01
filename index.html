@@ -2961,10 +2961,20 @@ function rLeadsBoard(){
   (D.leads||[]).forEach(function(l){var v=l.interesse||"";if(v&&interests.indexOf(v)<0)interests.push(v);});
   interests.sort();
   var intF=S.leadsInterestFilter||"";
+  var diaF=S.leadDiaFiltro||"";
   var intOpts='<option value="">Todos os interesses</option>'+interests.map(function(v){return'<option value="'+es(v)+'"'+(intF===v?' selected':'')+'>'+es(v)+'</option>';}).join("");
-  return '<div style="display:flex;gap:9px;flex-wrap:wrap;margin-bottom:12px">'
+  var diaLabel=diaF?'<button onclick="S.leadDiaFiltro=\'\';rT()" style="background:none;border:none;color:#f43f5e;font-size:11px;cursor:pointer;padding:0;white-space:nowrap">\u2715 Limpar</button>':'';
+  var diaTexto=diaF?fdt(diaF):'<span style="color:#52525b">Qualquer dia</span>';
+  return '<div style="display:flex;gap:9px;flex-wrap:wrap;margin-bottom:12px;align-items:center">'
     +'<input type="text" id="leads-search-inp" placeholder="\uD83D\uDD0D Buscar por nome..." value="'+es(S.leadsSearch||"")+'" style="flex:1;min-width:160px" oninput="leadsSearchInput(this)">'
     +'<select style="width:auto;min-width:170px" onchange="S.leadsInterestFilter=this.value;rT();">'+intOpts+'</select>'
+    +'<div style="display:flex;align-items:center;gap:6px;background:#18181b;border:1px solid #27272a;border-radius:7px;padding:4px 10px">'
+      +'<span style="font-size:10px;color:#a1a1aa;white-space:nowrap">\uD83D\uDCC5 Col. Lead:</span>'
+      +'<span style="font-size:11px;color:#f1f5f9;min-width:80px">'+diaTexto+'</span>'
+      +'<button onclick="document.getElementById(\'lead-dia-picker\').showPicker?(document.getElementById(\'lead-dia-picker\').showPicker()):(document.getElementById(\'lead-dia-picker\').focus())" style="background:#27272a;border:1px solid #3f3f46;color:#a1a1aa;border-radius:5px;padding:3px 8px;font-size:11px;cursor:pointer" title="Selecionar dia">\uD83D\uDCC6 Escolher</button>'
+      +'<input type="date" id="lead-dia-picker" value="'+es(diaF)+'" onchange="S.leadDiaFiltro=this.value;rT()" style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px">'
+      +diaLabel
+    +'</div>'
     +'</div><div class="lead-board" id="lead-board-cols">'+buildLeadCols()+'</div>';
 }
 function leadsSearchInput(el){
@@ -2975,9 +2985,15 @@ function leadsSearchInput(el){
 function buildLeadCols(){
   var q=(S.leadsSearch||"").trim().toLowerCase();
   var intF=S.leadsInterestFilter||"";
+  var diaF=S.leadDiaFiltro||"";
   var leads=(D.leads||[]).filter(function(l){return(!q||(l.nome||"").toLowerCase().indexOf(q)>=0)&&(!intF||(l.interesse||"")===intF);});
   var cols=LEAD_STAGES.map(function(st){
-    var items=leads.filter(function(l){return l.etapa===st;}).sort(function(a,b){return(b.dataCriacao||"").localeCompare(a.dataCriacao||"");});
+    var items=leads.filter(function(l){
+      if(l.etapa!==st)return false;
+      // Filtro de dia só na coluna "lead"
+      if(st==="lead"&&diaF&&(l.dataCriacao||"").slice(0,10)!==diaF)return false;
+      return true;
+    }).sort(function(a,b){return(b.dataCriacao||"").localeCompare(a.dataCriacao||"");});
     var cards=items.map(function(l){
       var due=l.proximoContato&&l.proximoContato<=hj()&&st!=="convertido"&&st!=="perdido";
       var agInfo="",acoes="";
@@ -3000,7 +3016,8 @@ function buildLeadCols(){
         +'</span></div>'
         +agInfo+acoes+'</div>';
     }).join("");
-    return'<div class="lead-col"><div class="lead-col-hd"><span style="color:'+LEAD_STAGE_COLOR[st]+'">'+LEAD_STAGE_LABELS[st]+'</span><span style="color:#52525b">'+items.length+'</span></div>'
+    var colHdExtra=(st==="lead"&&diaF)?'<span style="font-size:9px;background:#f43f5e22;border:1px solid #f43f5e44;color:#f43f5e;border-radius:10px;padding:1px 6px;margin-left:4px">\uD83D\uDCC5 '+fdt(diaF)+'</span>':'';
+    return'<div class="lead-col"><div class="lead-col-hd"><span style="color:'+LEAD_STAGE_COLOR[st]+'">'+LEAD_STAGE_LABELS[st]+'</span>'+colHdExtra+'<span style="color:#52525b">'+items.length+'</span></div>'
       +'<div class="lead-col-bd" data-lead-dropzone="'+st+'">'+(cards||'<div style="font-size:10px;color:#3f3f46;text-align:center;padding:10px 0">vazio</div>')+'</div></div>';
   }).join("");
   return cols;
