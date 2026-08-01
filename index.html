@@ -4780,10 +4780,296 @@ function rArProf(){
   else if(AR_SUB==="prateleira")body=rArPrateleira();
   else if(AR_SUB==="extravios")body=rArExtravios();
   else if(AR_SUB==="relatorio-estoque")body=rArRelatorio();
-  return'<div class="pg"><div class="ph"><h2>\uD83C\uDFF7\uFE0F A R Professional</h2></div>'
+  return'<div class="pg"><div class="ph"><h2>\uD83C\uDFF7\uFE0F A R Professional</h2>'
+    +'<div class="ph-btns">'
+    +'<button class="gb" style="font-size:11px" onclick="openCalculadoraAR()">🧮 Calculadora de Margem</button>'
+    +'<button class="gb" style="font-size:11px" onclick="openNotaEnvioAR()">📦 Nota de Envio</button>'
+    +'</div></div>'
     +'<div class="mtabs">'+tabBtns+'</div>'+body+'</div>';
 }
 
+// ── Estado da calculadora e nota de envio ───
+function calcSaveUnitState(){S.calcProdId=((document.getElementById("calc-prod")||{}).value)||S.calcProdId||"";}
+function notaSaveState(){
+  S.notaCliente=((document.getElementById("nenv-cliente")||{}).value||S.notaCliente||"").trim();
+  S.notaEnd=((document.getElementById("nenv-end")||{}).value||S.notaEnd||"").trim();
+  S.notaData=((document.getElementById("nenv-data")||{}).value||S.notaData||hj());
+  S.notaValor=((document.getElementById("nenv-valor")||{}).value||S.notaValor||"");
+  S.notaPgto=((document.getElementById("nenv-pgto")||{}).value||S.notaPgto||"PIX");
+  S.notaObs=((document.getElementById("nenv-obs")||{}).value||S.notaObs||"").trim();
+  // Salvar linhas de produto
+  var rows=document.querySelectorAll(".nenv-prod-row");
+  if(rows.length){S.notaProds=Array.from(rows).map(function(r){return{nome:(r.querySelector(".np-sel")||{}).value||"",qtd:(r.querySelector(".np-qtd")||{}).value||"1"};});}
+  // Salvar linhas de caixa
+  var crows=document.querySelectorAll(".nenv-cx-row");
+  if(crows.length){S.notaCaixas=Array.from(crows).map(function(r){return{comp:(r.querySelector(".cx-comp")||{}).value||"",larg:(r.querySelector(".cx-larg")||{}).value||"",alt:(r.querySelector(".cx-alt")||{}).value||"",peso:(r.querySelector(".cx-peso")||{}).value||""};});}
+}
+
+// ── CALCULADORA ────────────────────────────
+function openCalculadoraAR(prodId){
+  if(!S.calcMode)S.calcMode="unitario";
+  if(!S.calcItems)S.calcItems=[];
+  var prods=(D.arProdutos||[]).slice().sort(function(a,b){return(a.nome||"").localeCompare(b.nome||"");});
+  if(!prods.length)return showToast("⚠️ Nenhum produto cadastrado.");
+  var modo=S.calcMode;
+
+  var tabBar='<div style="display:flex;gap:0;border:1px solid #27272a;border-radius:8px;overflow:hidden;margin-bottom:16px">'
+    +'<button onclick="S.calcMode=\'unitario\';openCalculadoraAR()" style="flex:1;border:none;padding:8px;font-size:12px;font-weight:600;cursor:pointer;background:'+(modo==="unitario"?"#f43f5e":"#18181b")+';color:'+(modo==="unitario"?"#fff":"#71717a")+'">🔢 Unitário</button>'
+    +'<button onclick="S.calcMode=\'pedido\';openCalculadoraAR()" style="flex:1;border:none;padding:8px;font-size:12px;font-weight:600;cursor:pointer;background:'+(modo==="pedido"?"#f43f5e":"#18181b")+';color:'+(modo==="pedido"?"#fff":"#71717a")+'">📋 Pedido Completo</button>'
+  +'</div>';
+
+  if(modo==="unitario"){
+    var pid=prodId||S.calcProdId||(prods[0]&&prods[0].id)||"";
+    S.calcProdId=pid;
+    var p=prods.find(function(x){return x.id===pid;})||prods[0]||{};
+    var opts=prods.map(function(x){return'<option value="'+es(x.id)+'"'+(x.id===pid?" selected":"")+'>'+es(x.nome)+(x.conteudoEmbalagem?" | "+x.conteudoEmbalagem+" "+(x.unidadeConteudo||"mL"):"")+'</option>';}).join("");
+    var custo=p.custoPago||0;
+    function row(label,preco,cor){
+      var lucro=preco-custo,margem=preco>0?Math.round(lucro/preco*100):0,mk=custo>0?Math.round(lucro/custo*100):0;
+      var c2=lucro>=0?"#34d399":"#f87171";
+      return'<tr><td style="font-weight:600;color:'+cor+'">'+label+'</td><td style="color:#f1f5f9;font-weight:700">'+fmt(preco)+'</td><td style="color:'+c2+';font-weight:700">'+(lucro>=0?"+":"")+fmt(lucro)+'</td><td><span style="background:'+c2+'20;border:1px solid '+c2+'44;color:'+c2+';border-radius:12px;padding:2px 8px;font-size:11px;font-weight:700">'+margem+'%</span></td><td style="color:#71717a;font-size:11px">'+mk+'% markup</td></tr>';
+    }
+    omod(mhdr("🧮 Calculadora de Margem — A R Professional")
+      +tabBar
+      +'<div style="margin-bottom:14px"><label style="font-size:11px;color:#a1a1aa;display:block;margin-bottom:4px">Produto</label>'
+      +'<select id="calc-prod" onchange="openCalculadoraAR(this.value)" style="width:100%">'+opts+'</select></div>'
+      +'<div style="background:#18181b;border:1px solid #27272a;border-radius:8px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;gap:12px">'
+        +'<span style="font-size:13px">💰</span>'
+        +'<div><div style="font-size:10px;color:#71717a">Custo pago por unidade</div><div style="font-size:20px;font-weight:800;color:#fbbf24">'+fmt(custo)+'</div></div>'
+        +(p.conteudoEmbalagem?'<div style="margin-left:auto;font-size:11px;color:#52525b">'+p.conteudoEmbalagem+' '+(p.unidadeConteudo||"mL")+'</div>':'')
+      +'</div>'
+      +'<div class="ox"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="border-bottom:1px solid #27272a"><th style="padding:7px 10px;text-align:left;color:#71717a;font-weight:500">Canal</th><th style="padding:7px 10px;text-align:left;color:#71717a;font-weight:500">Preço venda</th><th style="padding:7px 10px;text-align:left;color:#71717a;font-weight:500">Lucro/un.</th><th style="padding:7px 10px;text-align:left;color:#71717a;font-weight:500">Margem</th><th style="padding:7px 10px;text-align:left;color:#71717a;font-weight:500">Markup</th></tr></thead><tbody>'
+      +row("Distribuidor / Studio A R",p.precoDistribuidor||0,"#38bdf8")
+      +row("Salão Parceiro",p.precoSalaoParceiro||0,"#fbbf24")
+      +row("Cabeleireiro Externo",p.precoCabeleireiro||0,"#f43f5e")
+      +'</tbody></table></div>'
+      +'<div style="margin-top:14px;background:#18181b;border:1px solid #27272a;border-radius:8px;padding:12px">'
+        +'<div style="font-size:11px;color:#a1a1aa;margin-bottom:8px">🔢 Simular preço personalizado</div>'
+        +'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
+          +'<div style="flex:1;min-width:120px"><label style="font-size:10px;color:#71717a">Preço de venda (R$)</label>'
+          +'<input type="number" id="calc-custom" placeholder="0,00" min="0" step="0.01" style="margin-top:3px" oninput="calcCustomMargem('+custo+')">'
+          +'</div>'
+          +'<div id="calc-custom-result" style="flex:2;min-width:180px;font-size:12px;color:#71717a">← Digite um valor para simular</div>'
+        +'</div>'
+      +'</div>');
+    return;
+  }
+
+  // ── MODO PEDIDO ────────────────────────────
+  var items=S.calcItems;
+  var opts2=prods.map(function(x){return'<option value="'+es(x.id)+'">'+es(x.nome)+(x.conteudoEmbalagem?" | "+x.conteudoEmbalagem+" "+(x.unidadeConteudo||"mL"):"")+'</option>';}).join("");
+  var canais=["Distribuidor","Salão Parceiro","Cabeleireiro","Personalizado"];
+  var tBody=items.length?items.map(function(it,i){
+    var p2=prods.find(function(x){return x.id===it.prodId;})||{};
+    var custo2=p2.custoPago||0;
+    var preco2=it.canal==="Distribuidor"?(p2.precoDistribuidor||0):it.canal==="Salão Parceiro"?(p2.precoSalaoParceiro||0):it.canal==="Cabeleireiro"?(p2.precoCabeleireiro||0):(it.precoCustom||0);
+    var qtd2=it.qtd||1;
+    var totalCusto=custo2*qtd2,totalVenda=preco2*qtd2,lucroTotal=totalVenda-totalCusto;
+    var margem=totalVenda>0?Math.round(lucroTotal/totalVenda*100):0;
+    var c2=lucroTotal>=0?"#34d399":"#f87171";
+    var canalOpts=canais.map(function(c3){return'<option'+(it.canal===c3?" selected":"")+'>'+c3+'</option>';}).join("");
+    return'<tr>'
+      +'<td style="padding:4px 6px"><select class="ci-sel" data-i="'+i+'" data-field="prodId" style="font-size:11px;padding:3px 4px;min-width:140px"><option value="">—</option>'+prods.map(function(x){return'<option value="'+es(x.id)+'"'+(x.id===it.prodId?" selected":"")+'>'+es(x.nome)+(x.conteudoEmbalagem?" | "+x.conteudoEmbalagem+" "+(x.unidadeConteudo||"mL"):"")+'</option>';}).join("")+'</select></td>'
+      +'<td style="padding:4px 6px"><input type="number" class="ci-qtd" data-i="'+i+'" value="'+qtd2+'" min="1" style="width:50px;font-size:11px;padding:3px 4px"></td>'
+      +'<td style="padding:4px 6px"><select class="ci-canal" data-i="'+i+'" style="font-size:11px;padding:3px 4px">'+canalOpts+'</select></td>'
+      +(it.canal==="Personalizado"?'<td style="padding:4px 6px"><input type="number" class="ci-custom" data-i="'+i+'" value="'+(it.precoCustom||0)+'" step="0.01" style="width:70px;font-size:11px;padding:3px 4px"></td>':'<td style="padding:4px 6px;color:#a1a1aa;font-size:11px">'+fmt(preco2)+'</td>')
+      +'<td style="padding:4px 6px;font-size:11px;color:#71717a">'+fmt(totalCusto)+'</td>'
+      +'<td style="padding:4px 6px;font-size:11px;font-weight:600;color:#f1f5f9">'+fmt(totalVenda)+'</td>'
+      +'<td style="padding:4px 6px;font-size:11px;color:'+c2+'">'+(lucroTotal>=0?"+":"")+fmt(lucroTotal)+'</td>'
+      +'<td style="padding:4px 6px"><span style="background:'+c2+'20;border:1px solid '+c2+'44;color:'+c2+';border-radius:10px;padding:1px 6px;font-size:10px">'+margem+'%</span></td>'
+      +'<td style="padding:4px 6px"><button onclick="calcRemItem('+i+')" style="background:none;border:none;color:#f43f5e;cursor:pointer;font-size:14px">✕</button></td>'
+    +'</tr>';
+  }).join(""):'<tr><td colspan="9" style="text-align:center;color:#52525b;padding:14px;font-size:11px">Adicione produtos ao pedido abaixo</td></tr>';
+
+  // Totais do pedido
+  var totCusto=0,totVenda=0;
+  items.forEach(function(it){
+    var p3=prods.find(function(x){return x.id===it.prodId;})||{};
+    var qtd3=it.qtd||1,custo3=p3.custoPago||0;
+    var preco3=it.canal==="Distribuidor"?(p3.precoDistribuidor||0):it.canal==="Salão Parceiro"?(p3.precoSalaoParceiro||0):it.canal==="Cabeleireiro"?(p3.precoCabeleireiro||0):(it.precoCustom||0);
+    totCusto+=custo3*qtd3;totVenda+=preco3*qtd3;
+  });
+  var totLucro=totVenda-totCusto,totMargem=totVenda>0?Math.round(totLucro/totVenda*100):0;
+  var corTotal=totLucro>=0?"#34d399":"#f87171";
+  var sumario=items.length?'<div style="background:#18181b;border:1px solid #27272a;border-radius:8px;padding:12px 16px;margin-top:10px;display:flex;gap:16px;flex-wrap:wrap">'
+    +'<div><div style="font-size:10px;color:#71717a">Custo total</div><div style="font-size:15px;font-weight:700;color:#fbbf24">'+fmt(totCusto)+'</div></div>'
+    +'<div><div style="font-size:10px;color:#71717a">Faturamento total</div><div style="font-size:15px;font-weight:700;color:#f1f5f9">'+fmt(totVenda)+'</div></div>'
+    +'<div><div style="font-size:10px;color:#71717a">Lucro total</div><div style="font-size:15px;font-weight:700;color:'+corTotal+'">'+(totLucro>=0?"+":"")+fmt(totLucro)+'</div></div>'
+    +'<div><div style="font-size:10px;color:#71717a">Margem geral</div><div style="font-size:15px;font-weight:700;color:'+corTotal+'">'+totMargem+'%</div></div>'
+    +'<button onclick="S.calcItems=[];openCalculadoraAR()" style="margin-left:auto;background:#27272a;border:1px solid #3f3f46;color:#f87171;border-radius:6px;padding:4px 12px;font-size:11px;cursor:pointer">🗑 Limpar</button>'
+  +'</div>':"";
+
+  omod(mhdr("🧮 Calculadora de Margem — A R Professional")
+    +tabBar
+    +'<div class="ox" style="max-height:260px"><table style="width:100%;border-collapse:collapse;font-size:12px">'
+    +'<thead><tr style="border-bottom:1px solid #27272a;background:#18181b">'
+      +'<th style="padding:6px 8px;text-align:left;font-weight:500;color:#71717a">Produto</th>'
+      +'<th style="padding:6px 8px;text-align:left;font-weight:500;color:#71717a">Qtd</th>'
+      +'<th style="padding:6px 8px;text-align:left;font-weight:500;color:#71717a">Canal</th>'
+      +'<th style="padding:6px 8px;text-align:left;font-weight:500;color:#71717a">P.Venda</th>'
+      +'<th style="padding:6px 8px;text-align:left;font-weight:500;color:#71717a">Custo total</th>'
+      +'<th style="padding:6px 8px;text-align:left;font-weight:500;color:#71717a">Fat.total</th>'
+      +'<th style="padding:6px 8px;text-align:left;font-weight:500;color:#71717a">Lucro</th>'
+      +'<th style="padding:6px 8px;text-align:left;font-weight:500;color:#71717a">Margem</th>'
+      +'<th></th>'
+    +'</tr></thead><tbody id="calc-pedido-body">'+tBody+'</tbody></table></div>'
+    +sumario
+    +'<div style="background:#18181b;border:1px solid #3f3f46;border-radius:8px;padding:10px 12px;margin-top:12px">'
+      +'<div style="font-size:11px;color:#a1a1aa;margin-bottom:8px;font-weight:600">+ Adicionar produto ao pedido</div>'
+      +'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">'
+        +'<div style="flex:2;min-width:140px"><label style="font-size:10px;color:#71717a">Produto</label><select id="ci-add-prod" style="margin-top:3px"><option value="">Selecione...</option>'+opts2+'</select></div>'
+        +'<div style="width:60px"><label style="font-size:10px;color:#71717a">Qtd</label><input type="number" id="ci-add-qtd" value="1" min="1" style="margin-top:3px"></div>'
+        +'<div style="width:130px"><label style="font-size:10px;color:#71717a">Canal</label><select id="ci-add-canal" style="margin-top:3px">'+canais.map(function(c){return'<option>'+c+'</option>';}).join("")+'</select></div>'
+        +'<button onclick="calcAddItem()" style="background:#f43f5e;border:none;color:#fff;border-radius:7px;padding:7px 16px;font-size:12px;font-weight:700;cursor:pointer">＋ Adicionar</button>'
+      +'</div>'
+    +'</div>');
+}
+function calcCustomMargem(custo){
+  var inp=document.getElementById("calc-custom"),res=document.getElementById("calc-custom-result");
+  if(!inp||!res)return;
+  var v=parseFloat(inp.value)||0;
+  if(!v){res.innerHTML='<span style="color:#71717a">← Digite um valor para simular</span>';return;}
+  var lucro=v-custo,margem=v>0?Math.round(lucro/v*100):0,mk=custo>0?Math.round(lucro/custo*100):0;
+  var cor=lucro>=0?"#34d399":"#f87171";
+  res.innerHTML='<div style="display:flex;gap:12px;flex-wrap:wrap">'
+    +'<div><div style="font-size:10px;color:#71717a">Lucro/un.</div><div style="font-size:16px;font-weight:700;color:'+cor+'">'+(lucro>=0?"+":"")+fmt(lucro)+'</div></div>'
+    +'<div><div style="font-size:10px;color:#71717a">Margem</div><div style="font-size:16px;font-weight:700;color:'+cor+'">'+margem+'%</div></div>'
+    +'<div><div style="font-size:10px;color:#71717a">Markup</div><div style="font-size:16px;font-weight:700;color:'+cor+'">'+mk+'%</div></div>'
+  +'</div>';
+}
+function calcAddItem(){
+  var prodId=(document.getElementById("ci-add-prod")||{}).value||"";
+  var qtd=parseInt((document.getElementById("ci-add-qtd")||{}).value)||1;
+  var canal=(document.getElementById("ci-add-canal")||{}).value||"Distribuidor";
+  if(!prodId)return showToast("⚠️ Selecione o produto.");
+  if(!S.calcItems)S.calcItems=[];
+  S.calcItems.push({prodId:prodId,qtd:qtd,canal:canal,precoCustom:0});
+  openCalculadoraAR();
+}
+function calcRemItem(i){
+  if(S.calcItems)S.calcItems.splice(i,1);
+  openCalculadoraAR();
+}
+
+// ── NOTA DE ENVIO ───────────────────────────
+function openNotaEnvioAR(){
+  if(!S.notaProds||!S.notaProds.length)S.notaProds=[{nome:"",qtd:"1"}];
+  if(!S.notaCaixas||!S.notaCaixas.length)S.notaCaixas=[{comp:"",larg:"",alt:"",peso:""}];
+  var prods=(D.arProdutos||[]).slice().sort(function(a,b){return(a.nome||"").localeCompare(b.nome||"");});
+  var prodNomes=['<option value="">Selecione o produto...</option>'].concat(prods.map(function(p){
+    var label=p.nome+(p.conteudoEmbalagem?" | "+p.conteudoEmbalagem+" "+(p.unidadeConteudo||"mL"):"");
+    return'<option value="'+es(label)+'">'+es(label)+'</option>';
+  })).join("");
+
+  var prodRows=S.notaProds.map(function(pr,i){
+    var opts=prods.map(function(p){
+      var label=p.nome+(p.conteudoEmbalagem?" | "+p.conteudoEmbalagem+" "+(p.unidadeConteudo||"mL"):"");
+      return'<option value="'+es(label)+'"'+(pr.nome===label?" selected":"")+'>'+es(label)+'</option>';
+    }).join("");
+    return'<div class="nenv-prod-row" style="display:flex;gap:8px;align-items:center;margin-bottom:6px">'
+      +'<select class="np-sel" style="flex:3;min-width:0"><option value="">Selecione o produto...</option>'+opts+'</select>'
+      +'<div style="display:flex;align-items:center;gap:4px"><label style="font-size:10px;color:#71717a;white-space:nowrap">Qtd</label><input type="number" class="np-qtd" value="'+es(pr.qtd||"1")+'" min="1" style="width:55px"></div>'
+      +(S.notaProds.length>1?'<button onclick="notaSaveState();S.notaProds.splice('+i+',1);openNotaEnvioAR()" style="background:none;border:none;color:#f43f5e;cursor:pointer;font-size:16px;flex-shrink:0">✕</button>':'<div style="width:20px"></div>')
+    +'</div>';
+  }).join("");
+
+  var caixaRows=S.notaCaixas.map(function(cx,i){
+    return'<div class="nenv-cx-row" style="display:flex;gap:6px;align-items:center;margin-bottom:6px;flex-wrap:wrap">'
+      +'<div style="display:flex;align-items:center;gap:3px;flex:1;min-width:80px"><label style="font-size:10px;color:#71717a;white-space:nowrap">C(cm)</label><input type="number" class="cx-comp" value="'+es(cx.comp)+'" placeholder="0" step="0.1" style="min-width:0"></div>'
+      +'<div style="display:flex;align-items:center;gap:3px;flex:1;min-width:80px"><label style="font-size:10px;color:#71717a;white-space:nowrap">L(cm)</label><input type="number" class="cx-larg" value="'+es(cx.larg)+'" placeholder="0" step="0.1" style="min-width:0"></div>'
+      +'<div style="display:flex;align-items:center;gap:3px;flex:1;min-width:80px"><label style="font-size:10px;color:#71717a;white-space:nowrap">A(cm)</label><input type="number" class="cx-alt" value="'+es(cx.alt)+'" placeholder="0" step="0.1" style="min-width:0"></div>'
+      +'<div style="display:flex;align-items:center;gap:3px;flex:1;min-width:80px"><label style="font-size:10px;color:#71717a;white-space:nowrap">Peso(kg)</label><input type="number" class="cx-peso" value="'+es(cx.peso)+'" placeholder="0" step="0.1" style="min-width:0"></div>'
+      +(S.notaCaixas.length>1?'<button onclick="notaSaveState();S.notaCaixas.splice('+i+',1);openNotaEnvioAR()" style="background:none;border:none;color:#f43f5e;cursor:pointer;font-size:16px">✕</button>':'<div style="width:20px"></div>')
+    +'</div>';
+  }).join("");
+
+  omod(mhdr("📦 Nota de Envio — A R Professional")
+    +'<div class="fi" style="margin-bottom:8px"><label>Cliente / Destinatário</label><input type="text" id="nenv-cliente" placeholder="Nome do cliente" value="'+es(S.notaCliente||"")+'"></div>'
+    +'<div class="fi" style="margin-bottom:8px"><label>Endereço de entrega</label><input type="text" id="nenv-end" placeholder="Rua, número, bairro, cidade, UF, CEP" value="'+es(S.notaEnd||"")+'"></div>'
+    +'<div style="background:#18181b;border:1px solid #27272a;border-radius:8px;padding:10px 14px;margin-bottom:10px">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
+        +'<div style="font-size:11px;font-weight:600;color:#a1a1aa">🛍️ Produtos</div>'
+        +'<button onclick="notaSaveState();S.notaProds.push({nome:\'\',qtd:\'1\'});openNotaEnvioAR()" style="background:#27272a;border:1px solid #3f3f46;color:#a1a1aa;border-radius:5px;padding:3px 10px;font-size:11px;cursor:pointer">＋ Produto</button>'
+      +'</div>'
+      +prodRows
+    +'</div>'
+    +'<div style="background:#18181b;border:1px solid #27272a;border-radius:8px;padding:10px 14px;margin-bottom:10px">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
+        +'<div style="font-size:11px;font-weight:600;color:#a1a1aa">📐 Caixas</div>'
+        +'<button onclick="notaSaveState();S.notaCaixas.push({comp:\'\',larg:\'\',alt:\'\',peso:\'\'});openNotaEnvioAR()" style="background:#27272a;border:1px solid #3f3f46;color:#a1a1aa;border-radius:5px;padding:3px 10px;font-size:11px;cursor:pointer">＋ Caixa</button>'
+      +'</div>'
+      +caixaRows
+    +'</div>'
+    +'<div class="g2" style="margin-bottom:10px">'
+      +'<div class="fi"><label>Data da compra</label><input type="date" id="nenv-data" value="'+(S.notaData||hj())+'"></div>'
+      +'<div class="fi"><label>Forma de pagamento</label><select id="nenv-pgto"><option'+(S.notaPgto==="PIX"?" selected":"")+'>PIX</option><option'+(S.notaPgto==="Transferência"?" selected":"")+'>Transferência</option><option'+(S.notaPgto==="Cartão"?" selected":"")+'>Cartão</option><option'+(S.notaPgto==="Boleto"?" selected":"")+'>Boleto</option><option'+(S.notaPgto==="Dinheiro"?" selected":"")+'>Dinheiro</option></select></div>'
+      +'<div class="fi"><label>Valor cobrado do cliente (R$)</label><input type="number" id="nenv-valor" placeholder="0,00" step="0.01" value="'+(S.notaValor||"")+'"></div>'
+      +'<div class="fi"><label>Observações</label><input type="text" id="nenv-obs" placeholder="Observações opcionais..." value="'+es(S.notaObs||"")+'"></div>'
+    +'</div>'
+    +'<button class="pb" onclick="notaSaveState();gerarNotaEnvioAR()">📄 Gerar PDF</button>');
+}
+function gerarNotaEnvioAR(){
+  var cliente=S.notaCliente||"",end=S.notaEnd||"";
+  var prods=S.notaProds||[],caixas=S.notaCaixas||[];
+  var data=S.notaData||hj(),valor=parseFloat(S.notaValor)||0;
+  var pgto=S.notaPgto||"PIX",obs=S.notaObs||"";
+  if(!cliente)return alert("Informe o nome do cliente.");
+  if(!end)return alert("Informe o endereço.");
+  if(!prods.some(function(p){return p.nome;}))return alert("Adicione pelo menos um produto.");
+  var numDoc="NE-"+(Date.now()+"").slice(-6);
+  var prodRows=prods.filter(function(p){return p.nome;}).map(function(p,i){
+    return'<tr><td style="padding:5px 8px">'+(i+1)+'</td><td style="padding:5px 8px"><strong>'+es(p.nome)+'</strong></td><td style="padding:5px 8px;text-align:center">'+es(p.qtd||"1")+' un.</td></tr>';
+  }).join("");
+  var caixaRows=caixas.map(function(cx,i){
+    var vol=(cx.comp&&cx.larg&&cx.alt)?(parseFloat(cx.comp)*parseFloat(cx.larg)*parseFloat(cx.alt)/1000).toFixed(2)+" L":"—";
+    return'<tr><td style="padding:5px 8px;text-align:center">'+(i+1)+'</td>'
+      +'<td style="padding:5px 8px;text-align:center">'+(cx.comp?cx.comp+" cm":"—")+'</td>'
+      +'<td style="padding:5px 8px;text-align:center">'+(cx.larg?cx.larg+" cm":"—")+'</td>'
+      +'<td style="padding:5px 8px;text-align:center">'+(cx.alt?cx.alt+" cm":"—")+'</td>'
+      +'<td style="padding:5px 8px;text-align:center">'+(cx.peso?cx.peso+" kg":"—")+'</td>'
+      +'<td style="padding:5px 8px;text-align:center">'+vol+'</td>'
+    +'</tr>';
+  }).join("");
+  var html='<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>Nota de Envio '+es(numDoc)+'</title><style>'
+    +'*{box-sizing:border-box}body{font-family:Arial,sans-serif;font-size:12px;color:#111;margin:0;padding:28px;max-width:720px}'
+    +'.hdr{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #e94560;padding-bottom:12px;margin-bottom:18px}'
+    +'.marca{font-size:20px;font-weight:800;color:#e94560}.doc-num{text-align:right;font-size:11px;color:#555}.doc-num strong{font-size:15px;color:#111}'
+    +'.bloco{border:1px solid #e0e0e0;border-radius:8px;padding:12px 16px;margin-bottom:12px}'
+    +'.bloco h3{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#888;margin:0 0 8px}'
+    +'table{width:100%;border-collapse:collapse}th{background:#f4f4f4;padding:6px 8px;text-align:left;font-size:10px;text-transform:uppercase;color:#666;font-weight:700}'
+    +'td{padding:5px 8px;border-bottom:1px solid #eee}'
+    +'.total-box{background:#e9455008;border:2px solid #e94560;border-radius:8px;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}'
+    +'.total-val{font-size:24px;font-weight:800;color:#e94560}.pgto-badge{background:#e9455022;border:1px solid #e94560;color:#e94560;border-radius:20px;padding:2px 10px;font-size:10px;font-weight:700}'
+    +'.assin{display:flex;gap:30px;margin-top:30px}.ass-box{flex:1;text-align:center}'
+    +'.ass-linha{border-top:1px solid #888;padding-top:6px;font-size:9px;color:#888;margin-top:40px}'
+    +'.rodape{margin-top:20px;font-size:9px;color:#aaa;text-align:center;border-top:1px solid #eee;padding-top:10px}'
+    +'@media print{button{display:none}}</style></head><body>'
+    +'<div class="hdr"><div><div class="marca">A R Professional</div><div style="font-size:10px;color:#888;margin-top:2px">Jacareí / SP · Studio A R</div></div>'
+    +'<div class="doc-num"><div>Nota de Envio</div><strong>'+numDoc+'</strong><div>'+fdt(data)+'</div></div></div>'
+    +'<div class="bloco"><h3>📦 Destinatário</h3>'
+      +'<div style="margin-bottom:6px"><span style="font-size:9px;color:#888;text-transform:uppercase;font-weight:600">Nome</span><br><strong>'+es(cliente)+'</strong></div>'
+      +'<div><span style="font-size:9px;color:#888;text-transform:uppercase;font-weight:600">Endereço</span><br>'+es(end)+'</div>'
+    +'</div>'
+    +'<div class="bloco"><h3>🛍️ Produtos</h3>'
+      +'<table><thead><tr><th>#</th><th>Produto</th><th>Qtd.</th></tr></thead><tbody>'+prodRows+'</tbody></table>'
+    +'</div>'
+    +'<div class="bloco"><h3>📐 Caixas</h3>'
+      +'<table><thead><tr><th style="text-align:center">#</th><th style="text-align:center">Comprimento</th><th style="text-align:center">Largura</th><th style="text-align:center">Altura</th><th style="text-align:center">Peso</th><th style="text-align:center">Volume</th></tr></thead><tbody>'+caixaRows+'</tbody></table>'
+    +'</div>'
+    +'<div class="total-box"><div><div style="font-size:11px;color:#555">Valor total cobrado</div><div class="total-val">R$ '+valor.toFixed(2).replace(".",",")+'</div></div><div class="pgto-badge">'+es(pgto)+'</div></div>'
+    +(obs?'<div class="bloco"><h3>📝 Observações</h3><p>'+es(obs)+'</p></div>':'')
+    +'<div class="assin">'
+      +'<div class="ass-box"><div class="ass-linha">Assinatura do Destinatário</div><div style="font-size:10px;color:#888;margin-top:4px">'+es(cliente)+'</div></div>'
+      +'<div class="ass-box"><div class="ass-linha">A R Professional — Responsável pelo envio</div></div>'
+    +'</div>'
+    +'<div class="rodape">A R Professional · Jacareí/SP · '+fdt(hj())+'</div>'
+    +'<div style="margin-top:14px;text-align:center"><button onclick="window.print()" style="background:#e94560;color:#fff;border:none;border-radius:7px;padding:9px 24px;font-size:13px;cursor:pointer;font-weight:700">🖨️ Imprimir / Salvar PDF</button></div>'
+    +'</body></html>';
+  var w=window.open("","_blank");
+  if(!w)return showToast("⚠️ Libere pop-ups para gerar a nota.","#f43f5e");
+  w.document.write(html);w.document.close();
+  setTimeout(function(){try{w.print();}catch(e){}},500);
+}
 /* ESTOQUE A R PROF */
 function arEstFilter(){
   var q=(document.getElementById("arp-search")||{value:""}).value.trim().toLowerCase();
