@@ -335,9 +335,9 @@ function openAdminAuthModal(onSuccess){
 
 var CURRENT_USER = null; // {uid, email, role, nome}
 var ROLE_TABS = {
-  admin: ["dashboard","agenda","followup","leads","services","products","expenses","advances","prolabore","dre","clients","db","requests","audit","estoque","arprof","metaads","conversas","fornecedores","caixa","mensagens"],
+  admin: ["dashboard","agenda","followup","leads","services","products","expenses","advances","prolabore","dre","analise","clients","db","requests","audit","estoque","arprof","metaads","conversas","fornecedores","caixa","mensagens"],
   recepcao: ["agenda","followup","services","products","clients","requests","estoque","conversas","mensagens"],
-  financeiro: ["dashboard","expenses","advances","prolabore","dre","arprof","caixa","mensagens"],
+  financeiro: ["dashboard","expenses","advances","prolabore","dre","analise","arprof","caixa","mensagens"],
   marketing: ["clients","mensagens"],
   profissional: ["agenda","prolabore","mensagens"],
   comercial: ["agenda","leads","conversas","mensagens"]
@@ -799,7 +799,7 @@ function tbl(rows,cols,type){
 function kp(l,v,s){return'<div class="kp"><div class="kl">'+l+'</div><div class="kv">'+v+'</div>'+(s?'<div class="ks">'+s+'</div>':'')+'</div>';}
 
 /* SIDEBAR */
-var NAV=[["dashboard","\uD83D\uDCCA","Dashboard"],["agenda","\uD83D\uDCC5","Agenda"],["followup","\uD83D\uDCF2","Follow-up"],["services","\u2702\uFE0F","Servi\u00e7os"],["products","\uD83E\uDDF4","Produtos"],["expenses","\uD83D\uDCB8","Despesas"],["advances","\uD83D\uDCB5","Adiantamentos"],["prolabore","\uD83D\uDC65","Pr\u00f3-Labore"],["dre","\uD83D\uDCC8","DRE / DFC"],["clients","\uD83D\uDC69","Clientes"],["leads","\uD83C\uDFAF","Leads"],["db","\uD83D\uDDC4\uFE0F","Banco de Dados"],["requests","\uD83D\uDCE5","Solicita\u00e7\u00f5es Online"],["audit","\uD83D\uDD0D","Auditoria"],["estoque","\uD83E\uDDF4","Estoque"],["arprof","\uD83C\uDFF7\uFE0F","A R Professional"],["metaads","\uD83D\uDCE3","Meta Ads"],["conversas","\uD83D\uDCAC","Conversas WA"],["fornecedores","\uD83D\uDE9A","Fornecedores"],["caixa","\uD83C\uDFE6","Caixa Banc\u00e1rio"],["mensagens","\uD83D\uDCAC","Mensagens"]];
+var NAV=[["dashboard","\uD83D\uDCCA","Dashboard"],["agenda","\uD83D\uDCC5","Agenda"],["followup","\uD83D\uDCF2","Follow-up"],["services","\u2702\uFE0F","Servi\u00e7os"],["products","\uD83E\uDDF4","Produtos"],["expenses","\uD83D\uDCB8","Despesas"],["advances","\uD83D\uDCB5","Adiantamentos"],["prolabore","\uD83D\uDC65","Pr\u00f3-Labore"],["dre","\uD83D\uDCC8","DRE / DFC"],["clients","\uD83D\uDC69","Clientes"],["leads","\uD83C\uDFAF","Leads"],["db","\uD83D\uDDC4\uFE0F","Banco de Dados"],["requests","\uD83D\uDCE5","Solicita\u00e7\u00f5es Online"],["audit","\uD83D\uDD0D","Auditoria"],["estoque","\uD83E\uDDF4","Estoque"],["arprof","\uD83C\uDFF7\uFE0F","A R Professional"],["metaads","\uD83D\uDCE3","Meta Ads"],["conversas","\uD83D\uDCAC","Conversas WA"],["fornecedores","\uD83D\uDE9A","Fornecedores"],["caixa","\uD83C\uDFE6","Caixa Banc\u00e1rio"],["analise","\uD83D\uDCC9","An\u00e1lise Mensal"],["mensagens","\uD83D\uDCAC","Mensagens"]];
 var DIVULGADORES_CUSTOM=null;
 var DIVULGADORES_DEFAULT=["Lorran","Isabela","Diane","Anton"];
 function getDivulgadores(){return DIVULGADORES_CUSTOM||DIVULGADORES_DEFAULT;}
@@ -1273,43 +1273,29 @@ function saveRankingSettings(){
     .catch(function(err){showToast("\u274c Erro: "+err.message,"#f43f5e");});
 }
 function openPLSettings(){
-  var pl=getPL(),profs=getProfs(),desligados=getDesligados();
-  var ativos=profs.filter(function(p){return!desligados[p];});
-  var deslig=profs.filter(function(p){return!!desligados[p];});
-  var rows=ativos.map(function(p){
+  var pl=getPL(),profs=getProfs();
+  var mesLabel=["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"][S.month-1]+"/"+S.year;
+  var rows=profs.map(function(p){
     var sid=p.replace(/[^a-zA-Z0-9]/g,"_");
     var aux=isAuxiliarNoMes(p,S.month,S.year);
     var auxInfo=getAuxiliares()[p];
     var auxTag=aux
-      ?'<span style="color:#fbbf24;font-size:10px">Auxiliar (sem comissão)</span> <button class="gb" style="padding:3px 8px;font-size:10px" data-promover-cabeleireiro="'+es(p)+'">Promover a Cabeleireiro(a)</button>'
+      ?'<span style="color:#fbbf24;font-size:10px">Auxiliar (sem comiss\u00e3o)</span> <button class="gb" style="padding:3px 8px;font-size:10px" data-promover-cabeleireiro="'+es(p)+'">Promover a Cabeleireiro(a)</button>'
       :(auxInfo?'<span style="color:#34d399;font-size:10px">Cabeleireiro(a) desde '+(auxInfo.promovidoMes+1)+'/'+auxInfo.promovidoAno+'</span>'
         :'<button class="gb" style="padding:3px 8px;font-size:10px" data-marcar-auxiliar="'+es(p)+'">Marcar como Auxiliar</button>');
     return'<tr><td style="padding:6px 8px;color:#f1f5f9">'+es(p)+'</td>'
       +'<td style="padding:4px 8px"><input type="number" id="pl-'+sid+'" value="'+(pl[p]||0)+'" style="width:90px;padding:5px 8px;font-size:12px"></td>'
       +'<td style="padding:4px 8px">'+auxTag+'</td>'
-      +'<td style="padding:4px 8px;white-space:nowrap"><button class="db" data-del-prof="'+es(p)+'" title="Informar data de saída">✕ Desligar</button></td></tr>';
+      +'<td style="padding:4px 8px"><button class="db" data-del-prof="'+es(p)+'">✕</button></td></tr>';
   }).join("");
-  var rowsDeslig=deslig.length
-    ?'<tr><td colspan="4" style="padding:10px 8px 4px;font-size:10px;font-weight:700;color:#71717a;text-transform:uppercase;letter-spacing:.05em;border-top:1px solid #27272a">Desligados — aparecem nos meses anteriores</td></tr>'
-      +deslig.map(function(p){
-        var d=desligados[p];
-        return'<tr style="opacity:.55"><td style="padding:5px 8px;color:#a1a1aa">'+es(p)+'</td>'
-          +'<td style="padding:4px 8px;color:#52525b;font-size:11px">—</td>'
-          +'<td style="padding:4px 8px"><span style="background:#3f3f4640;border:1px solid #3f3f46;border-radius:12px;padding:2px 8px;font-size:10px;color:#71717a">Saiu em '+(d.month+1)+'/'+d.year+' · histórico preservado</span></td>'
-          +'<td style="padding:4px 8px;white-space:nowrap">'
-            +'<button class="gb" style="padding:3px 7px;font-size:10px;margin-right:3px" data-reativar-prof="'+es(p)+'" title="Reverter desligamento">↩ Reativar</button>'
-            +'<button class="db" style="padding:3px 7px;font-size:10px" data-remover-prof="'+es(p)+'" title="Remover da lista (histórico permanece)">🗑 Remover</button>'
-          +'</td></tr>';
-      }).join("")
-    :"";
-  omod(mhdr("Configurar Salários Base")
-    +'<div style="font-size:11px;color:#71717a;margin-bottom:10px">Auxiliares participam do atendimento (e reduzem a taxa de comissão) mas não recebem comissão. Para remover um funcionário, clique em <strong style="color:#f1f5f9">✕ Desligar</strong> — ele some da lista atual mas continua aparecendo nos meses em que trabalhou.</div>'
-    +'<div class="ox" style="max-height:280px;overflow-y:auto;margin-bottom:14px">'
-    +'<table><thead><tr><th>Colaborador</th><th>Salário Base (R$)</th><th>Comissão</th><th></th></tr></thead><tbody>'+rows+rowsDeslig+'</tbody></table></div>'
+  omod(mhdr("Configurar Sal\u00e1rios Base")
+    +'<div style="font-size:11px;color:#71717a;margin-bottom:10px">Auxiliares participam do atendimento (e reduzem a taxa de comiss\u00e3o dividida entre a equipe) mas n\u00e3o recebem comiss\u00e3o \u2014 esse valor fica como saldo do sal\u00e3o. Quando um auxiliar for promovido a cabeleireiro(a), ele passa a receber comiss\u00e3o a partir do m\u00eas informado.</div>'
+    +'<div class="ox" style="max-height:240px;overflow-y:auto;margin-bottom:14px">'
+    +'<table><thead><tr><th>Colaborador</th><th>Sal\u00e1rio Base (R$)</th><th>Comiss\u00e3o</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>'
     +'<div style="border-top:1px solid #27272a;padding-top:12px">'
     +'<div style="font-size:12px;color:#a1a1aa;margin-bottom:8px">Adicionar colaborador:</div>'
     +'<div class="g2"><div class="fi"><label>Nome</label><input type="text" id="pl-new-name" placeholder="NOME EM MAIÚSCULO"></div>'
-    +'<div class="fi"><label>Salário Base</label><input type="number" id="pl-new-sal" value="0"></div></div>'
+    +'<div class="fi"><label>Sal\u00e1rio Base</label><input type="number" id="pl-new-sal" value="0"></div></div>'
     +'<button class="gb" onclick="addProf()">+ Adicionar</button></div>'
     +'<button class="pb" style="margin-top:12px" onclick="savePL()">Salvar</button>');
 }
@@ -1359,29 +1345,8 @@ function delProf(name){
   db.collection("config").doc("profissionaisDesligados").set({values:PROFS_DESLIGADOS_CUSTOM});
   openPLSettings();
 }
-function reativarProf(name){
-  var desligados=getDesligados();
-  desligados=JSON.parse(JSON.stringify(desligados));
-  delete desligados[name];
-  PROFS_DESLIGADOS_CUSTOM=desligados;
-  db.collection("config").doc("profissionaisDesligados").set({values:PROFS_DESLIGADOS_CUSTOM});
-  showToast("✅ "+name+" reativado!");
-  openPLSettings();
-}
-function removerProf(name){
-  if(!confirm(name+" será removido da lista de colaboradores.\n\nO histórico de atendimentos e comissões permanece — ele continuará aparecendo nos meses em que trabalhou.\n\nConfirmar remoção?"))return;
-  var profs=getProfs().filter(function(p){return p!==name;});
-  var desligados=getDesligados();desligados=JSON.parse(JSON.stringify(desligados));delete desligados[name];
-  var pl=getPLRaw();pl=JSON.parse(JSON.stringify(pl));delete pl[name];
-  PROFS_CUSTOM=profs;PROFS_DESLIGADOS_CUSTOM=desligados;PL_CUSTOM=pl;
-  db.collection("config").doc("profissionais").set({list:PROFS_CUSTOM});
-  db.collection("config").doc("profissionaisDesligados").set({values:PROFS_DESLIGADOS_CUSTOM});
-  db.collection("config").doc("prolabore").set({values:PL_CUSTOM});
-  showToast("✅ "+name+" removido. Histórico preservado.");
-  openPLSettings();
-}
 function marcarAuxiliar(name){
-  if(!confirm(name+" passa a ser Auxiliar: participa dos atendimentos mas não recebe comissão (o valor fica como saldo do salão). Confirmar?"))return;
+  if(!confirm(name+" passa a ser Auxiliar: participa dos atendimentos mas n\u00e3o recebe comiss\u00e3o (o valor fica como saldo do sal\u00e3o). Confirmar?"))return;
   var aux=getAuxiliares();aux=JSON.parse(JSON.stringify(aux));
   aux[name]={promovidoMes:null,promovidoAno:null};
   PROFS_AUXILIARES_CUSTOM=aux;
@@ -2263,15 +2228,7 @@ function rPL(fs,fp,fa){
     var antesCorte=(S.year<d.year)||(S.year===d.year&&S.month<d.month);
     return antesCorte?(pl[p]||0):0;
   };
-  // Profissionais com movimento no mês — incluindo ex-funcionários removidos da lista
-  var _todosPMov={};
-  Object.keys(cByP).forEach(function(p){_todosPMov[p]=1;});
-  Object.keys(cpByP).forEach(function(p){_todosPMov[p]=1;});
-  Object.keys(aByP).forEach(function(p){_todosPMov[p]=1;});
-  profs.forEach(function(p){_todosPMov[p]=1;});
-  var allActiveP=Object.keys(_todosPMov).filter(function(p){
-    return baseAtivo(p)>0||(cByP[p]||0)>0||(cpByP[p]||0)>0;
-  }).sort(function(a,b){return profs.indexOf(b)>=0?1:profs.indexOf(a)>=0?-1:a.localeCompare(b);});
+  var allActiveP=profs.filter(function(p){return baseAtivo(p)>0||(cByP[p]||0)>0;});
 
   /* RANKING — apenas comiss\u00f5es (servi\u00e7os + produtos), sem pr\u00f3-labore; exclui equipe administrativa */
   var rkExcl=getRankingExcluded();
@@ -3698,6 +3655,156 @@ function rMetaAds(){
     +'</div></div>';
 }
 
+
+function rAnalise(){
+  var months=[];
+  for(var i=5;i>=0;i--){
+    var mo=S.month-i,yr=S.year;
+    while(mo<0){mo+=12;yr--;}
+    months.push({m:mo,y:yr});
+  }
+  var monthData=months.map(function(p){
+    var fs=fmy(D.svc,p.m,p.y);
+    var fp=fmy(D.prd,p.m,p.y);
+    var fe=fmy(D.exp,p.m,p.y);
+    var fa=fmy(D.adv,p.m,p.y);
+    var fatBruto=fs.reduce(function(s,r){return s+effVal(r);},0);
+    var fatLiq=fs.reduce(function(s,r){return s+fl(effVal(r),r.formaPagamento);},0);
+    var nSvcs=fs.length;
+    var cliArr=fs.map(function(r){return(r.cliente||"").trim().toUpperCase();}).filter(Boolean);
+    var cliSet=new Set(cliArr);
+    var nCli=cliSet.size;
+    var ticketMedio=nSvcs>0?fatBruto/nSvcs:0;
+    var totalDespesas=fe.reduce(function(s,r){return s+r.valorPago;},0);
+    var totalAdiant=fa.reduce(function(s,r){return s+r.valor;},0);
+    var totalComissoes=fs.reduce(function(s,r){return s+cmR(r);},0);
+    var fpSal=fp.filter(function(r){return!r.externa;});
+    var vendaProd=fpSal.reduce(function(s,r){return s+(r.valorUnitario*r.quantidade);},0);
+    var vendaProdLiq=fpSal.reduce(function(s,r){return s+fl(r.valorUnitario*r.quantidade,r.formaPagamento||"PIX");},0);
+    var pendente=fs.filter(function(r){return r.pagamento==="pendente";}).reduce(function(s,r){return s+effVal(r);},0);
+    var lucro=fatLiq+vendaProdLiq-totalDespesas-totalComissoes-totalAdiant;
+    var monthStart=p.y+"-"+((p.m+1)<10?"0"+(p.m+1):String(p.m+1))+"-01";
+    var cliAntes=new Set(D.svc.filter(function(r){return r.date&&r.date<monthStart&&r.cliente;}).map(function(r){return(r.cliente||"").trim().toUpperCase();}));
+    var nNovos=0,nRetorno=0;
+    cliSet.forEach(function(c){if(c){if(cliAntes.has(c))nRetorno++;else nNovos++;}});
+    var leadsCapt=(D.leads||[]).filter(function(r){var d=(r.dataCriacao||"").slice(0,10);if(!d||d.length<7)return false;var g=gmy(d);return g.m===p.m&&g.y===p.y;}).length;
+    var leadsConv=(D.leads||[]).reduce(function(s,r){
+      var conv=(r.historico||[]).some(function(h){
+        if(h.etapaNova!=="convertido")return false;
+        var d=(h.data||"").slice(0,10);
+        if(!d||d.length<7)return false;
+        var g=gmy(d);
+        return g.m===p.m&&g.y===p.y;
+      });
+      return s+(conv?1:0);
+    },0);
+    var txConv=leadsCapt>0?Math.round(leadsConv/leadsCapt*100):0;
+    var byPgto={};
+    fs.forEach(function(r){var f=r.formaPagamento||"N/A";byPgto[f]=(byPgto[f]||0)+effVal(r);});
+    return{m:p.m,y:p.y,label:MESES[p.m].slice(0,3)+"/"+String(p.y).slice(2),
+      fatBruto:fatBruto,fatLiq:fatLiq,nSvcs:nSvcs,nCli:nCli,ticketMedio:ticketMedio,
+      totalDespesas:totalDespesas,totalComissoes:totalComissoes,totalAdiant:totalAdiant,
+      vendaProd:vendaProd,pendente:pendente,lucro:lucro,
+      nNovos:nNovos,nRetorno:nRetorno,leadsCapt:leadsCapt,leadsConv:leadsConv,txConv:txConv,byPgto:byPgto};
+  });
+  var ref=monthData[monthData.length-1];
+  var prev=monthData.length>=2?monthData[monthData.length-2]:null;
+  function vari(cur,ant){if(!ant||ant===0)return null;return Math.round((cur-ant)/ant*100);}
+  function varBadge(pct){
+    if(pct===null)return"";
+    var c=pct>=0?"#34d399":"#f87171";
+    return'<span style="font-size:10px;color:'+c+';margin-left:5px">'+(pct>=0?"\u2191":"\u2193")+Math.abs(pct)+'%</span>';
+  }
+  function kpiCard(label,val,sub,varPct,cor){
+    return'<div style="background:#18181b;border:1px solid '+(cor||"#27272a")+';border-top:3px solid '+(cor||"#27272a")+';border-radius:9px;padding:13px 15px;flex:1;min-width:140px">'
+      +'<div style="font-size:10px;color:#71717a;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">'+label+'</div>'
+      +'<div style="font-size:19px;font-weight:700;color:#f1f5f9">'+val+varBadge(varPct)+'</div>'
+      +(sub?'<div style="font-size:10px;color:#52525b;margin-top:2px">'+sub+'</div>':'')
+      +'</div>';
+  }
+  var svcsRef=fmy(D.svc,ref.m,ref.y);
+  var bySvc={};
+  svcsRef.forEach(function(r){if(!bySvc[r.trabalho])bySvc[r.trabalho]={n:r.trabalho,v:0,q:0};bySvc[r.trabalho].v+=effVal(r);bySvc[r.trabalho].q+=1;});
+  var topSvcs=Object.keys(bySvc).map(function(k){return bySvc[k];}).sort(function(a,b){return b.q-a.q;}).slice(0,7);
+  var byProf={};
+  svcsRef.forEach(function(r){(r.profissionais||[r.profissional||""]).forEach(function(p){if(!p)return;if(!byProf[p])byProf[p]={n:p,v:0,q:0};byProf[p].v+=effVal(r);byProf[p].q+=1;});});
+  var topProfs=Object.keys(byProf).map(function(k){return byProf[k];}).sort(function(a,b){return b.v-a.v;}).slice(0,7);
+  var chartFat=monthData.map(function(d){return{d:d.label,v:Math.round(d.fatBruto)};});
+  var chartDesp=monthData.map(function(d){return{d:d.label,v:Math.round(d.totalDespesas)};});
+  var chartCli=monthData.map(function(d){return{d:d.label,v:d.nCli};});
+  var chartSvcs=monthData.map(function(d){return{d:d.label,v:d.nSvcs};});
+  var refLabel=MESES[ref.m]+" "+ref.y;
+  var pgtoRows=Object.keys(ref.byPgto).sort(function(a,b){return ref.byPgto[b]-ref.byPgto[a];}).map(function(k){
+    var pct=ref.fatBruto>0?Math.round(ref.byPgto[k]/ref.fatBruto*100):0;
+    return'<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #1f1f23">'
+      +'<span style="font-size:11px;color:#d4d4d8">'+es(k)+'</span>'
+      +'<span style="font-size:11px;color:#fbbf24">'+fms(ref.byPgto[k])+'</span>'
+      +'<span style="font-size:10px;color:#71717a;width:32px;text-align:right">'+pct+'%</span>'
+      +'</div>';
+  }).join("");
+  var tableRows=monthData.map(function(d,i){
+    var isRef=(i===monthData.length-1);
+    var bg=isRef?"background:#1f1f23;":"";
+    var fw=isRef?"font-weight:700;":"";
+    var lc=d.lucro>=0?"#34d399":"#f87171";
+    return'<tr style="'+bg+fw+'">'
+      +'<td style="color:#f1f5f9;white-space:nowrap">'+(isRef?'<span style="color:#f43f5e">\u25b6 </span>':'')+MESES[d.m]+' '+d.y+'</td>'
+      +'<td class="hi">'+fms(d.fatBruto)+'</td>'
+      +'<td>'+fms(d.fatLiq)+'</td>'
+      +'<td class="bd">'+fms(d.totalDespesas)+'</td>'
+      +'<td style="color:'+lc+'">'+fms(d.lucro)+'</td>'
+      +'<td>'+d.nSvcs+'</td>'
+      +'<td>'+d.nCli+'</td>'
+      +'<td>'+fms(d.ticketMedio)+'</td>'
+      +'<td class="gr">'+fms(d.vendaProd)+'</td>'
+      +'<td>'+fms(d.pendente)+'</td>'
+      +'<td>'+d.nNovos+'</td>'
+      +'<td>'+d.leadsCapt+'</td>'
+      +'<td>'+(d.txConv?d.txConv+"%":"\u2014")+'</td>'
+      +'</tr>';
+  }).join("");
+  return'<div class="pg">'
+    +'<div class="ph"><h2>\uD83D\uDCC9 An\u00e1lise Mensal \u2014 '+es(refLabel)+'</h2>'
+    +'<div class="ph-btns"><span style="font-size:11px;color:#71717a">Per\u00edodo: menu lateral</span></div></div>'
+    +'<div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px">'
+    +kpiCard("Faturamento Bruto",fmt(ref.fatBruto),ref.nSvcs+" atendimentos",prev?vari(ref.fatBruto,prev.fatBruto):null,"#f43f5e")
+    +kpiCard("Faturamento L\u00edquido",fmt(ref.fatLiq),"ap\u00f3s taxas de maq.",prev?vari(ref.fatLiq,prev.fatLiq):null,"#fb923c")
+    +kpiCard("Total Despesas",fmt(ref.totalDespesas),"adiant: "+fmt(ref.totalAdiant),prev?vari(ref.totalDespesas,prev.totalDespesas):null,"#f87171")
+    +kpiCard("Lucro Estimado",fmt(ref.lucro),"fat.l\u00edq \u2212 desp \u2212 com.",prev?vari(ref.lucro,prev.lucro):null,ref.lucro>=0?"#34d399":"#f87171")
+    +'</div>'
+    +'<div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px">'
+    +kpiCard("N\u00ba de Servi\u00e7os",String(ref.nSvcs),"atendimentos realizados",prev?vari(ref.nSvcs,prev.nSvcs):null,"#38bdf8")
+    +kpiCard("Clientes \u00danicas",String(ref.nCli),ref.nNovos+" novas \u00b7 "+ref.nRetorno+" retorno",prev?vari(ref.nCli,prev.nCli):null,"#818cf8")
+    +kpiCard("Ticket M\u00e9dio",fmt(ref.ticketMedio),"por atendimento",prev?vari(ref.ticketMedio,prev.ticketMedio):null,"#e879f9")
+    +kpiCard("Venda de Produtos",fmt(ref.vendaProd),"no sal\u00e3o",prev?vari(ref.vendaProd,prev.vendaProd):null,"#34d399")
+    +'</div>'
+    +'<div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:18px">'
+    +kpiCard("Pendente a Receber",fmt(ref.pendente),"pgtos em aberto",null,"#fbbf24")
+    +kpiCard("Leads Captados",String(ref.leadsCapt),"novos no m\u00eas",prev?vari(ref.leadsCapt,prev.leadsCapt):null,"#38bdf8")
+    +kpiCard("Taxa de Convers\u00e3o",ref.txConv+"%",ref.leadsConv+" convertidos",null,"#34d399")
+    +kpiCard("Comiss\u00f5es",fmt(ref.totalComissoes),"total profissionais",prev?vari(ref.totalComissoes,prev.totalComissoes):null,"#94a3b8")
+    +'</div>'
+    +'<div class="cg" style="margin-bottom:14px">'
+    +'<div class="cd"><div class="ct">Faturamento Bruto \u2014 \u00daltimos 6 Meses (R$)</div>'+lnC(chartFat)+'</div>'
+    +'<div class="cd"><div class="ct">Despesas \u2014 \u00daltimos 6 Meses (R$)</div>'+lnC(chartDesp)+'</div>'
+    +'</div>'
+    +'<div class="cg" style="margin-bottom:14px">'
+    +'<div class="cd"><div class="ct">Clientes \u00danicas por M\u00eas</div>'+bvC(chartCli,"#818cf8")+'</div>'
+    +'<div class="cd"><div class="ct">Servi\u00e7os por M\u00eas</div>'+bvC(chartSvcs,"#38bdf8")+'</div>'
+    +'</div>'
+    +'<div class="g3" style="margin-bottom:14px">'
+    +'<div class="cd"><div class="ct">Top Servi\u00e7os (Qtd.) \u2014 '+es(refLabel)+'</div>'+bhC(topSvcs.map(function(d){return{n:d.n,v:d.q}}),"#fb923c",false)+'</div>'
+    +'<div class="cd"><div class="ct">Por Profissional (R$) \u2014 '+es(refLabel)+'</div>'+bhC(topProfs,"#f43f5e",false)+'</div>'
+    +'<div class="cd"><div class="ct">Formas de Pagamento \u2014 '+es(refLabel)+'</div>'+(pgtoRows||'<div class="emp">Sem dados</div>')+'</div>'
+    +'</div>'
+    +'<div class="cd" style="margin-bottom:0"><div class="ct">Comparativo dos \u00daltimos 6 Meses</div><div class="ox"><table>'
+    +'<thead><tr><th>M\u00eas</th><th>Fat. Bruto</th><th>Fat. L\u00edq.</th><th>Despesas</th><th>Lucro Est.</th>'
+    +'<th>Servi\u00e7os</th><th>Clientes</th><th>Ticket M\u00e9d.</th><th>Venda Prod.</th><th>Pendente</th><th>Cli. Novas</th><th>Leads</th><th>Tx.Conv.</th></tr></thead>'
+    +'<tbody>'+tableRows+'</tbody>'
+    +'</table></div></div>'
+    +'</div>';
+}
+
 function rT(){
   var fs=fmy(D.svc,S.month,S.year);
   var fp=fmy(D.prd,S.month,S.year);
@@ -3740,6 +3847,7 @@ function rT(){
   else if(S.tab==="metaads")h=rMetaAds();
   else if(S.tab==="fornecedores")h=rFornecedores();
   else if(S.tab==="caixa")h=rCaixa();
+  else if(S.tab==="analise")h=rAnalise();
   else if(S.tab==="conversas")h=rConversas();
   else if(S.tab==="mensagens")h=rMensagens();
   }catch(errRT){
@@ -3806,8 +3914,6 @@ document.addEventListener("click",function(e){
   var fc=e.target.closest("[data-followup-confirm]");if(fc){var fcp=fc.dataset.followupConfirm.split("|");confirmarFollowup(fcp[0],fcp[1]);return;}
   var cm2=e.target.closest("[data-caixa-modo]");if(cm2){S.caixaModo=cm2.dataset.caixaModo;_mpCaixaData=null;rT();return;}
   var dp=e.target.closest("[data-del-prof]");if(dp){delProf(dp.dataset.delProf);return;}
-  var rp=e.target.closest("[data-reativar-prof]");if(rp){reativarProf(rp.dataset.reativarProf);return;}
-  var rpm=e.target.closest("[data-remover-prof]");if(rpm){removerProf(rpm.dataset.removerProf);return;}
   var ma=e.target.closest("[data-marcar-auxiliar]");if(ma){marcarAuxiliar(ma.dataset.marcarAuxiliar);return;}
   var pc=e.target.closest("[data-promover-cabeleireiro]");if(pc){promoverCabeleireiro(pc.dataset.promoverCabeleireiro);return;}
   var bt=e.target.closest("[data-bd-tab]");if(bt){S.bdTab=bt.dataset.bdTab;rT();return;}
