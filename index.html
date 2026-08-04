@@ -802,7 +802,7 @@ function kp(l,v,s){return'<div class="kp"><div class="kl">'+l+'</div><div class=
 /* SIDEBAR */
 var NAV=[["dashboard","\uD83D\uDCCA","Dashboard"],["agenda","\uD83D\uDCC5","Agenda"],["followup","\uD83D\uDCF2","Follow-up"],["services","\u2702\uFE0F","Servi\u00e7os"],["products","\uD83E\uDDF4","Produtos"],["expenses","\uD83D\uDCB8","Despesas"],["advances","\uD83D\uDCB5","Adiantamentos"],["prolabore","\uD83D\uDC65","Pr\u00f3-Labore"],["dre","\uD83D\uDCC8","DRE / DFC"],["clients","\uD83D\uDC69","Clientes"],["leads","\uD83C\uDFAF","Leads"],["db","\uD83D\uDDC4\uFE0F","Banco de Dados"],["requests","\uD83D\uDCE5","Solicita\u00e7\u00f5es Online"],["audit","\uD83D\uDD0D","Auditoria"],["estoque","\uD83E\uDDF4","Estoque"],["arprof","\uD83C\uDFF7\uFE0F","A R Professional"],["metaads","\uD83D\uDCE3","Meta Ads"],["conversas","\uD83D\uDCAC","Conversas WA"],["fornecedores","\uD83D\uDE9A","Fornecedores"],["caixa","\uD83C\uDFE6","Caixa Banc\u00e1rio"],["analise","\uD83D\uDCC9","An\u00e1lise Mensal"],["mensagens","\uD83D\uDCAC","Mensagens"]];
 var DIVULGADORES_CUSTOM=null;
-var DIVULGADORES_DEFAULT=["Lorran","Isabela","Diane","Anton"];
+var DIVULGADORES_DEFAULT=["Lorran","Geovana","Isabela","Diane","Anton"];
 function getDivulgadores(){return DIVULGADORES_CUSTOM||DIVULGADORES_DEFAULT;}
 function rSb(){
   var mOpts=MESES.map(function(m,i){return'<option value="'+i+'"'+(i===S.month?' selected':'')+'>'+m+'</option>';}).join("");
@@ -4442,7 +4442,7 @@ function rFollowup(){
 }
 
 /* ─ DIVULGADOR NO LEAD ─ */
-function getLeadDivulgadores(){return["Lorran","Isabela","Diane","Anton"];}
+function getLeadDivulgadores(){return getDivulgadores();}
 
 /* ─ CONFIG AGENDA (PROFISSIONAIS + DIVULGADORES) ─ */
 function openAgendaConfig(){
