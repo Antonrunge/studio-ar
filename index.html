@@ -1218,6 +1218,38 @@ function delAgn(id){
     cmod();showToast("\uD83D\uDDD1 Agendamento exclu\u00eddo.");
   }).catch(function(e){showToast("\u274c Erro ao excluir: "+e.message,"#f43f5e");});
 }
+function nomeClienteLimpo(nome){
+  return (nome||"").replace(/\s*[-–]\s*(DESMARCOU|CONFIRMOU|REAGENDOU)\s*/gi,"").trim()||nome;
+}
+function criarLeadDesmarcado(appt){
+  var nomeLimpo=nomeClienteLimpo(appt.client||"");
+  var telDigits=(appt.phone||"").replace(/\D/g,"").slice(-8);
+  // Verifica se já existe um lead vinculado ao agendamento
+  var leadVinc=(D.leads||[]).find(function(l){return l.agendamentoId===appt.id;});
+  if(!leadVinc&&telDigits){
+    // Busca por telefone
+    leadVinc=(D.leads||[]).find(function(l){
+      return (l.telefone||"").replace(/\D/g,"").slice(-8)===telDigits&&l.etapa!=="convertido"&&l.etapa!=="perdido";
+    });
+  }
+  if(!leadVinc&&nomeLimpo){
+    // Busca por nome
+    leadVinc=(D.leads||[]).find(function(l){
+      return slug(l.nome||"")===slug(nomeLimpo)&&l.etapa!=="convertido"&&l.etapa!=="perdido";
+    });
+  }
+  if(leadVinc){
+    var entry={data:new Date().toISOString(),obs:"Desmarcou agendamento — sem reagendar",etapaAnterior:leadVinc.etapa,etapaNova:"interesse"};
+    db.collection("leads").doc(leadVinc.id).update({etapa:"interesse",agendamentoId:firebase.firestore.FieldValue.delete(),proximoContato:hj(),historico:firebase.firestore.FieldValue.arrayUnion(entry)});
+    showToast("❌ Desmarcou — lead voltou ao Kanban.");
+  } else {
+    var novoLead={id:uid(),nome:nomeLimpo,telefone:appt.phone||"",interesse:appt.service||"",
+      etapa:"interesse",dataCriacao:new Date().toISOString(),proximoContato:hj(),
+      historico:[{data:new Date().toISOString(),obs:"Desmarcou agendamento — enviada ao Kanban automaticamente",etapaAnterior:"",etapaNova:"interesse"}]};
+    db.collection("leads").doc(novoLead.id).set(novoLead);
+    showToast("❌ Desmarcou — cliente enviada ao Kanban!");
+  }
+}
 function savAgn(){
   var c=document.getElementById("ag-c").value.trim();if(!c)return alert("Preencha o nome da cliente.");
   var editId=document.getElementById("ag-id").value;
@@ -1238,6 +1270,8 @@ function savAgn(){
       historico:firebase.firestore.FieldValue.arrayUnion(etapaHistEntry(leadAg?leadAg.etapa:"","agendado"))});
     LEAD_BOOKING_ID=null;
   }
+  // Se status é cancelado, manda automaticamente para o Kanban de Leads
+  if(rec.status==="cancelado") criarLeadDesmarcado(rec);
   cmod();
 }
 
@@ -1264,17 +1298,7 @@ function marcarCancelou(id){
   var appt=(D.agn||[]).find(function(a){return a.id===id;});
   if(!appt)return;
   db.collection("agendamentos").doc(id).update({status:"cancelado"}).then(function(){
-    var leadVinc=(D.leads||[]).find(function(l){return l.agendamentoId===id;});
-    if(leadVinc){
-      var entry={data:new Date().toISOString(),obs:"Desmarcou agendamento \u2014 sem reagendar",etapaAnterior:leadVinc.etapa,etapaNova:"interesse"};
-      db.collection("leads").doc(leadVinc.id).update({etapa:"interesse",agendamentoId:firebase.firestore.FieldValue.delete(),proximoContato:hj(),historico:firebase.firestore.FieldValue.arrayUnion(entry)});
-      showToast("\u274c Desmarcou \u2014 lead voltou ao Kanban.");
-    } else {
-      var novoLead={id:uid(),nome:appt.client,telefone:appt.phone||"",interesse:appt.service||"",etapa:"interesse",dataCriacao:new Date().toISOString(),proximoContato:hj(),
-        historico:[{data:new Date().toISOString(),obs:"Desmarcou agendamento \u2014 enviada ao Kanban automaticamente",etapaAnterior:"",etapaNova:"interesse"}]};
-      db.collection("leads").doc(novoLead.id).set(novoLead);
-      showToast("\u274c Desmarcou \u2014 cliente enviada ao Kanban!");
-    }
+    criarLeadDesmarcado(appt);
     cmod();
   }).catch(function(e){showToast("\u274c Erro: "+e.message,"#f43f5e");});
 }
