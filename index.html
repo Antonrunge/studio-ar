@@ -3077,7 +3077,8 @@ function rRemarketing(){
         +'</div>'
         +(r.telefone?'<div style="font-size:10px;color:#71717a;margin-bottom:3px">'+es(r.telefone)+'</div>':'')
         +'<div style="font-size:10px;color:#a1a1aa;margin-bottom:3px">'+fdt(r.ultimoServico)+' &middot; <span style="color:'+colColor+';font-weight:600">'+dias+' dias</span></div>'
-        +(r.divulgador?'<div style="font-size:9px;color:#38bdf8;margin-bottom:5px">\uD83D\uDC64 Div.: '+es(r.divulgador)+'</div>':'')
+        +(r.divulgador?'<div style="font-size:9px;color:#38bdf8;margin-bottom:3px">\uD83D\uDC64 Div.: '+es(r.divulgador)+'</div>':'')
+        +(r.historico&&r.historico.length?'<div style="font-size:9px;color:#71717a;margin-bottom:4px">\uD83D\uDCDE Contato: '+fdt((r.historico.slice().sort(function(a,b){return(b.data||"").localeCompare(a.data||"");})[0].data||"").slice(0,10))+'</div>':'')
         +'<div style="display:flex;gap:4px">'
           +'<button class="gb" style="flex:1;font-size:9px;padding:4px 0;white-space:nowrap" data-remkt-agendar="'+r.id+'">&#128197; Agendar</button>'
           +'<button style="flex:1;font-size:9px;padding:4px 0;background:#34d39918;border:1px solid #34d39944;color:#34d399;border-radius:7px;cursor:pointer;font-weight:600" data-remkt-converteu="'+r.id+'">&#10003; Veio</button>'
@@ -3182,6 +3183,17 @@ function openRemktDetail(id){
   if(!r)return;
   var pc=REMKT_PROC_COLORS[r.procedimento]||REMKT_PROC_COLORS.OUTRO;
   var dias=diasDesde(r.ultimoServico);
+  var hist=(r.historico||[]).slice().sort(function(a,b){return(b.data||"").localeCompare(a.data||"");});
+  var histHtml=hist.length?hist.map(function(h){
+    return'<div style="padding:7px 10px;background:#111115;border-left:3px solid #3f3f46;border-radius:0 5px 5px 0;margin-bottom:6px">'
+      +'<div style="display:flex;justify-content:space-between;margin-bottom:3px">'
+        +'<span style="font-size:10px;color:#fbbf24;font-weight:600">'+fdt((h.data||"").slice(0,10))+(h.hora?' \u00e0s '+es(h.hora):'')+'</span>'
+        +(h.autor?'<span style="font-size:9px;color:#52525b">'+es(h.autor)+'</span>':'')
+      +'</div>'
+      +'<div style="font-size:11px;color:#d4d4d8">'+es(h.obs||"")+'</div>'
+    +'</div>';
+  }).join(""):'<div style="font-size:11px;color:#52525b;padding:8px 0">Nenhum contato registrado ainda.</div>';
+  var ultimoContato=hist.length?'<span style="font-size:10px;color:#71717a"> \u2014 \u00faltimo: '+fdt((hist[0].data||"").slice(0,10))+'</span>':"";
   omod(mhdr("Cliente \u2014 "+es(r.nome))
     +'<div style="background:#18181b;border:1px solid #27272a;border-radius:8px;padding:12px;margin-bottom:12px">'
       +'<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">'
@@ -3192,13 +3204,50 @@ function openRemktDetail(id){
       +'<div style="font-size:12px;color:#a1a1aa;margin-bottom:4px">\u00daltimo servi\u00e7o: '+fdt(r.ultimoServico)+'</div>'
       +(r.profissionalUltimo?'<div style="font-size:11px;color:#71717a">Prof.: '+es(r.profissionalUltimo)+'</div>':'')
       +(r.obs?'<div style="font-size:11px;color:#71717a;margin-top:4px">Obs: '+es(r.obs)+'</div>':'')
+      +(r.divulgador?'<div style="font-size:11px;color:#38bdf8;margin-top:2px">\uD83D\uDC64 Div.: '+es(r.divulgador)+'</div>':'')
       +'<div style="font-size:10px;color:#52525b;margin-top:4px">Origem: '+es(r.origem||"")+(r.status==="agendado"?' \u2014 <span style="color:#34d399">Agendada</span>':'')+'</div>'
     +'</div>'
-    +'<div style="display:flex;flex-direction:column;gap:8px">'
+    +'<div style="margin-bottom:14px">'
+      +'<div style="font-size:12px;font-weight:600;color:#a1a1aa;margin-bottom:8px">\uD83D\uDCDE Hist\u00f3rico de Contatos'+ultimoContato+'</div>'
+      +'<div style="max-height:180px;overflow-y:auto;margin-bottom:10px">'+histHtml+'</div>'
+      +'<div style="background:#18181b;border:1px solid #27272a;border-radius:8px;padding:10px">'
+        +'<div style="font-size:11px;color:#71717a;margin-bottom:6px">Registrar novo contato:</div>'
+        +'<div style="display:flex;gap:6px;margin-bottom:6px">'
+          +'<input type="date" id="rc-data" value="'+hj()+'" style="flex:1;font-size:11px">'
+          +'<input type="time" id="rc-hora" value="'+new Date().toTimeString().slice(0,5)+'" style="width:90px;font-size:11px">'
+        +'</div>'
+        +'<textarea id="rc-obs" placeholder="O que foi discutido? Ex: n\u00e3o atendeu, disse que vai ligar, pediu or\u00e7amento de luzes..." style="height:60px;font-size:11px;margin-bottom:6px"></textarea>'
+        +'<button class="pb" style="padding:8px" data-remkt-reg-contato="'+id+'">\uD83D\uDCBE Salvar contato</button>'
+      +'</div>'
+    +'</div>'
+    +'<div style="display:flex;flex-direction:column;gap:7px">'
       +'<button class="pb" data-remkt-agendar="'+id+'">\uD83D\uDCC5 Agendar</button>'
-      +'<button style="width:100%;padding:11px;border-radius:10px;background:#34d39918;border:1px solid #34d39944;color:#34d399;font-weight:600;cursor:pointer" data-remkt-converteu="'+id+'">\u2713 Confirmou comparecimento (+ R$ 2,00)</button>'
-      +'<button style="width:100%;padding:11px;border-radius:10px;background:#f4717118;border:1px solid #f4717144;color:#f87171;font-weight:600;cursor:pointer" data-remkt-descartar="'+id+'">\u2715 Remover do Remarketing</button>'
+      +'<button style="width:100%;padding:10px;border-radius:10px;background:#34d39918;border:1px solid #34d39944;color:#34d399;font-weight:600;cursor:pointer" data-remkt-converteu="'+id+'">\u2713 Confirmou comparecimento (+ R$ 2,00)</button>'
+      +'<div style="display:flex;gap:7px">'
+        +'<button style="flex:1;padding:10px;border-radius:10px;background:#f59e0b18;border:1px solid #f59e0b44;color:#f59e0b;font-weight:600;cursor:pointer;font-size:12px" data-remkt-arquivar="'+id+'">\uD83D\uDDC3 Arquivar</button>'
+        +'<button style="flex:1;padding:10px;border-radius:10px;background:#f4717118;border:1px solid #f4717144;color:#f87171;font-weight:600;cursor:pointer;font-size:12px" data-remkt-descartar="'+id+'">\u2715 Remover</button>'
+      +'</div>'
     +'</div>');
+}
+function registrarContatoRemarketing(id){
+  var obs=document.getElementById("rc-obs");
+  var data=document.getElementById("rc-data");
+  var hora=document.getElementById("rc-hora");
+  if(!obs||!obs.value.trim())return alert("Descreva o que foi conversado.");
+  var entry={data:(data?data.value:hj())+"T"+(hora?hora.value:"00:00")+":00",hora:hora?hora.value:"",obs:obs.value.trim(),autor:CURRENT_USER?CURRENT_USER.nome||CURRENT_USER.role:""};
+  db.collection("remarketing").doc(id).update({historico:firebase.firestore.FieldValue.arrayUnion(entry)})
+    .then(function(){showToast("\uD83D\uDCBE Contato registrado!");cmod();setTimeout(function(){openRemktDetail(id);},200);})
+    .catch(function(e){showToast("\u274c Erro: "+e.message,"#f43f5e");});
+}
+function arquivarRemarketing(id){
+  var r=(D.remarketing||[]).find(function(x){return x.id===id;});
+  if(!r)return;
+  var motivo=prompt("Motivo do arquivamento (ex: cliente problemática, nunca atende, bloqueou):");
+  if(motivo===null)return; // cancelou
+  var entry={data:new Date().toISOString(),hora:new Date().toTimeString().slice(0,5),obs:"Arquivada"+(motivo?" \u2014 "+motivo:""),autor:CURRENT_USER?CURRENT_USER.nome||CURRENT_USER.role:""};
+  db.collection("remarketing").doc(id).update({status:"arquivado",motivoArquivo:motivo||"",historico:firebase.firestore.FieldValue.arrayUnion(entry)})
+    .then(function(){cmod();showToast("\uD83D\uDDC3 Cliente arquivada e removida da fila.");})
+    .catch(function(e){showToast("\u274c Erro: "+e.message,"#f43f5e");});
 }
 function abrirRelatorioRemarketing(){
   var recs=D.remarketing||[];
@@ -4387,6 +4436,8 @@ document.addEventListener("click",function(e){
   var ra=e.target.closest("[data-remkt-agendar]");if(ra){agendarRemarketing(ra.dataset.remktAgendar);return;}
   var rc=e.target.closest("[data-remkt-converteu]");if(rc){converterRemarketing(rc.dataset.remktConverteu);return;}
   var rd=e.target.closest("[data-remkt-descartar]");if(rd){descartarRemarketing(rd.dataset.remktDescartar);return;}
+  var rrg=e.target.closest("[data-remkt-reg-contato]");if(rrg){registrarContatoRemarketing(rrg.dataset.remktRegContato);return;}
+  var rar=e.target.closest("[data-remkt-arquivar]");if(rar){arquivarRemarketing(rar.dataset.remktArquivar);return;}
   var ca=e.target.closest("[data-confirmar-agn]");if(ca){confirmarAgn(ca.dataset.confirmarAgn);return;}
   var da=e.target.closest("[data-desmarcar-agn]");if(da){desmarcarAgn(da.dataset.desmarcarAgn);return;}
   var dr=e.target.closest("[data-desmarcar-reagendou]");if(dr){marcarReagendou(dr.dataset.desmarcarReagendou);return;}
