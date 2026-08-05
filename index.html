@@ -1073,6 +1073,7 @@ function savS(){
 
   // gatilho automático: lead agendada com o mesmo telefone compareceu → converter
   leadAutoConvert(tel,cli);
+  remarketingAutoConvert(tel,cli);
 
   showToast("\u2705 "+itens.length+" servi\u00e7o(s) lan\u00e7ados para "+cli+"!");
   cmod();
@@ -3076,13 +3077,12 @@ function rRemarketing(){
           +'<span style="background:'+pc.color+'22;border:1px solid '+pc.color+'55;color:'+pc.color+';border-radius:8px;padding:1px 7px;font-size:9px;font-weight:700;white-space:nowrap">'+pc.label+'</span>'
         +'</div>'
         +(r.telefone?'<div style="font-size:10px;color:#71717a;margin-bottom:3px">'+es(r.telefone)+'</div>':'')
-        +'<div style="font-size:10px;color:#a1a1aa;margin-bottom:3px">'+fdt(r.ultimoServico)+' &middot; <span style="color:'+colColor+';font-weight:600">'+dias+' dias</span></div>'
-        +(r.divulgador?'<div style="font-size:9px;color:#38bdf8;margin-bottom:3px">\uD83D\uDC64 Div.: '+es(r.divulgador)+'</div>':'')
-        +(r.historico&&r.historico.length?'<div style="font-size:9px;color:#71717a;margin-bottom:4px">\uD83D\uDCDE Contato: '+fdt((r.historico.slice().sort(function(a,b){return(b.data||"").localeCompare(a.data||"");})[0].data||"").slice(0,10))+'</div>':'')
+        +'<div style="font-size:10px;color:#a1a1aa;margin-bottom:2px"><span style="color:#52525b">Serviço:</span> '+fdt(r.ultimoServico)+' · <span style="color:'+colColor+';font-weight:600">'+dias+' dias</span></div>'
+        +(r.divulgador?'<div style="font-size:9px;color:#38bdf8;margin-bottom:2px">\uD83D\uDC64 Div.: '+es(r.divulgador)+'</div>':'')
+        +(r.historico&&r.historico.length?'<div style="font-size:9px;color:#fbbf24;margin-bottom:4px">\uD83D\uDCDE Últ. contato: '+fdt((r.historico.slice().sort(function(a,b){return(b.data||"").localeCompare(a.data||"");})[0].data||"").slice(0,10))+'</div>':'')
         +'<div style="display:flex;gap:4px">'
           +'<button class="gb" style="flex:1;font-size:9px;padding:4px 0;white-space:nowrap" data-remkt-agendar="'+r.id+'">&#128197; Agendar</button>'
-          +'<button style="flex:1;font-size:9px;padding:4px 0;background:#34d39918;border:1px solid #34d39944;color:#34d399;border-radius:7px;cursor:pointer;font-weight:600" data-remkt-converteu="'+r.id+'">&#10003; Veio</button>'
-          +'<button style="padding:4px 7px;font-size:9px;background:#f4717118;border:1px solid #f4717144;color:#f87171;border-radius:7px;cursor:pointer" data-remkt-descartar="'+r.id+'">&#10005;</button>'
+          +'<button class="gb" style="font-size:9px;padding:4px 8px;white-space:nowrap" data-remkt-open="'+r.id+'">&#128222; Contato</button>'
         +'</div>'
       +'</div>';
     }).join("");
@@ -3092,7 +3092,8 @@ function rRemarketing(){
     +'</div>';
   }).join("");
   return'<div class="pg"><div class="ph"><h2>&#128260; Remarketing</h2><div class="ph-btns">'
-    +'<button class="gb" onclick="abrirRelatorioRemarketing()">&#128202; Relat\u00f3rio</button>'
+    +'<button class="gb" onclick="abrirContatosDiaRemarketing()">&#128198; Contatos do Dia</button>'
+    +'<button class="gb" onclick="abrirRelatorioRemarketing()">&#128202; Relatório</button>'
     +'<button class="ab" onclick="openNovoRemarketing()">+ Adicionar Cliente</button></div></div>'
     +'<div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap">'
       +'<div style="background:#18181b;border:1px solid #27272a;border-radius:8px;padding:7px 14px;font-size:11px"><span style="color:#71717a">Ativas: </span><span style="color:#fbbf24;font-weight:700">'+totalAtivas+'</span></div>'
@@ -3217,15 +3218,14 @@ function openRemktDetail(id){
           +'<input type="time" id="rc-hora" value="'+new Date().toTimeString().slice(0,5)+'" style="width:90px;font-size:11px">'
         +'</div>'
         +'<textarea id="rc-obs" placeholder="O que foi discutido? Ex: n\u00e3o atendeu, disse que vai ligar, pediu or\u00e7amento de luzes..." style="height:60px;font-size:11px;margin-bottom:6px"></textarea>'
-        +'<button class="pb" style="padding:8px" data-remkt-reg-contato="'+id+'">\uD83D\uDCBE Salvar contato</button>'
+        +'<button class="pb" style="padding:8px" data-remkt-reg-contato="'+id+'">\uD83D\uDCBE Salvar informações</button>'
       +'</div>'
     +'</div>'
     +'<div style="display:flex;flex-direction:column;gap:7px">'
       +'<button class="pb" data-remkt-agendar="'+id+'">\uD83D\uDCC5 Agendar</button>'
-      +'<button style="width:100%;padding:10px;border-radius:10px;background:#34d39918;border:1px solid #34d39944;color:#34d399;font-weight:600;cursor:pointer" data-remkt-converteu="'+id+'">\u2713 Confirmou comparecimento (+ R$ 2,00)</button>'
       +'<div style="display:flex;gap:7px">'
         +'<button style="flex:1;padding:10px;border-radius:10px;background:#f59e0b18;border:1px solid #f59e0b44;color:#f59e0b;font-weight:600;cursor:pointer;font-size:12px" data-remkt-arquivar="'+id+'">\uD83D\uDDC3 Arquivar</button>'
-        +'<button style="flex:1;padding:10px;border-radius:10px;background:#f4717118;border:1px solid #f4717144;color:#f87171;font-weight:600;cursor:pointer;font-size:12px" data-remkt-descartar="'+id+'">\u2715 Remover</button>'
+        +((CURRENT_USER&&CURRENT_USER.role==="admin")?'<button style="flex:1;padding:10px;border-radius:10px;background:#f4717118;border:1px solid #f4717144;color:#f87171;font-weight:600;cursor:pointer;font-size:12px" data-remkt-descartar="'+id+'">\u2715 Remover</button>':'')
       +'</div>'
     +'</div>');
 }
@@ -3248,6 +3248,50 @@ function arquivarRemarketing(id){
   db.collection("remarketing").doc(id).update({status:"arquivado",motivoArquivo:motivo||"",historico:firebase.firestore.FieldValue.arrayUnion(entry)})
     .then(function(){cmod();showToast("\uD83D\uDDC3 Cliente arquivada e removida da fila.");})
     .catch(function(e){showToast("\u274c Erro: "+e.message,"#f43f5e");});
+}
+function abrirContatosDiaRemarketing(){
+  var dia=hj();
+  var recs=D.remarketing||[];
+  var contatosDia=[];
+  recs.forEach(function(r){
+    (r.historico||[]).forEach(function(h){
+      if((h.data||"").slice(0,10)===dia){
+        contatosDia.push({nome:r.nome,telefone:r.telefone||"",obs:h.obs||"",hora:h.hora||"",autor:h.autor||"",proc:r.procedimento||""});
+      }
+    });
+  });
+  contatosDia.sort(function(a,b){return b.hora.localeCompare(a.hora);});
+  var porAutor={};
+  contatosDia.forEach(function(c){var a=c.autor||"Sistema";if(!porAutor[a])porAutor[a]=[];porAutor[a].push(c);});
+  var autoresHtml=Object.keys(porAutor).map(function(autor){
+    var items=porAutor[autor];
+    var rows=items.map(function(c){
+      var pc=REMKT_PROC_COLORS[c.proc]||REMKT_PROC_COLORS.OUTRO;
+      return'<div style="padding:6px 10px;background:#111115;border-left:3px solid #3f3f46;border-radius:0 5px 5px 0;margin-bottom:5px">'
+        +'<div style="display:flex;justify-content:space-between;margin-bottom:2px">'
+          +'<span style="font-size:11px;font-weight:600;color:#f1f5f9">'+es(c.nome)+'</span>'
+          +'<span style="font-size:9px;background:'+pc.color+'22;color:'+pc.color+';border-radius:8px;padding:1px 6px">'+pc.label+'</span>'
+        +'</div>'
+        +(c.hora?'<div style="font-size:9px;color:#52525b;margin-bottom:2px">'+es(c.hora)+(c.telefone?' · '+es(c.telefone):'')+'</div>':'')
+        +(c.obs?'<div style="font-size:10px;color:#a1a1aa">'+es(c.obs)+'</div>':'')
+      +'</div>';
+    }).join("");
+    return'<div style="margin-bottom:14px">'
+      +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px">'
+        +'<span style="font-size:12px;font-weight:600;color:#38bdf8">'+es(autor)+'</span>'
+        +'<span style="background:#38bdf820;border:1px solid #38bdf844;color:#38bdf8;border-radius:10px;padding:1px 9px;font-size:11px;font-weight:700">'+items.length+' contato'+(items.length>1?"s":"")+'</span>'
+      +'</div>'
+      +rows
+    +'</div>';
+  }).join("");
+  omod(mhdr("Contatos do Dia — "+fdt(dia))
+    +(contatosDia.length
+      ?'<div style="background:#18181b;border:1px solid #27272a;border-radius:8px;padding:8px 14px;margin-bottom:14px;display:flex;gap:24px;align-items:center">'
+        +'<div style="text-align:center"><div style="font-size:22px;font-weight:700;color:#fbbf24">'+contatosDia.length+'</div><div style="font-size:10px;color:#71717a">contatos</div></div>'
+        +'<div style="text-align:center"><div style="font-size:22px;font-weight:700;color:#38bdf8">'+Object.keys(porAutor).length+'</div><div style="font-size:10px;color:#71717a">atendente'+(Object.keys(porAutor).length>1?"s":"")+'</div></div>'
+      +'</div>'
+      +autoresHtml
+      :'<div class="emp" style="padding:24px 0">Nenhum contato registrado hoje ainda.</div>'));
 }
 function abrirRelatorioRemarketing(){
   var recs=D.remarketing||[];
@@ -3616,6 +3660,19 @@ function leadConvert(id){
   db.collection("leads").doc(id).update({etapa:"convertido",clienteVinculado:docId,proximoContato:null,
     historico:firebase.firestore.FieldValue.arrayUnion(etapaHistEntry(l.etapa,"convertido"))});
   showToast("\u2705 Lead convertido em cliente!");cmod();
+}
+function remarketingAutoConvert(tel,nome){
+  var telDigits=(tel||"").replace(/\D/g,"").slice(-8);
+  var nomeSlug=slug(nome||"");
+  var match=(D.remarketing||[]).find(function(r){
+    if(r.status!=="agendado"&&r.status!=="ativo")return false;
+    var rTelDigits=(r.telefone||"").replace(/\D/g,"").slice(-8);
+    return (telDigits&&rTelDigits&&rTelDigits===telDigits)||(nomeSlug&&slug(r.nome||"")===nomeSlug);
+  });
+  if(!match)return;
+  var entry={data:new Date().toISOString(),hora:new Date().toTimeString().slice(0,5),obs:"Compareceu ao salão — serviço registrado",autor:CURRENT_USER?CURRENT_USER.nome||CURRENT_USER.role:"sistema"};
+  db.collection("remarketing").doc(match.id).update({status:"convertido",taxaRemarketing:2,dataConversao:hj(),historico:firebase.firestore.FieldValue.arrayUnion(entry)});
+  showToast("Remarketing: "+match.nome+" convertida! +R$ 2,00","#34d399");
 }
 function leadAutoConvert(telServ,nomeCli){
   var dig=(telServ||"").replace(/\D/g,"");
@@ -4434,7 +4491,6 @@ document.addEventListener("click",function(e){
   var an=e.target.closest("[data-agn-nav]");if(an){S.agnDate=an.dataset.agnNav;rT();return;}
   var ro=e.target.closest("[data-remkt-open]");if(ro){openRemktDetail(ro.dataset.remktOpen);return;}
   var ra=e.target.closest("[data-remkt-agendar]");if(ra){agendarRemarketing(ra.dataset.remktAgendar);return;}
-  var rc=e.target.closest("[data-remkt-converteu]");if(rc){converterRemarketing(rc.dataset.remktConverteu);return;}
   var rd=e.target.closest("[data-remkt-descartar]");if(rd){descartarRemarketing(rd.dataset.remktDescartar);return;}
   var rrg=e.target.closest("[data-remkt-reg-contato]");if(rrg){registrarContatoRemarketing(rrg.dataset.remktRegContato);return;}
   var rar=e.target.closest("[data-remkt-arquivar]");if(rar){arquivarRemarketing(rar.dataset.remktArquivar);return;}
