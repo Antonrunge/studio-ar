@@ -85,9 +85,15 @@ td.hi{color:#f43f5e;font-weight:500}td.gr{color:#34d399;font-weight:500}
 .agn-appt.agn-dragging{opacity:.4;cursor:grabbing}
 .agn-appt{border-radius:5px;padding:3px 6px;font-size:10px;font-weight:500;line-height:1.3;cursor:pointer;overflow:hidden}
 .agn-empty{font-size:9px;color:#3f3f46;text-align:center;padding-top:10px}
-.status-conf{background:rgba(52,211,153,.15);border-left:3px solid #34d399;color:#34d399}
-.status-pend{background:rgba(251,191,36,.12);border-left:3px solid #fbbf24;color:#fbbf24}
-.status-canc{background:rgba(248,113,113,.12);border-left:3px solid #f87171;color:#f87171}
+.status-confirmado{background:rgba(52,211,153,.15);border-left:3px solid #34d399;color:#34d399}
+.status-pendente{background:rgba(251,191,36,.12);border-left:3px solid #fbbf24;color:#fbbf24}
+.status-cancelado{background:rgba(248,113,113,.12);border-left:3px solid #f87171;color:#f87171}
+.agn-dot{width:7px;height:7px;border-radius:50%;display:inline-block;flex-shrink:0;margin-top:1px}
+.agn-dot-conf{background:#34d399}.agn-dot-pend{background:#fbbf24}.agn-dot-canc{background:#f87171}
+.agn-act-btns{display:flex;gap:2px;margin-top:4px}
+.agn-act-btns button{flex:1;border-radius:3px;font-size:8px;padding:2px 0;cursor:pointer;font-weight:600;border:1px solid}
+.agn-btn-conf{background:#34d39918;border-color:#34d39944!important;color:#34d399}
+.agn-btn-canc{background:#f8717118;border-color:#f4717144!important;color:#f87171}
 /* BD */
 .bd-tabs{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
 .bd-tab{background:#27272a;border:1px solid #3f3f46;color:#a1a1aa;border-radius:7px;padding:6px 14px;font-size:11px;cursor:pointer}
@@ -1233,6 +1239,43 @@ function savAgn(){
   cmod();
 }
 
+function confirmarAgn(id){
+  db.collection("agendamentos").doc(id).update({status:"confirmado"}).then(function(){showToast("\u2705 Confirmado!");}).catch(function(e){showToast("\u274c Erro: "+e.message,"#f43f5e");});
+}
+function desmarcarAgn(id){
+  var appt=(D.agn||[]).find(function(a){return a.id===id;});
+  if(!appt)return;
+  omod(mhdr("O que aconteceu com "+es(appt.client)+"?")
+    +'<p style="font-size:12px;color:#a1a1aa;margin-bottom:16px">Ela apenas mudou o dia ou cancelou sem reagendar?</p>'
+    +'<button class="pb" style="margin-bottom:10px;background:#38bdf820;border:1px solid #38bdf844;color:#38bdf8" data-desmarcar-reagendou="'+id+'">\uD83D\uDCC5 S\u00f3 mudou o dia (vai reagendar)</button>'
+    +'<button class="pb" style="background:#f43f5e20;border:1px solid #f43f5e44;color:#f87171" data-desmarcar-cancelou="'+id+'">\u2715 Cancelou sem reagendar</button>');
+}
+function marcarReagendou(id){
+  var appt=(D.agn||[]).find(function(a){return a.id===id;});
+  if(!appt)return;
+  var novaObs=((appt.obs||"")+(appt.obs?"\n":"")+"REAGENDOU - "+hj()).trim();
+  db.collection("agendamentos").doc(id).update({status:"cancelado",obs:novaObs}).then(function(){
+    cmod();showToast("\uD83D\uDCC5 Marcado como mudou de data.");
+  }).catch(function(e){showToast("\u274c Erro: "+e.message,"#f43f5e");});
+}
+function marcarCancelou(id){
+  var appt=(D.agn||[]).find(function(a){return a.id===id;});
+  if(!appt)return;
+  db.collection("agendamentos").doc(id).update({status:"cancelado"}).then(function(){
+    var leadVinc=(D.leads||[]).find(function(l){return l.agendamentoId===id;});
+    if(leadVinc){
+      var entry={data:new Date().toISOString(),obs:"Desmarcou agendamento \u2014 sem reagendar",etapaAnterior:leadVinc.etapa,etapaNova:"interesse"};
+      db.collection("leads").doc(leadVinc.id).update({etapa:"interesse",agendamentoId:firebase.firestore.FieldValue.delete(),proximoContato:hj(),historico:firebase.firestore.FieldValue.arrayUnion(entry)});
+      showToast("\u274c Desmarcou \u2014 lead voltou ao Kanban.");
+    } else {
+      var novoLead={id:uid(),nome:appt.client,telefone:appt.phone||"",interesse:appt.service||"",etapa:"interesse",dataCriacao:new Date().toISOString(),proximoContato:hj(),
+        historico:[{data:new Date().toISOString(),obs:"Desmarcou agendamento \u2014 enviada ao Kanban automaticamente",etapaAnterior:"",etapaNova:"interesse"}]};
+      db.collection("leads").doc(novoLead.id).set(novoLead);
+      showToast("\u274c Desmarcou \u2014 cliente enviada ao Kanban!");
+    }
+    cmod();
+  }).catch(function(e){showToast("\u274c Erro: "+e.message,"#f43f5e");});
+}
 /* PRO-LABORE SETTINGS */
 
 function openRankingSettings(){
@@ -2034,7 +2077,11 @@ function rAgenda(){
       var key=p+"|"+t,appt=apptsByPT[key];
       if(appt){
         var div=appt.divulgador?'<div style="font-size:8px;color:#38bdf8;margin-top:2px">\u{1F464} '+es(appt.divulgador)+'</div>':'';
-        return'<div class="agn-slot" data-agn-slot-prof="'+p+'" data-agn-slot-time="'+t+'" data-agn-slot-date="'+d+'"><div class="agn-appt status-'+appt.status+'" draggable="true" data-agn-card="'+appt.id+'" data-edit-agn="'+appt.id+'">'+es(appt.client)+'<br><span style="font-size:9px;opacity:.8">'+es(appt.service)+'</span>'+div+'</div></div>';
+        var dotCls=appt.status==="confirmado"?"agn-dot-conf":appt.status==="cancelado"?"agn-dot-canc":"agn-dot-pend";
+        var hasReag=(appt.obs||"").indexOf("REAGENDOU")>=0;
+        var reagBadge=hasReag?'<div style="font-size:8px;color:#38bdf8;margin-top:1px">\uD83D\uDCC5 mudou data</div>':'';
+        var actBtns='<div class="agn-act-btns"><button class="agn-btn-conf" data-confirmar-agn="'+appt.id+'">\u2713</button><button class="agn-btn-canc" data-desmarcar-agn="'+appt.id+'">\u2715</button></div>';
+        return'<div class="agn-slot" data-agn-slot-prof="'+p+'" data-agn-slot-time="'+t+'" data-agn-slot-date="'+d+'"><div class="agn-appt status-'+appt.status+'" draggable="true" data-agn-card="'+appt.id+'" data-edit-agn="'+appt.id+'"><div style="display:flex;align-items:flex-start;justify-content:space-between;gap:2px"><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+es(appt.client)+'</span><span class="agn-dot '+dotCls+'"></span></div><span style="font-size:9px;opacity:.8">'+es(appt.service)+'</span>'+div+reagBadge+actBtns+'</div></div>';
       }
       return'<div class="agn-slot" data-agn-slot-prof="'+p+'" data-agn-slot-time="'+t+'" data-agn-slot-date="'+d+'" data-new-agn="'+d+'|'+t+'|'+p+'"><div class="agn-empty">+</div></div>';
     }).join("");
@@ -2052,7 +2099,7 @@ function rAgenda(){
     +'<div class="agn-wrap"><div class="agn-grid" style="grid-template-columns:'+gridCols+'">'
     +'<div class="agn-th"></div>'+profCols+rows+'</div></div>'
     +'<div style="margin-top:10px;display:flex;gap:12px;font-size:11px">'
-    +'<span style="color:#34d399">\u2588 Confirmado</span><span style="color:#fbbf24">\u2588 Pendente</span><span style="color:#f87171">\u2588 Cancelado</span>'
+    +'<span style="display:inline-flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:#34d399;display:inline-block"></span> Confirmou</span> '+'<span style="display:inline-flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:#fbbf24;display:inline-block"></span> Pendente</span> '+'<span style="display:inline-flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:#f87171;display:inline-block"></span> Desmarcou</span> '+'<span style="display:inline-flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:#38bdf8;display:inline-block"></span> Mudou data</span>'
     +'<span style="color:#38bdf8;margin-left:8px">\u{1F464} = divulgador</span></div></div>';
 }
 
@@ -2925,9 +2972,12 @@ function rLeadsDailyReport(){
   var mudouHtml=mudaram.length?mudaram.map(function(m){return'<div style="padding:7px 12px;background:#18181b;border:1px solid #27272a;border-radius:8px;margin-bottom:6px;font-size:11px"><span style="color:#f1f5f9;font-weight:600">'+es(m.lead.nome)+'</span> <span style="color:#52525b">\u2192</span> <span style="color:#fbbf24">'+es(m.hist.etapaAnterior||"")+'</span> <span style="color:#52525b">\u2192</span> <span style="color:#34d399">'+es(m.hist.etapaNova||"")+'</span></div>';}).join(""):'<div class="emp" style="padding:16px 0">Nenhuma mudan\u00e7a neste dia</div>';
   var agnHtml=agnDia.length?agnDia.map(function(a){
     var isLead=!!leadByAgn[a.id];
+    var stColor=a.status==="confirmado"?"#34d399":a.status==="cancelado"?"#f87171":"#fbbf24";
+    var stDot='<span style="width:8px;height:8px;border-radius:50%;background:'+stColor+';display:inline-block;flex-shrink:0"></span>';
+    var reagBadge=(a.obs||"").indexOf("REAGENDOU")>=0?'<span style="font-size:9px;color:#38bdf8;margin-left:4px">\uD83D\uDCC5 mudou data</span>':'';
     return'<div style="padding:8px 12px;background:#18181b;border:1px solid #27272a;border-radius:8px;margin-bottom:7px;display:flex;align-items:center;gap:10px">'
       +'<div style="font-size:12px;font-weight:700;color:#a78bfa;min-width:44px">'+es(a.time||"--:--")+'</div>'
-      +'<div style="flex:1"><div style="font-size:12px;font-weight:600;color:#f1f5f9">'+es(a.client||"")+'</div>'
+      +'<div style="flex:1"><div style="display:flex;align-items:center;gap:6px">'+stDot+'<span style="font-size:12px;font-weight:600;color:#f1f5f9">'+es(a.client||"")+'</span>'+reagBadge+'</div>'
       +'<div style="font-size:10px;color:#71717a">'+es(a.service||"")+(a.professional?' \u00b7 '+es(a.professional):'')+'</div></div>'
       +(isLead?'<span style="font-size:10px;padding:2px 8px;border-radius:8px;background:#f43f5e20;color:#f43f5e">LEAD</span>':'')
       +'</div>';
@@ -4100,6 +4150,10 @@ document.addEventListener("click",function(e){
     return;}
   var vr=e.target.closest("[data-venda-realizada]");if(vr){confirmarVendaRealizada(vr.dataset.vendaRealizada);return;}
   var an=e.target.closest("[data-agn-nav]");if(an){S.agnDate=an.dataset.agnNav;rT();return;}
+  var ca=e.target.closest("[data-confirmar-agn]");if(ca){confirmarAgn(ca.dataset.confirmarAgn);return;}
+  var da=e.target.closest("[data-desmarcar-agn]");if(da){desmarcarAgn(da.dataset.desmarcarAgn);return;}
+  var dr=e.target.closest("[data-desmarcar-reagendou]");if(dr){marcarReagendou(dr.dataset.desmarcarReagendou);return;}
+  var dc=e.target.closest("[data-desmarcar-cancelou]");if(dc){marcarCancelou(dc.dataset.desmarcarCancelou);return;}
   var ns=e.target.closest("[data-new-agn]");if(ns){var pts=ns.dataset.newAgn.split("|");openAgn(pts[0],pts[1],pts[2]);return;}
   var ea=e.target.closest("[data-edit-agn]");if(ea){openAgn(null,null,null,ea.dataset.editAgn);return;}
   var ag=e.target.closest("[data-agn-goto]");if(ag){var agp=ag.dataset.agnGoto.split("|");goToAgn(agp[0],agp[1]);return;}
