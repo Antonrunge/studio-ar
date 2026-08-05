@@ -1245,7 +1245,7 @@ function criarLeadDesmarcado(appt){
   } else {
     var novoLead={id:uid(),nome:nomeLimpo,telefone:appt.phone||"",interesse:appt.service||"",
       etapa:"interesse",dataCriacao:new Date().toISOString(),proximoContato:hj(),
-      historico:[{data:new Date().toISOString(),obs:"Desmarcou agendamento — enviada ao Kanban automaticamente",etapaAnterior:"",etapaNova:"interesse"}]};
+      historico:[{data:new Date().toISOString(),obs:"Desmarcou agendamento — enviada ao Kanban automaticamente",etapaAnterior:"",etapaNova:"interesse",tipo:"auto"}]};
     db.collection("leads").doc(novoLead.id).set(novoLead);
     showToast("❌ Desmarcou — cliente enviada ao Kanban!");
   }
@@ -3279,7 +3279,7 @@ function abrirContatosDiaRemarketing(){
   var contatosDia=[];
   recs.forEach(function(r){
     (r.historico||[]).forEach(function(h){
-      if((h.data||"").slice(0,10)===dia){
+      if((h.data||"").slice(0,10)===dia&&h.tipo!=="conversao"&&h.tipo!=="auto"){
         contatosDia.push({nome:r.nome,telefone:r.telefone||"",obs:h.obs||"",hora:h.hora||"",autor:h.autor||"",proc:r.procedimento||""});
       }
     });
@@ -3321,19 +3321,38 @@ function abrirRelatorioRemarketing(){
   var recs=D.remarketing||[];
   var conv=recs.filter(function(r){return r.status==="convertido";});
   var totalTaxa=conv.length*2;
+  var porAtendente={};
+  conv.forEach(function(r){
+    var a=r.comissaoAtendente||"Sem contato registrado";
+    if(!porAtendente[a])porAtendente[a]={qtd:0,valor:0,nomes:[]};
+    porAtendente[a].qtd++;porAtendente[a].valor+=r.comissaoValor||2;porAtendente[a].nomes.push(r.nome||"");
+  });
+  var atenRows=Object.keys(porAtendente).map(function(a){
+    var info=porAtendente[a];var isSem=a==="Sem contato registrado";
+    return'<div style="background:#18181b;border:1px solid #27272a;border-radius:8px;padding:10px 12px;margin-bottom:7px">'
+      +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">'
+        +'<span style="font-size:12px;font-weight:600;color:'+(isSem?"#71717a":"#38bdf8")+'">'+es(a)+'</span>'
+        +'<span style="font-size:13px;font-weight:700;color:#34d399">'+fmt(info.valor)+'</span>'
+      +'</div>'
+      +'<div style="font-size:10px;color:#71717a">'+info.qtd+' cliente'+(info.qtd>1?'s':'')+': '+info.nomes.map(function(n){return es(n);}).join(', ')+'</div>'
+    +'</div>';
+  }).join("");
   var porProc={};
   conv.forEach(function(r){var p=r.procedimento||"OUTRO";porProc[p]=(porProc[p]||0)+1;});
-  var procRows=Object.keys(porProc).map(function(k){var pc=REMKT_PROC_COLORS[k]||REMKT_PROC_COLORS.OUTRO;return'<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #27272a;font-size:12px"><span style="color:'+pc.color+'">'+pc.label+'</span><span style="color:#f1f5f9;font-weight:600">'+porProc[k]+'</span></div>';}).join("");
-  omod(mhdr("\uD83D\uDCCA Relat\u00f3rio de Remarketing")
-    +'<div style="background:#18181b;border:1px solid #27272a;border-radius:8px;padding:12px;margin-bottom:12px">'
-      +'<div style="font-size:11px;color:#71717a;margin-bottom:4px">Taxa total acumulada (R$ 2,00 por comparecimento)</div>'
-      +'<div style="font-size:26px;font-weight:700;color:#a78bfa">R$ '+fmt(totalTaxa)+'</div>'
-      +'<div style="font-size:11px;color:#52525b;margin-top:4px">'+conv.length+' clientes convertidas</div>'
+  var procRows=Object.keys(porProc).map(function(k){var pc=REMKT_PROC_COLORS[k]||REMKT_PROC_COLORS.OUTRO;return'<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #27272a;font-size:11px"><span style="color:'+pc.color+'">'+pc.label+'</span><span style="color:#f1f5f9;font-weight:600">'+porProc[k]+'</span></div>';}).join("");
+  omod(mhdr("Relatório de Remarketing")
+    +'<div style="background:#18181b;border:1px solid #27272a;border-radius:8px;padding:12px;margin-bottom:14px">'
+    +'<div style="font-size:11px;color:#71717a;margin-bottom:4px">Comissões acumuladas (R$ 2,00 por cliente retornado)</div>'
+    +'<div style="font-size:28px;font-weight:700;color:#34d399">'+fmt(totalTaxa)+'</div>'
+    +'<div style="font-size:11px;color:#52525b;margin-top:4px">'+conv.length+' cliente'+(conv.length!==1?'s':'')+' convertida'+(conv.length!==1?'s':'')+'</div>'
     +'</div>'
-    +(procRows?'<div style="font-size:12px;font-weight:600;color:#a1a1aa;margin-bottom:6px">Por procedimento:</div>'+procRows:'')
+    +(atenRows
+      ?'<div style="font-size:12px;font-weight:600;color:#a1a1aa;margin-bottom:8px">Comissão por atendente:</div>'+atenRows
+      :'<div class="emp" style="padding:12px 0">Nenhuma conversão ainda.</div>')
+    +(procRows?'<div style="font-size:12px;font-weight:600;color:#a1a1aa;margin-bottom:6px;margin-top:12px">Por procedimento:</div>'+procRows:'')
     +'<div style="display:flex;gap:8px;margin-top:14px">'
-      +'<div style="flex:1;background:#18181b;border:1px solid #27272a;border-radius:8px;padding:8px 12px;text-align:center"><div style="font-size:20px;font-weight:700;color:#fbbf24">'+recs.filter(function(r){return r.status==="ativo"||r.status==="agendado";}).length+'</div><div style="font-size:10px;color:#71717a">Ativas</div></div>'
-      +'<div style="flex:1;background:#18181b;border:1px solid #27272a;border-radius:8px;padding:8px 12px;text-align:center"><div style="font-size:20px;font-weight:700;color:#f87171">'+recs.filter(function(r){return r.status==="descartado";}).length+'</div><div style="font-size:10px;color:#71717a">Descartadas</div></div>'
+    +'<div style="flex:1;background:#18181b;border:1px solid #27272a;border-radius:8px;padding:8px 12px;text-align:center"><div style="font-size:20px;font-weight:700;color:#fbbf24">'+recs.filter(function(r){return r.status==="ativo"||r.status==="agendado";}).length+'</div><div style="font-size:10px;color:#71717a">Ativas</div></div>'
+    +'<div style="flex:1;background:#18181b;border:1px solid #27272a;border-radius:8px;padding:8px 12px;text-align:center"><div style="font-size:20px;font-weight:700;color:#f87171">'+recs.filter(function(r){return r.status==="descartado";}).length+'</div><div style="font-size:10px;color:#71717a">Descartadas</div></div>'
     +'</div>');
 }
 /* ================= FIM REMARKETING ================= */
@@ -3694,7 +3713,7 @@ function remarketingAutoConvert(tel,nome){
     return (telDigits&&rTelDigits&&rTelDigits===telDigits)||(nomeSlug&&slug(r.nome||"")===nomeSlug);
   });
   if(!match)return;
-  var entry={data:new Date().toISOString(),hora:new Date().toTimeString().slice(0,5),obs:"Compareceu ao salão — serviço registrado",autor:CURRENT_USER?CURRENT_USER.nome||CURRENT_USER.role:"sistema"};
+  var entry={data:new Date().toISOString(),hora:new Date().toTimeString().slice(0,5),obs:"Compareceu ao salão — serviço registrado",autor:CURRENT_USER?CURRENT_USER.nome||CURRENT_USER.role:"sistema",tipo:"conversao"};
   db.collection("remarketing").doc(match.id).update({status:"convertido",taxaRemarketing:2,dataConversao:hj(),historico:firebase.firestore.FieldValue.arrayUnion(entry)});
   showToast("Remarketing: "+match.nome+" convertida! +R$ 2,00","#34d399");
 }
