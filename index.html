@@ -6019,6 +6019,10 @@ function rConversas(){
       cardBg:"#111115",cardBorder:"#27272a",cardSel:"#f43f5e14",cardBorderSel:"#f43f5e",
       txt:"#f4f4f5",txt2:"#c4c4c8",txt3:"#71717a",
       kpBg:"#18181b",kpBorder:"#27272a"};
+  // Cores de botões inativos (variam por tema)
+  var _tbInBg=tema==="light"?"#ddd8d0":"#27272a";
+  var _tbInBd=tema==="light"?"#b8b3ac":"#3f3f46";
+  var _tbInTx=tema==="light"?"#374151":"#a1a1aa";
 
   // ── Dados mock de conversas ───────────────────
   // campanha / anuncio: atribuição via ctwa_clid (disponível na Etapa 5)
@@ -6220,7 +6224,7 @@ function rConversas(){
   if(isAdmin||isRecepcao){
     var listaAt=atendentes.map(function(a){
       var ehProximo=a.nome===proximoAtendente;
-      return '<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid #1a1a1e">'
+      return '<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid '+T.sbBorder+'">'
         +'<div style="position:relative;flex-shrink:0">'+av(a.nome,a.cor,30)
           +'<div style="position:absolute;bottom:0;right:0;width:9px;height:9px;border-radius:50%;background:'+(a.online?"#34d399":"#3f3f46")+';border:2px solid #111115"></div>'
         +'</div>'
@@ -6270,16 +6274,16 @@ function rConversas(){
     if(m.tipo==="nota"){
       if(!podeNota) return ""; // recepcao/comercial não vê nota
       return '<div style="display:flex;align-items:flex-start;gap:7px;margin-bottom:10px;padding:0 4px">'
-        +'<div style="width:22px;height:22px;border-radius:50%;background:#78350f;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0;color:#fbbf24;margin-top:2px">'+es((m.de||"A")[0].toUpperCase())+'</div>'
-        +'<div style="flex:1"><div style="background:#78350f22;border:1px dashed #d9770655;border-radius:8px;padding:7px 11px">'
+        +'<div style="width:22px;height:22px;border-radius:50%;background:#92400e;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0;color:#fef3c7;margin-top:2px">'+es((m.de||"A")[0].toUpperCase())+'</div>'
+        +'<div style="flex:1"><div style="background:'+(tema==="light"?"#fffbeb":"#78350f22")+';border:1px dashed '+(tema==="light"?"#d97706":"#d9770655")+';border-radius:8px;padding:7px 11px">'
           +'<div style="display:flex;align-items:center;gap:5px;margin-bottom:4px">'
             +'<span style="font-size:9px;font-weight:700;color:#d97706">🔒 Nota interna</span>'
             +'<span style="font-size:9px;color:#92400e">• '+es(m.de||"Admin")+'</span>'
             +'<span style="font-size:9px;color:#78350f;margin-left:auto">'+es(m.ts)+'</span>'
           +'</div>'
-          +'<div style="font-size:11px;color:#fbbf24;font-style:italic">'+es(m.texto)+'</div>'
+          +'<div style="font-size:11px;color:'+(tema==="light"?"#92400e":"#fbbf24")+';font-style:italic">'+es(m.texto)+'</div>'
         +'</div>'
-        +'<div style="font-size:8px;color:#78350f;margin-top:2px;padding-left:2px">🙈 Não visível pelo cliente</div></div>'
+        +'<div style="font-size:8px;color:'+(tema==="light"?"#92400e":"#78350f")+';font-weight:600;margin-top:2px;padding-left:2px">🙈 Não visível pelo cliente</div></div>'
       +'</div>';
     }
     var mine=m.tipo==="atendente";
@@ -6326,7 +6330,7 @@ function rConversas(){
     var catAtiva=S.waRrCat||"Boas-vindas";
     var rrFiltradas=WA_MSGS.filter(function(m){return m.cat===catAtiva;});
     rrPanel=
-      '<div style="border-top:1px solid '+T.inpBorder+';background:'+(tema==="light"?"#f9f9f9":"#18181b")+';flex-shrink:0;max-height:220px;overflow-y:auto">'
+      '<div style="border-top:1px solid '+T.inpBorder+';background:'+T.sb+';flex-shrink:0;max-height:220px;overflow-y:auto">'
         // Tabs de categoria
         +'<div style="display:flex;gap:0;overflow-x:auto;border-bottom:1px solid '+T.inpBorder+'">'
           +cats.map(function(c){
@@ -6358,26 +6362,26 @@ function rConversas(){
     bibFiltradas.forEach(function(m){bibGrupos[m.cat]=(bibGrupos[m.cat]||[]).concat(m);});
     var bibConteudo=Object.keys(bibGrupos).map(function(cat){
       return '<div style="margin-bottom:16px">'
-        +'<div style="font-size:10px;font-weight:700;color:#a1a1aa;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">'+es(cat)+'</div>'
+        +'<div style="font-size:10px;font-weight:700;color:'+T.txt2+';text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">'+es(cat)+'</div>'
         +bibGrupos[cat].map(function(m){
-          return '<div style="background:#27272a;border:1px solid #3f3f46;border-radius:8px;padding:10px 12px;margin-bottom:7px">'
+          return '<div style="background:'+T.cardBg+';border:1px solid '+T.cardBorder+';border-radius:8px;padding:10px 12px;margin-bottom:7px">'
             +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">'
-              +'<span style="font-size:11px;font-weight:600;color:#f1f5f9">'+es(m.titulo)+'</span>'
+              +'<span style="font-size:11px;font-weight:600;color:'+T.txt+'">'+es(m.titulo)+'</span>'
               +'<button data-wa-usar-bib="'+es(m.id)+'" style="background:#f43f5e;border:none;color:#fff;border-radius:6px;padding:3px 10px;font-size:10px;font-weight:600;cursor:pointer">📋 Copiar</button>'
             +'</div>'
-            +'<div style="font-size:11px;color:#a1a1aa;line-height:1.5">'+es(m.texto)+'</div>'
+            +'<div style="font-size:11px;color:'+T.txt3+';line-height:1.5">'+es(m.texto)+'</div>'
           +'</div>';
         }).join("")
       +'</div>';
     }).join("");
 
     bibModal='<div style="position:absolute;inset:0;z-index:50;background:rgba(0,0,0,.75);display:flex;align-items:flex-start;justify-content:flex-end;padding:10px">'
-      +'<div style="background:#111115;border:1px solid #27272a;border-radius:12px;width:420px;max-width:96vw;max-height:calc(100% - 20px);display:flex;flex-direction:column;overflow:hidden">'
+      +'<div style="background:'+T.sb+';border:1px solid '+T.sbBorder+';border-radius:12px;width:420px;max-width:96vw;max-height:calc(100% - 20px);display:flex;flex-direction:column;overflow:hidden">'
         // Header do modal
-        +'<div style="padding:14px 16px;border-bottom:1px solid #27272a;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">'
+        +'<div style="padding:14px 16px;border-bottom:1px solid '+T.sbBorder+';display:flex;align-items:center;justify-content:space-between;flex-shrink:0">'
           +'<div>'
-            +'<div style="font-size:14px;font-weight:700;color:#f1f5f9">📚 Biblioteca de Mensagens</div>'
-            +'<div style="font-size:10px;color:#71717a;margin-top:1px">Clique em Copiar e cole no campo de envio</div>'
+            +'<div style="font-size:14px;font-weight:700;color:'+T.txt+'">📚 Biblioteca de Mensagens</div>'
+            +'<div style="font-size:10px;color:'+T.txt3+';margin-top:1px">Clique em Copiar e cole no campo de envio</div>'
           +'</div>'
           +'<button data-wa-fechar-bib style="background:none;border:none;color:#71717a;font-size:20px;cursor:pointer;line-height:1">✕</button>'
         +'</div>'
@@ -6386,7 +6390,7 @@ function rConversas(){
           +'<div style="display:flex;gap:5px">'
             +bibCats.map(function(c){
               var on=WA_BIB_CAT===c;
-              return '<button data-wa-bib-cat="'+c+'" style="border:1px solid '+(on?"#f43f5e88":"#3f3f46")+';background:'+(on?"#f43f5e":"#27272a")+';color:'+(on?"#fff":"#a1a1aa")+';border-radius:20px;padding:3px 12px;font-size:10px;font-weight:'+(on?"600":"400")+';cursor:pointer;white-space:nowrap">'+(c==="todos"?"Todas":c)+'</button>';
+              return '<button data-wa-bib-cat="'+c+'" style="border:1px solid '+(on?"#f43f5e88":T.cardBorder)+';background:'+(on?"#f43f5e":T.cardBg)+';color:'+(on?"#fff":T.txt2)+';border-radius:20px;padding:3px 12px;font-size:10px;font-weight:'+(on?"600":"400")+';cursor:pointer;white-space:nowrap">'+(c==="todos"?"Todas":c)+'</button>';
             }).join("")
           +'</div>'
         +'</div>'
@@ -6406,23 +6410,23 @@ function rConversas(){
   } else {
     // Barra de ferramentas (respostas rápidas + biblioteca + nota)
     var toolbar='<div style="display:flex;gap:5px;margin-bottom:7px;align-items:center;flex-wrap:wrap">'
-      +'<button data-wa-toggle-rr style="border:1px solid '+(WA_RR_ABERTA?"#f43f5e88":"#3f3f46")+';background:'+(WA_RR_ABERTA?"#f43f5e14":"#27272a")+';color:'+(WA_RR_ABERTA?"#f43f5e":"#a1a1aa")+';border-radius:20px;padding:3px 11px;font-size:10px;font-weight:600;cursor:pointer">⚡ Respostas rápidas</button>'
-      +'<button data-wa-biblioteca style="border:1px solid #3f3f46;background:#27272a;color:#a1a1aa;border-radius:20px;padding:3px 11px;font-size:10px;cursor:pointer">📚 Biblioteca</button>'
+      +'<button data-wa-toggle-rr style="border:1px solid '+(WA_RR_ABERTA?"#f43f5e88":_tbInBd)+';background:'+(WA_RR_ABERTA?"#f43f5e14":_tbInBg)+';color:'+(WA_RR_ABERTA?"#f43f5e":_tbInTx)+';border-radius:20px;padding:3px 11px;font-size:10px;font-weight:600;cursor:pointer">⚡ Respostas rápidas</button>'
+      +'<button data-wa-biblioteca style="border:1px solid '+_tbInBd+';background:'+_tbInBg+';color:'+_tbInTx+';border-radius:20px;padding:3px 11px;font-size:10px;cursor:pointer">📚 Biblioteca</button>'
       +(podeNota?'<div style="display:flex;gap:4px;margin-left:auto">'
-        +'<button data-wa-modo="cliente" style="border:1px solid '+(modoNota?"#3f3f46":"#f43f5e")+';background:'+(modoNota?"#27272a":"#f43f5e14")+';color:'+(modoNota?"#52525b":"#f43f5e")+';border-radius:6px;padding:3px 9px;font-size:10px;font-weight:600;cursor:pointer">💬 Cliente</button>'
-        +'<button data-wa-modo="nota" style="border:1px solid '+(modoNota?"#d97706":"#3f3f46")+';background:'+(modoNota?"#78350f22":"#27272a")+';color:'+(modoNota?"#d97706":"#52525b")+';border-radius:6px;padding:3px 9px;font-size:10px;font-weight:600;cursor:pointer">🔒 Nota</button>'
+        +'<button data-wa-modo="cliente" style="border:1px solid '+(modoNota?_tbInBd:"#f43f5e")+';background:'+(modoNota?_tbInBg:"#f43f5e14")+';color:'+(modoNota?_tbInTx:"#f43f5e")+';border-radius:6px;padding:3px 9px;font-size:10px;font-weight:600;cursor:pointer">💬 Cliente</button>'
+        +'<button data-wa-modo="nota" style="border:1px solid '+(modoNota?"#d97706":_tbInBd)+';background:'+(modoNota?"#78350f22":_tbInBg)+';color:'+(modoNota?"#d97706":_tbInTx)+';border-radius:6px;padding:3px 9px;font-size:10px;font-weight:600;cursor:pointer">🔒 Nota</button>'
       +'</div>':'')
     +'</div>';
 
     if(modoNota){
-      inputArea=rrPanel+'<div style="padding:10px 14px;border-top:2px solid #d9770633;background:'+T.inp+';flex-shrink:0">'
+      inputArea=rrPanel+'<div style="padding:10px 14px;border-top:2px solid '+(tema==="light"?"#d97706":"#d9770633")+';background:'+T.inp+';flex-shrink:0">'
         +toolbar
-        +'<div style="background:#78350f18;border:1px dashed #d9770644;border-radius:10px;padding:8px 12px;display:flex;align-items:center;gap:8px">'
+        +'<div style="background:'+(tema==="light"?"#fffbeb":"#78350f18")+';border:1px dashed '+(tema==="light"?"#d97706":"#d9770644")+';border-radius:10px;padding:8px 12px;display:flex;align-items:center;gap:8px">'
           +'<span style="font-size:13px">🔒</span>'
-          +'<input type="text" id="wa-nota-input" placeholder="Nota visível só para a equipe (não vai ao cliente)..." style="flex:1;background:transparent;border:none;color:#fbbf24;font-size:11px;outline:none;width:auto !important">'
+          +'<input type="text" id="wa-nota-input" placeholder="Nota visível só para a equipe (não vai ao cliente)..." style="flex:1;background:transparent;border:none;color:'+(tema==="light"?"#92400e":"#fbbf24")+';font-size:11px;outline:none;width:auto !important">'
           +'<button data-wa-enviar-nota style="background:#d97706;border:none;color:#fff;border-radius:8px;padding:5px 12px;font-size:11px;font-weight:600;cursor:pointer;flex-shrink:0">Enviar</button>'
         +'</div>'
-        +'<div style="font-size:9px;color:#78350f;margin-top:5px;padding-left:4px">Nota visível apenas para a equipe — o cliente nunca vê.</div>'
+        +'<div style="font-size:9px;color:'+(tema==="light"?"#92400e":"#78350f")+';font-weight:'+(tema==="light"?"600":"400")+';margin-top:5px;padding-left:4px">Nota visível apenas para a equipe — o cliente nunca vê.</div>'
       +'</div>';
     } else {
       inputArea=rrPanel+'<div style="padding:10px 14px;border-top:1px solid '+T.inpBorder+';background:'+T.inp+';flex-shrink:0">'
@@ -6534,8 +6538,8 @@ function rConversas(){
   var fsBtn=mob?"":'<button data-wa-fullscreen style="background:'+(WA_FULLSCREEN?"#f43f5e14":"#27272a")+';border:1px solid '+(WA_FULLSCREEN?"#f43f5e66":"#3f3f46")+';color:'+(WA_FULLSCREEN?"#f43f5e":"#a1a1aa")+';border-radius:20px;padding:4px 10px;font-size:10px;cursor:pointer;white-space:nowrap">'+(WA_FULLSCREEN?"⬜ Sair":"⛶ Tela cheia")+'</button>';
 
   var tabsHTML='<div style="display:flex;align-items:center;gap:7px;margin-bottom:12px;flex-wrap:wrap">'
-    +'<button data-wa-subtab="conversas" style="border:1px solid '+(subtab==="conversas"?"#f43f5e88":"#3f3f46")+';background:'+(subtab==="conversas"?"#f43f5e":"#27272a")+';color:'+(subtab==="conversas"?"#fff":"#a1a1aa")+';border-radius:20px;padding:4px 12px;font-size:11px;font-weight:'+(subtab==="conversas"?"600":"400")+';cursor:pointer">💬 Conversas</button>'
-    +'<button data-wa-subtab="relatorio" style="border:1px solid '+(subtab==="relatorio"?"#f43f5e88":"#3f3f46")+';background:'+(subtab==="relatorio"?"#f43f5e":"#27272a")+';color:'+(subtab==="relatorio"?"#fff":"#a1a1aa")+';border-radius:20px;padding:4px 12px;font-size:11px;font-weight:'+(subtab==="relatorio"?"600":"400")+';cursor:pointer">📊 Rel.</button>'
+    +'<button data-wa-subtab="conversas" style="border:1px solid '+(subtab==="conversas"?"#f43f5e88":_tbInBd)+';background:'+(subtab==="conversas"?"#f43f5e":_tbInBg)+';color:'+(subtab==="conversas"?"#fff":_tbInTx)+';border-radius:20px;padding:4px 12px;font-size:11px;font-weight:'+(subtab==="conversas"?"600":"400")+';cursor:pointer">💬 Conversas</button>'
+    +'<button data-wa-subtab="relatorio" style="border:1px solid '+(subtab==="relatorio"?"#f43f5e88":_tbInBd)+';background:'+(subtab==="relatorio"?"#f43f5e":_tbInBg)+';color:'+(subtab==="relatorio"?"#fff":_tbInTx)+';border-radius:20px;padding:4px 12px;font-size:11px;font-weight:'+(subtab==="relatorio"?"600":"400")+';cursor:pointer">📊 Rel.</button>'
     +'<div style="margin-left:auto;display:flex;gap:5px">'+fsBtn+themeBtn+'</div>'
   +'</div>';
 
