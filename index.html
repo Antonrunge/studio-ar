@@ -341,12 +341,12 @@ function openAdminAuthModal(onSuccess){
 
 var CURRENT_USER = null; // {uid, email, role, nome}
 var ROLE_TABS = {
-  admin: ["dashboard","agenda","followup","leads","services","products","expenses","advances","prolabore","dre","analise","clients","db","requests","audit","estoque","arprof","metaads","conversas","fornecedores","caixa","mensagens"],
-  recepcao: ["agenda","followup","services","products","clients","requests","estoque","conversas","mensagens"],
+  admin: ["dashboard","agenda","followup","leads","remarketing","services","products","expenses","advances","prolabore","dre","analise","clients","db","requests","audit","estoque","arprof","metaads","conversas","fornecedores","caixa","mensagens"],
+  recepcao: ["agenda","followup","services","products","clients","requests","estoque","conversas","remarketing","mensagens"],
   financeiro: ["dashboard","expenses","advances","prolabore","dre","analise","arprof","caixa","mensagens"],
   marketing: ["clients","mensagens"],
   profissional: ["agenda","prolabore","mensagens"],
-  comercial: ["agenda","leads","conversas","mensagens"]
+  comercial: ["agenda","leads","remarketing","conversas","mensagens"]
 };
 var ROLE_LABELS = {admin:"Administrador",recepcao:"Recep\u00e7\u00e3o",financeiro:"Financeiro",marketing:"Marketing",profissional:"Profissional",comercial:"Comercial"};
 var COL_MAP = {svc:"servicos",prd:"produtos",exp:"despesas",adv:"adiantamentos",agn:"agendamentos",contacts:"contatos"};
@@ -688,6 +688,7 @@ function setupListeners(){
   listen("solicitacoes",function(a){D.requests=a;});
   listen("estoque",function(a){D.estoque=a;});
   listen("leads",function(a){D.leads=a;});
+  listen("remarketing",function(a){D.remarketing=a;});
   if(CURRENT_USER&&CURRENT_USER.role==="admin")listen("auditoria",function(a){D.audit=a;});
   listen("arEntradas",function(a){D.arEntradas=a;});
   listen("arSaidas",function(a){D.arSaidas=a;});
@@ -806,7 +807,7 @@ function tbl(rows,cols,type){
 function kp(l,v,s){return'<div class="kp"><div class="kl">'+l+'</div><div class="kv">'+v+'</div>'+(s?'<div class="ks">'+s+'</div>':'')+'</div>';}
 
 /* SIDEBAR */
-var NAV=[["dashboard","\uD83D\uDCCA","Dashboard"],["agenda","\uD83D\uDCC5","Agenda"],["followup","\uD83D\uDCF2","Follow-up"],["services","\u2702\uFE0F","Servi\u00e7os"],["products","\uD83E\uDDF4","Produtos"],["expenses","\uD83D\uDCB8","Despesas"],["advances","\uD83D\uDCB5","Adiantamentos"],["prolabore","\uD83D\uDC65","Pr\u00f3-Labore"],["dre","\uD83D\uDCC8","DRE / DFC"],["clients","\uD83D\uDC69","Clientes"],["leads","\uD83C\uDFAF","Leads"],["db","\uD83D\uDDC4\uFE0F","Banco de Dados"],["requests","\uD83D\uDCE5","Solicita\u00e7\u00f5es Online"],["audit","\uD83D\uDD0D","Auditoria"],["estoque","\uD83E\uDDF4","Estoque"],["arprof","\uD83C\uDFF7\uFE0F","A R Professional"],["metaads","\uD83D\uDCE3","Meta Ads"],["conversas","\uD83D\uDCAC","Conversas WA"],["fornecedores","\uD83D\uDE9A","Fornecedores"],["caixa","\uD83C\uDFE6","Caixa Banc\u00e1rio"],["analise","\uD83D\uDCC9","An\u00e1lise Mensal"],["mensagens","\uD83D\uDCAC","Mensagens"]];
+var NAV=[["dashboard","\uD83D\uDCCA","Dashboard"],["agenda","\uD83D\uDCC5","Agenda"],["followup","\uD83D\uDCF2","Follow-up"],["services","\u2702\uFE0F","Servi\u00e7os"],["products","\uD83E\uDDF4","Produtos"],["expenses","\uD83D\uDCB8","Despesas"],["advances","\uD83D\uDCB5","Adiantamentos"],["prolabore","\uD83D\uDC65","Pr\u00f3-Labore"],["dre","\uD83D\uDCC8","DRE / DFC"],["clients","\uD83D\uDC69","Clientes"],["leads","\uD83C\uDFAF","Leads"],["remarketing","\uD83D\uDD04","Remarketing"],["db","\uD83D\uDDC4\uFE0F","Banco de Dados"],["requests","\uD83D\uDCE5","Solicita\u00e7\u00f5es Online"],["audit","\uD83D\uDD0D","Auditoria"],["estoque","\uD83E\uDDF4","Estoque"],["arprof","\uD83C\uDFF7\uFE0F","A R Professional"],["metaads","\uD83D\uDCE3","Meta Ads"],["conversas","\uD83D\uDCAC","Conversas WA"],["fornecedores","\uD83D\uDE9A","Fornecedores"],["caixa","\uD83C\uDFE6","Caixa Banc\u00e1rio"],["analise","\uD83D\uDCC9","An\u00e1lise Mensal"],["mensagens","\uD83D\uDCAC","Mensagens"]];
 var DIVULGADORES_CUSTOM=null;
 var DIVULGADORES_DEFAULT=["Lorran","Geovana","Isabela","Diane","Anton"];
 function getDivulgadores(){return DIVULGADORES_CUSTOM||DIVULGADORES_DEFAULT;}
@@ -2988,6 +2989,237 @@ function rLeadsDailyReport(){
 +'<button onclick="setIntFiltro(\'dia\')" style="font-size:10px;padding:3px 10px;border-radius:6px;cursor:pointer;border:1px solid #3f3f46;background:'+(INT_FILTRO==="dia"?"#f43f5e":"#18181b")+';color:'+(INT_FILTRO==="dia"?"#fff":"#a1a1aa")+'">S\u00f3 o dia</button>'
 +'</span></div>'+(intHtml||'<div class="emp">Sem dados'+(INT_FILTRO==="dia"?" no dia selecionado":"")+'</div>')+'</div><div class="cd"><div class="ct">\uD83D\uDCC5 Agendamentos do Dia \u2014 '+fdt(dia)+'</div>'+agnHtml+'</div></div></div>';
 }
+
+/* ================= REMARKETING ================= */
+var REMKT_PROC_COLORS={
+  CORTE:{label:"Corte",color:"#60a5fa"},
+  LUZES:{label:"Luzes",color:"#fbbf24"},
+  PROGRESSIVA:{label:"Progressiva",color:"#a78bfa"},
+  BOTOX:{label:"Botox",color:"#f472b6"},
+  COLORACAO:{label:"Colora\u00e7\u00e3o",color:"#fb923c"},
+  OUTRO:{label:"Outro",color:"#71717a"}
+};
+var REMKT_BUCKETS=[
+  {key:"45",label:"45 dias",min:40,max:59},
+  {key:"60",label:"60 dias",min:60,max:74},
+  {key:"75",label:"75 dias",min:75,max:89},
+  {key:"90",label:"90 dias",min:90,max:100},
+  {key:"100plus",label:"100+ dias",min:101,max:9999}
+];
+function detectProcedimento(trabalho){
+  var t=(trabalho||"").toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+  if(/LUZ|MECH/.test(t))return "LUZES";
+  if(/PROGRESS|ESCOV|FORMOL/.test(t))return "PROGRESSIVA";
+  if(/BOTOX|BTOX/.test(t))return "BOTOX";
+  if(/COLOR/.test(t))return "COLORACAO";
+  if(/CORTE/.test(t))return "CORTE";
+  return "OUTRO";
+}
+function diasDesde(dateStr){
+  if(!dateStr)return 9999;
+  var hoje=new Date(hj()+"T00:00:00");
+  var d=new Date(dateStr+"T00:00:00");
+  return Math.floor((hoje-d)/(1000*60*60*24));
+}
+var _remktAutoRun=false;
+function autoAdicionarRemarketing(){
+  var svcs=D.svc||[];
+  if(!svcs.length)return;
+  var hoje=hj();
+  var lastSvc={};
+  svcs.forEach(function(s){
+    if(!s.cliente||!s.date)return;
+    var k=slug(s.cliente);
+    if(!lastSvc[k]||s.date>lastSvc[k].date){
+      lastSvc[k]={date:s.date,cliente:s.cliente,telefone:s.telefone||"",trabalho:s.trabalho||"",profissional:(s.profissionais&&s.profissionais[0])||""};
+    }
+  });
+  var existentes={};
+  (D.remarketing||[]).forEach(function(r){existentes[slug(r.nome)]=true;});
+  var futuros={};
+  (D.agn||[]).forEach(function(a){if(a.date>=hoje)futuros[slug(a.client||"")]=true;});
+  Object.keys(lastSvc).forEach(function(k){
+    var r=lastSvc[k];
+    var dias=diasDesde(r.date);
+    if(dias<40)return;
+    if(existentes[k])return;
+    if(futuros[k])return;
+    var proc=detectProcedimento(r.trabalho);
+    var newRec={id:uid(),nome:r.cliente,telefone:r.telefone,ultimoServico:r.date,procedimento:proc,status:"ativo",origem:"automatico",profissionalUltimo:r.profissional,obs:"",criadoEm:new Date().toISOString(),taxaRemarketing:0};
+    db.collection("remarketing").doc(newRec.id).set(newRec);
+  });
+}
+function rRemarketing(){
+  if(!_remktAutoRun&&(D.svc||[]).length>0){
+    _remktAutoRun=true;
+    setTimeout(autoAdicionarRemarketing,600);
+  }
+  var recs=(D.remarketing||[]).filter(function(r){return r.status==="ativo"||r.status==="agendado";});
+  var proc=S.remktProc||"";
+  var filtered=recs.filter(function(r){return !proc||(r.procedimento||"")===proc;});
+  var totalAtivas=(D.remarketing||[]).filter(function(r){return r.status==="ativo"||r.status==="agendado";}).length;
+  var totalConv=(D.remarketing||[]).filter(function(r){return r.status==="convertido";}).length;
+  var totalTaxa=totalConv*2;
+  var procOpts='<option value="">Todos os procedimentos</option>'+Object.keys(REMKT_PROC_COLORS).filter(function(k){return k!=="OUTRO";}).map(function(k){var pc=REMKT_PROC_COLORS[k];return'<option value="'+k+'"'+(proc===k?' selected':'')+'>'+pc.label+'</option>';}).join("");
+  var legend=Object.keys(REMKT_PROC_COLORS).map(function(k){var pc=REMKT_PROC_COLORS[k];return'<span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;color:#a1a1aa"><span style="width:8px;height:8px;border-radius:50%;background:'+pc.color+';display:inline-block"></span>'+pc.label+'</span>';}).join("");
+  var cols=REMKT_BUCKETS.map(function(b){
+    var items=filtered.filter(function(r){var d=diasDesde(r.ultimoServico);return d>=b.min&&d<=b.max;});
+    items.sort(function(a,z){return diasDesde(z.ultimoServico)-diasDesde(a.ultimoServico);});
+    var colColor=b.key==="100plus"?"#f87171":(b.key==="90"?"#fb923c":"#fbbf24");
+    var cards=items.map(function(r){
+      var pc=REMKT_PROC_COLORS[r.procedimento]||REMKT_PROC_COLORS.OUTRO;
+      var dias=diasDesde(r.ultimoServico);
+      var agendadoBadge=r.status==="agendado"?'<span style="font-size:9px;background:#34d39920;color:#34d399;border:1px solid #34d39944;border-radius:8px;padding:1px 6px;margin-left:4px">Agendada</span>':'';
+      return'<div style="background:#18181b;border:1px solid #27272a;border-radius:8px;padding:9px 11px;margin-bottom:8px;cursor:pointer" data-remkt-open="'+r.id+'">'
+        +'<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:4px;margin-bottom:3px">'
+          +'<span style="font-size:12px;font-weight:600;color:#f1f5f9;flex:1">'+es(r.nome)+agendadoBadge+'</span>'
+          +'<span style="background:'+pc.color+'22;border:1px solid '+pc.color+'55;color:'+pc.color+';border-radius:8px;padding:1px 7px;font-size:9px;font-weight:700;white-space:nowrap">'+pc.label+'</span>'
+        +'</div>'
+        +(r.telefone?'<div style="font-size:10px;color:#71717a;margin-bottom:3px">'+es(r.telefone)+'</div>':'')
+        +'<div style="font-size:10px;color:#a1a1aa;margin-bottom:3px">'+fdt(r.ultimoServico)+' &middot; <span style="color:'+colColor+';font-weight:600">'+dias+' dias</span></div>'
+        +(r.divulgador?'<div style="font-size:9px;color:#38bdf8;margin-bottom:5px">\uD83D\uDC64 Div.: '+es(r.divulgador)+'</div>':'')
+        +'<div style="display:flex;gap:4px">'
+          +'<button class="gb" style="flex:1;font-size:9px;padding:4px 0;white-space:nowrap" data-remkt-agendar="'+r.id+'">&#128197; Agendar</button>'
+          +'<button style="flex:1;font-size:9px;padding:4px 0;background:#34d39918;border:1px solid #34d39944;color:#34d399;border-radius:7px;cursor:pointer;font-weight:600" data-remkt-converteu="'+r.id+'">&#10003; Veio</button>'
+          +'<button style="padding:4px 7px;font-size:9px;background:#f4717118;border:1px solid #f4717144;color:#f87171;border-radius:7px;cursor:pointer" data-remkt-descartar="'+r.id+'">&#10005;</button>'
+        +'</div>'
+      +'</div>';
+    }).join("");
+    return'<div class="lead-col">'
+      +'<div class="lead-col-hd" style="color:'+colColor+'">'+b.label+'<span style="color:#52525b;font-weight:400;margin-left:6px">'+items.length+'</span></div>'
+      +(cards||'<div class="emp" style="padding:16px 0">Nenhuma cliente</div>')
+    +'</div>';
+  }).join("");
+  return'<div class="pg"><div class="ph"><h2>&#128260; Remarketing</h2><div class="ph-btns">'
+    +'<button class="gb" onclick="abrirRelatorioRemarketing()">&#128202; Relat\u00f3rio</button>'
+    +'<button class="ab" onclick="openNovoRemarketing()">+ Adicionar Cliente</button></div></div>'
+    +'<div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap">'
+      +'<div style="background:#18181b;border:1px solid #27272a;border-radius:8px;padding:7px 14px;font-size:11px"><span style="color:#71717a">Ativas: </span><span style="color:#fbbf24;font-weight:700">'+totalAtivas+'</span></div>'
+      +'<div style="background:#18181b;border:1px solid #27272a;border-radius:8px;padding:7px 14px;font-size:11px"><span style="color:#71717a">Convertidas: </span><span style="color:#34d399;font-weight:700">'+totalConv+'</span></div>'
+      +'<div style="background:#18181b;border:1px solid #27272a;border-radius:8px;padding:7px 14px;font-size:11px"><span style="color:#71717a">Taxa acumulada: </span><span style="color:#a78bfa;font-weight:700">R$ '+fmt(totalTaxa)+'</span></div>'
+    +'</div>'
+    +'<div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">'
+      +'<select style="width:auto" onchange="S.remktProc=this.value;rT()">'+procOpts+'</select>'
+      +'<div style="display:flex;gap:8px;flex-wrap:wrap">'+legend+'</div>'
+    +'</div>'
+    +'<div class="lead-board">'+cols+'</div></div>';
+}
+function openNovoRemarketing(){
+  var procOpts=Object.keys(REMKT_PROC_COLORS).filter(function(k){return k!=="OUTRO";}).map(function(k){return'<option value="'+k+'">'+REMKT_PROC_COLORS[k].label+'</option>';}).join("");
+  omod(mhdr("Adicionar Cliente ao Remarketing")
+    +'<div class="fi"><label>Nome da Cliente</label><input type="text" id="rm-nome" placeholder="Nome completo"></div>'
+    +'<div class="g2">'
+      +'<div class="fi"><label>Telefone</label><input type="text" id="rm-tel" placeholder="(12) 99999-9999"></div>'
+      +'<div class="fi"><label>\u00daltimo atendimento</label><input type="date" id="rm-data" value="'+hj()+'"></div>'
+    +'</div>'
+    +'<div class="fi"><label>Procedimento realizado</label><select id="rm-proc">'+procOpts+'</select></div>'
+    +'<div class="fi"><label>Observa\u00e7\u00f5es</label><textarea id="rm-obs" placeholder="Ex: cliente do caderno, veio em jan/24..."></textarea></div>'
+    +'<button class="pb" onclick="saveNovoRemarketing()">Salvar</button>');
+  setTimeout(function(){var el=document.getElementById("rm-nome");if(el)el.focus();},50);
+}
+function saveNovoRemarketing(){
+  var nome=document.getElementById("rm-nome").value.trim();
+  if(!nome)return alert("Preencha o nome da cliente.");
+  var rec={id:uid(),nome:nome,telefone:document.getElementById("rm-tel").value.trim(),
+    ultimoServico:document.getElementById("rm-data").value,
+    procedimento:document.getElementById("rm-proc").value,
+    status:"ativo",origem:"manual",obs:document.getElementById("rm-obs").value.trim(),
+    criadoEm:new Date().toISOString(),taxaRemarketing:0};
+  db.collection("remarketing").doc(rec.id).set(rec)
+    .then(function(){cmod();showToast("\u2705 Cliente adicionada ao Remarketing!");})
+    .catch(function(e){showToast("\u274c Erro: "+e.message,"#f43f5e");});
+}
+var REMKT_BOOKING_ID=null;
+function agendarRemarketing(id){
+  REMKT_BOOKING_ID=id;
+  var r=(D.remarketing||[]).find(function(x){return x.id===id;});
+  if(!r){cmod();return;}
+  var profs=getProfs();var svcs=getSvcs();
+  omod(mhdr("Agendar \u2014 "+es(r.nome))
+    +'<div class="g3">'
+      +'<div class="fi"><label>Data</label><input type="date" id="agr-d" value="'+hj()+'"></div>'
+      +'<div class="fi"><label>Hor\u00e1rio</label><input type="time" id="agr-t" value="09:00"></div>'
+      +'<div class="fi"><label>Dura\u00e7\u00e3o (min)</label><select id="agr-dur">'+DURATIONS.map(function(d){return'<option value="'+d+'">'+d+' min</option>';}).join("")+'</select></div>'
+    +'</div>'
+    +'<div class="fi"><label>Profissional</label><select id="agr-p">'+ol(profs,profs[0])+'</select></div>'
+    +'<div class="fi"><label>Servi\u00e7o</label><select id="agr-s">'+ol(svcs,svcs[0])+'</select></div>'
+    +'<div class="fi"><label>Divulgador (quem indicou)</label><select id="agr-div"><option value="">Nenhum / Remarketing direto</option>'+getDivulgadores().map(function(n){return'<option value="'+n+'">'+n+'</option>';}).join("")+'</select></div>'
+    +'<div class="fi"><label>Observa\u00e7\u00f5es</label><textarea id="agr-obs">Remarketing \u2014 '+es(r.procedimento)+'</textarea></div>'
+    +'<input type="hidden" id="agr-remkt-id" value="'+id+'">'
+    +'<button class="pb" onclick="salvarAgendamentoRemarketing()">Salvar Agendamento</button>');
+}
+function salvarAgendamentoRemarketing(){
+  var rid=document.getElementById("agr-remkt-id").value;
+  var r=(D.remarketing||[]).find(function(x){return x.id===rid;});
+  if(!r)return;
+  var rec={id:uid(),date:document.getElementById("agr-d").value,time:document.getElementById("agr-t").value,
+    duration:parseInt(document.getElementById("agr-dur").value)||60,
+    professional:document.getElementById("agr-p").value,client:r.nome,phone:r.telefone,
+    service:document.getElementById("agr-s").value,status:"confirmado",valor:0,
+    obs:document.getElementById("agr-obs").value,divulgador:document.getElementById("agr-div").value||"",
+    remarketingId:rid,createdBy:CURRENT_USER?CURRENT_USER.role:""};
+  db.collection("agendamentos").doc(rec.id).set(rec);
+  var slotId=rec.date+"_"+rec.time.replace(":","")+"_"+slug(rec.professional);
+  db.collection("horariosPublicos").doc(slotId).set({date:rec.date,time:rec.time,professional:rec.professional,status:"ocupado",agendamentoId:rec.id});
+  db.collection("remarketing").doc(rid).update({status:"agendado",agendamentoId:rec.id,divulgador:rec.divulgador||""});
+  REMKT_BOOKING_ID=null;cmod();
+  showToast("\u2705 Agendamento salvo! R$ 2,00 ser\u00e3o registrados quando a cliente comparecer.");
+}
+function converterRemarketing(id){
+  if(!confirm("Confirma que a cliente compareceu ao sal\u00e3o?\n\nIsso registra R$ 2,00 de taxa de remarketing e remove ela da fila ativa."))return;
+  db.collection("remarketing").doc(id).update({status:"convertido",taxaRemarketing:2,dataConversao:hj()})
+    .then(function(){showToast("\u2705 \u00d3timo! Convertida. R$ 2,00 registrados.");})
+    .catch(function(e){showToast("\u274c Erro: "+e.message,"#f43f5e");});
+}
+function descartarRemarketing(id){
+  if(!confirm("Remover esta cliente do Remarketing? Ela n\u00e3o aparecer\u00e1 mais na fila."))return;
+  db.collection("remarketing").doc(id).update({status:"descartado"})
+    .then(function(){showToast("\uD83D\uDDD1 Removida do Remarketing.");})
+    .catch(function(e){showToast("\u274c Erro: "+e.message,"#f43f5e");});
+}
+function openRemktDetail(id){
+  var r=(D.remarketing||[]).find(function(x){return x.id===id;});
+  if(!r)return;
+  var pc=REMKT_PROC_COLORS[r.procedimento]||REMKT_PROC_COLORS.OUTRO;
+  var dias=diasDesde(r.ultimoServico);
+  omod(mhdr("Cliente \u2014 "+es(r.nome))
+    +'<div style="background:#18181b;border:1px solid #27272a;border-radius:8px;padding:12px;margin-bottom:12px">'
+      +'<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">'
+        +'<span style="background:'+pc.color+'22;border:1px solid '+pc.color+'55;color:'+pc.color+';border-radius:10px;padding:2px 10px;font-size:11px;font-weight:700">'+pc.label+'</span>'
+        +'<span style="font-size:12px;color:#fbbf24;font-weight:600">'+dias+' dias sem retornar</span>'
+      +'</div>'
+      +(r.telefone?'<div style="font-size:12px;color:#a1a1aa;margin-bottom:4px">\uD83D\uDCDE '+es(r.telefone)+'</div>':'')
+      +'<div style="font-size:12px;color:#a1a1aa;margin-bottom:4px">\u00daltimo servi\u00e7o: '+fdt(r.ultimoServico)+'</div>'
+      +(r.profissionalUltimo?'<div style="font-size:11px;color:#71717a">Prof.: '+es(r.profissionalUltimo)+'</div>':'')
+      +(r.obs?'<div style="font-size:11px;color:#71717a;margin-top:4px">Obs: '+es(r.obs)+'</div>':'')
+      +'<div style="font-size:10px;color:#52525b;margin-top:4px">Origem: '+es(r.origem||"")+(r.status==="agendado"?' \u2014 <span style="color:#34d399">Agendada</span>':'')+'</div>'
+    +'</div>'
+    +'<div style="display:flex;flex-direction:column;gap:8px">'
+      +'<button class="pb" data-remkt-agendar="'+id+'">\uD83D\uDCC5 Agendar</button>'
+      +'<button style="width:100%;padding:11px;border-radius:10px;background:#34d39918;border:1px solid #34d39944;color:#34d399;font-weight:600;cursor:pointer" data-remkt-converteu="'+id+'">\u2713 Confirmou comparecimento (+ R$ 2,00)</button>'
+      +'<button style="width:100%;padding:11px;border-radius:10px;background:#f4717118;border:1px solid #f4717144;color:#f87171;font-weight:600;cursor:pointer" data-remkt-descartar="'+id+'">\u2715 Remover do Remarketing</button>'
+    +'</div>');
+}
+function abrirRelatorioRemarketing(){
+  var recs=D.remarketing||[];
+  var conv=recs.filter(function(r){return r.status==="convertido";});
+  var totalTaxa=conv.length*2;
+  var porProc={};
+  conv.forEach(function(r){var p=r.procedimento||"OUTRO";porProc[p]=(porProc[p]||0)+1;});
+  var procRows=Object.keys(porProc).map(function(k){var pc=REMKT_PROC_COLORS[k]||REMKT_PROC_COLORS.OUTRO;return'<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #27272a;font-size:12px"><span style="color:'+pc.color+'">'+pc.label+'</span><span style="color:#f1f5f9;font-weight:600">'+porProc[k]+'</span></div>';}).join("");
+  omod(mhdr("\uD83D\uDCCA Relat\u00f3rio de Remarketing")
+    +'<div style="background:#18181b;border:1px solid #27272a;border-radius:8px;padding:12px;margin-bottom:12px">'
+      +'<div style="font-size:11px;color:#71717a;margin-bottom:4px">Taxa total acumulada (R$ 2,00 por comparecimento)</div>'
+      +'<div style="font-size:26px;font-weight:700;color:#a78bfa">R$ '+fmt(totalTaxa)+'</div>'
+      +'<div style="font-size:11px;color:#52525b;margin-top:4px">'+conv.length+' clientes convertidas</div>'
+    +'</div>'
+    +(procRows?'<div style="font-size:12px;font-weight:600;color:#a1a1aa;margin-bottom:6px">Por procedimento:</div>'+procRows:'')
+    +'<div style="display:flex;gap:8px;margin-top:14px">'
+      +'<div style="flex:1;background:#18181b;border:1px solid #27272a;border-radius:8px;padding:8px 12px;text-align:center"><div style="font-size:20px;font-weight:700;color:#fbbf24">'+recs.filter(function(r){return r.status==="ativo"||r.status==="agendado";}).length+'</div><div style="font-size:10px;color:#71717a">Ativas</div></div>'
+      +'<div style="flex:1;background:#18181b;border:1px solid #27272a;border-radius:8px;padding:8px 12px;text-align:center"><div style="font-size:20px;font-weight:700;color:#f87171">'+recs.filter(function(r){return r.status==="descartado";}).length+'</div><div style="font-size:10px;color:#71717a">Descartadas</div></div>'
+    +'</div>');
+}
+/* ================= FIM REMARKETING ================= */
 function rLeads(){
   var isAdmin=CURRENT_USER&&CURRENT_USER.role==="admin";
   var tabs=[["funil","Funil"],["hoje","Contatos do Dia"],["painel","Painel"]].concat(isAdmin?[["relatorio","\uD83D\uDCC8 Relat\u00F3rio"]]:[]);
@@ -4073,6 +4305,7 @@ function rT(){
   else if(S.tab==="db")h=rDB();
   else if(S.tab==="requests")h=rRequests();
   else if(S.tab==="leads")h=rLeads();
+  else if(S.tab==="remarketing")h=rRemarketing();
   else if(S.tab==="analise")h=rAnalise();
   else if(S.tab==="audit"){S.bdTab="auditoria";h=rDB();}
   else if(S.tab==="estoque")h=rEstoque();
@@ -4150,6 +4383,10 @@ document.addEventListener("click",function(e){
     return;}
   var vr=e.target.closest("[data-venda-realizada]");if(vr){confirmarVendaRealizada(vr.dataset.vendaRealizada);return;}
   var an=e.target.closest("[data-agn-nav]");if(an){S.agnDate=an.dataset.agnNav;rT();return;}
+  var ro=e.target.closest("[data-remkt-open]");if(ro){openRemktDetail(ro.dataset.remktOpen);return;}
+  var ra=e.target.closest("[data-remkt-agendar]");if(ra){agendarRemarketing(ra.dataset.remktAgendar);return;}
+  var rc=e.target.closest("[data-remkt-converteu]");if(rc){converterRemarketing(rc.dataset.remktConverteu);return;}
+  var rd=e.target.closest("[data-remkt-descartar]");if(rd){descartarRemarketing(rd.dataset.remktDescartar);return;}
   var ca=e.target.closest("[data-confirmar-agn]");if(ca){confirmarAgn(ca.dataset.confirmarAgn);return;}
   var da=e.target.closest("[data-desmarcar-agn]");if(da){desmarcarAgn(da.dataset.desmarcarAgn);return;}
   var dr=e.target.closest("[data-desmarcar-reagendou]");if(dr){marcarReagendou(dr.dataset.desmarcarReagendou);return;}
