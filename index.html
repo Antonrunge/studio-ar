@@ -1357,7 +1357,9 @@ function openPLSettings(){
     return'<tr><td style="padding:6px 8px;color:#f1f5f9">'+es(p)+'</td>'
       +'<td style="padding:4px 8px"><input type="number" id="pl-'+sid+'" value="'+(pl[p]||0)+'" style="width:90px;padding:5px 8px;font-size:12px"></td>'
       +'<td style="padding:4px 8px">'+auxTag+'</td>'
-      +'<td style="padding:4px 8px;white-space:nowrap"><button class="db" data-del-prof="'+es(p)+'" title="Informar data de saída">✕ Desligar</button></td></tr>';
+      +'<td style="padding:4px 8px;white-space:nowrap"><button class="db" data-del-prof="'+es(p)+'" title="Informar data de saída">✕ Desligar</button>'
+      +(CURRENT_USER&&CURRENT_USER.role==="admin"?' <button class="gb" style="padding:3px 8px;font-size:10px" data-ficha-colab="'+es(p)+'">📋 Ficha</button>':'' )
+      +'</td></tr>';
   }).join("");
   var rowsDeslig=deslig.length
     ?'<tr><td colspan="4" style="padding:10px 8px 4px;font-size:10px;font-weight:700;color:#71717a;text-transform:uppercase;letter-spacing:.05em;border-top:1px solid #27272a">Desligados — aparecem nos meses anteriores</td></tr>'
@@ -1369,6 +1371,7 @@ function openPLSettings(){
           +'<td style="padding:4px 8px;white-space:nowrap">'
             +'<button class="gb" style="padding:3px 7px;font-size:10px;margin-right:3px" data-reativar-prof="'+es(p)+'" title="Reverter desligamento">↩ Reativar</button>'
             +'<button class="db" style="padding:3px 7px;font-size:10px" data-remover-prof="'+es(p)+'" title="Remover da lista (histórico permanece)">🗑 Remover</button>'
+          +(CURRENT_USER&&CURRENT_USER.role==="admin"?' <button class="gb" style="padding:3px 7px;font-size:10px" data-ficha-colab="'+es(p)+'">📋 Ficha</button>':'')
           +'</td></tr>';
       }).join("")
     :"";
@@ -1449,6 +1452,136 @@ function removerProf(name){
   db.collection("config").doc("prolabore").set({values:PL_CUSTOM});
   showToast("✅ "+name+" removido. Histórico preservado.");
   openPLSettings();
+}
+function openFichaColab(name){
+  if(!CURRENT_USER||CURRENT_USER.role!=="admin")return;
+  omod(mhdr("\uD83D\uDCCB Dados Pessoais \u2014 "+es(name))
+    +'<div id="ficha-colab-wrap" style="text-align:center;padding:24px;color:#71717a">Carregando...</div>');
+  db.collection("fichasColaboradores").doc(name).get().then(function(doc){
+    var d=doc.exists?doc.data():{};
+    var pix=(d.pixChaves&&d.pixChaves.length)?d.pixChaves:[{tipo:"CPF",chave:""}];
+    var pixRows=pix.map(function(pk,i){
+      return '<div class="g2 pix-row-item" style="margin-bottom:6px;align-items:flex-end" id="pix-row-'+i+'">'
+        +'<div class="fi" style="flex:0 0 130px"><label>Tipo</label><select id="pix-tipo-'+i+'" style="width:100%;padding:5px 8px;font-size:12px;background:#18181b;color:#f1f5f9;border:1px solid #3f3f46;border-radius:6px">'
+        +'<option value="CPF"'+(pk.tipo==="CPF"?" selected":"")+'>CPF</option>'
+        +'<option value="CNPJ"'+(pk.tipo==="CNPJ"?" selected":"")+'>CNPJ</option>'
+        +'<option value="Telefone"'+(pk.tipo==="Telefone"?" selected":"")+'>Telefone</option>'
+        +'<option value="E-mail"'+(pk.tipo==="E-mail"?" selected":"")+'>E-mail</option>'
+        +'<option value="Aleat\u00f3ria"'+(pk.tipo==="Aleat\u00f3ria"?" selected":"")+'>Aleat\u00f3ria</option>'
+        +'</select></div>'
+        +'<div class="fi"><label>Chave</label><input type="text" id="pix-chave-'+i+'" value="'+es(pk.chave||"")+'" placeholder="Chave PIX" style="width:100%"></div>'
+        +'<div style="padding-bottom:2px"><button class="db" style="padding:5px 9px;font-size:12px" data-pix-del="'+i+'">✕</button></div>'
+      +'</div>';
+    }).join("");
+    var wrap=document.getElementById("ficha-colab-wrap");
+    if(!wrap)return;
+    wrap.innerHTML=
+      '<div style="font-size:11px;color:#ef4444;background:#7f1d1d22;border:1px solid #7f1d1d55;border-radius:6px;padding:8px 10px;margin-bottom:12px">\uD83D\uDD12 Dados confidenciais \u2014 vis\u00edveis apenas para o administrador.</div>'
+      +'<div class="g2">'
+      +'<div class="fi"><label>Nome Completo</label><input type="text" id="fc-nome" value="'+es(d.nomeCompleto||"")+'" style="width:100%"></div>'
+      +'<div class="fi" style="flex:0 0 180px"><label>CPF</label><input type="text" id="fc-cpf" value="'+es(d.cpf||"")+'" placeholder="000.000.000-00" style="width:100%"></div>'
+      +'</div>'
+      +'<div class="g2">'
+      +'<div class="fi"><label>RG</label><input type="text" id="fc-rg" value="'+es(d.rg||"")+'" style="width:100%"></div>'
+      +'<div class="fi"><label>CNPJ</label><input type="text" id="fc-cnpj" value="'+es(d.cnpj||"")+'" placeholder="00.000.000/0000-00" style="width:100%"></div>'
+      +'</div>'
+      +'<div class="fi"><label>Endere\u00e7o Completo</label><input type="text" id="fc-end" value="'+es(d.endereco||"")+'" placeholder="Rua, n\u00famero, bairro, cidade, CEP" style="width:100%"></div>'
+      +'<div class="g2">'
+      +'<div class="fi"><label>Login Gov.br</label><input type="text" id="fc-gov-login" value="'+es(d.govLogin||"")+'" autocomplete="off" style="width:100%"></div>'
+      +'<div class="fi"><label>Senha Gov.br</label><input type="text" id="fc-gov-senha" value="'+es(d.govSenha||"")+'" autocomplete="new-password" style="width:100%"></div>'
+      +'</div>'
+      +'<div style="border-top:1px solid #27272a;padding-top:10px;margin:8px 0">'
+      +'<div style="font-size:12px;color:#a1a1aa;margin-bottom:6px;font-weight:600">Chaves PIX</div>'
+      +'<div id="pix-rows" data-pix-next="'+pix.length+'">'+pixRows+'</div>'
+      +'<button class="gb" style="margin-top:6px;font-size:11px" data-add-pix="1">+ Adicionar Chave PIX</button>'
+      +'</div>'
+      +'<div class="g2">'
+      +'<div class="fi"><label>Data de In\u00edcio</label><input type="date" id="fc-inicio" value="'+es(d.dataInicio||"")+'" style="width:100%"></div>'
+      +'<div class="fi"><label>Data de T\u00e9rmino</label><input type="date" id="fc-termino" value="'+es(d.dataTermino||"")+'" style="width:100%"></div>'
+      +'</div>'
+      +'<div class="fi"><label>Particularidades / Observa\u00e7\u00f5es</label>'
+      +'<textarea id="fc-obs" style="width:100%;min-height:64px;background:#18181b;color:#f1f5f9;border:1px solid #3f3f46;border-radius:6px;padding:8px;font-size:12px;resize:vertical;box-sizing:border-box">'+es(d.observacoes||"")+'</textarea></div>'
+      +'<div style="display:flex;gap:8px;margin-top:14px">'
+      +'<button class="pb" style="flex:1" data-save-ficha-colab="'+es(name)+'">\uD83D\uDCBE Salvar</button>'
+      +'<button class="gb" style="flex:1" data-print-ficha-colab="'+es(name)+'">\uD83D\uDDA8\uFE0F Imprimir / PDF</button>'
+      +'</div>';
+  }).catch(function(){showToast("Erro ao carregar ficha.","#ef4444");});
+}
+function _collectFichaColab(name){
+  var pr=document.getElementById("pix-rows");
+  var pixChaves=[];
+  if(pr){
+    var tipos=pr.querySelectorAll("[id^='pix-tipo-']");
+    tipos.forEach(function(sel){
+      var idx=sel.id.replace("pix-tipo-","");
+      var chaveEl=document.getElementById("pix-chave-"+idx);
+      if(chaveEl&&chaveEl.value.trim())pixChaves.push({tipo:sel.value,chave:chaveEl.value.trim()});
+    });
+  }
+  return{
+    nomeCompleto:(document.getElementById("fc-nome")||{}).value||"",
+    cpf:(document.getElementById("fc-cpf")||{}).value||"",
+    rg:(document.getElementById("fc-rg")||{}).value||"",
+    cnpj:(document.getElementById("fc-cnpj")||{}).value||"",
+    endereco:(document.getElementById("fc-end")||{}).value||"",
+    govLogin:(document.getElementById("fc-gov-login")||{}).value||"",
+    govSenha:(document.getElementById("fc-gov-senha")||{}).value||"",
+    pixChaves:pixChaves,
+    dataInicio:(document.getElementById("fc-inicio")||{}).value||"",
+    dataTermino:(document.getElementById("fc-termino")||{}).value||"",
+    observacoes:(document.getElementById("fc-obs")||{}).value||"",
+    atualizadoEm:new Date().toISOString()
+  };
+}
+function saveFichaColab(name){
+  var data=_collectFichaColab(name);
+  db.collection("fichasColaboradores").doc(name).set(data).then(function(){
+    showToast("\u2705 Ficha de "+name+" salva!");
+  }).catch(function(){showToast("Erro ao salvar ficha.","#ef4444");});
+}
+function printFichaColab(name){
+  var d=_collectFichaColab(name);
+  var pixHtml=d.pixChaves.length
+    ?d.pixChaves.map(function(pk){return"<li><strong>"+pk.tipo+":</strong> "+pk.chave+"</li>";}).join("")
+    :"<li>\u2014</li>";
+  var w=window.open("","_blank");
+  if(!w)return alert("Libere o pop-up para imprimir.");
+  w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Ficha \u2014 '+es(d.nomeCompleto||name)+'</title>'
+    +'<style>body{font-family:Arial,sans-serif;max-width:700px;margin:40px auto;color:#111;font-size:14px;line-height:1.5}'
+    +'h1{font-size:20px;border-bottom:2px solid #111;padding-bottom:8px;margin-bottom:20px}'
+    +'h2{font-size:13px;color:#555;margin:20px 0 6px;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid #ddd;padding-bottom:4px}'
+    +'.row{display:flex;flex-wrap:wrap;gap:24px;margin-bottom:12px}.field{min-width:140px}'
+    +'.lbl{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px}'
+    +'.val{font-size:14px;font-weight:600}ul{margin:4px 0;padding-left:20px}'
+    +'textarea-like{background:#f5f5f5;padding:10px;border-radius:6px;white-space:pre-wrap}'
+    +'footer{margin-top:30px;font-size:10px;color:#aaa;border-top:1px solid #ddd;padding-top:10px}'
+    +'@media print{.no-print{display:none}}</style></head><body>'
+    +'<h1>Studio A R \u2014 Ficha de Colaborador</h1>'
+    +'<div class="field"><div class="lbl">Nome de registro no sistema</div><div class="val" style="font-size:18px;margin-bottom:4px">'+es(name)+'</div></div>'
+    +(d.nomeCompleto?'<div class="field"><div class="lbl">Nome Completo</div><div class="val">'+es(d.nomeCompleto)+'</div></div>':'')
+    +'<h2>Documentos</h2>'
+    +'<div class="row">'
+    +'<div class="field"><div class="lbl">CPF</div><div class="val">'+(d.cpf||'\u2014')+'</div></div>'
+    +'<div class="field"><div class="lbl">RG</div><div class="val">'+(d.rg||'\u2014')+'</div></div>'
+    +'<div class="field"><div class="lbl">CNPJ</div><div class="val">'+(d.cnpj||'\u2014')+'</div></div>'
+    +'</div>'
+    +'<h2>Endere\u00e7o</h2><div>'+(d.endereco||'\u2014')+'</div>'
+    +'<h2>Acesso Gov.br</h2>'
+    +'<div class="row">'
+    +'<div class="field"><div class="lbl">Login</div><div class="val">'+(d.govLogin||'\u2014')+'</div></div>'
+    +'<div class="field"><div class="lbl">Senha</div><div class="val">'+(d.govSenha||'\u2014')+'</div></div>'
+    +'</div>'
+    +'<h2>Chaves PIX</h2><ul>'+pixHtml+'</ul>'
+    +'<h2>Per\u00edodo de Parceria</h2>'
+    +'<div class="row">'
+    +'<div class="field"><div class="lbl">In\u00edcio</div><div class="val">'+(d.dataInicio||'\u2014')+'</div></div>'
+    +'<div class="field"><div class="lbl">T\u00e9rmino</div><div class="val">'+(d.dataTermino||'\u2014')+'</div></div>'
+    +'</div>'
+    +(d.observacoes?('<h2>Particularidades / Observa\u00e7\u00f5es</h2><div style="background:#f5f5f5;padding:10px;border-radius:6px;white-space:pre-wrap">'+es(d.observacoes)+'</div>'):'')
+    +'<footer>Gerado em '+new Date().toLocaleString("pt-BR")+' \u00b7 Studio A R Gest\u00e3o \u00b7 Confidencial</footer>'
+    +'<br><button class="no-print" onclick="window.print()" style="margin-top:10px;padding:10px 24px;font-size:14px;cursor:pointer;background:#e91e63;color:#fff;border:none;border-radius:6px">\uD83D\uDDA8\uFE0F Imprimir / Salvar PDF</button>'
+    +'</body></html>');
+  w.document.close();
 }
 function marcarAuxiliar(name){
   if(!confirm(name+" passa a ser Auxiliar: participa dos atendimentos mas não recebe comissão (o valor fica como saldo do salão). Confirmar?"))return;
@@ -4551,6 +4684,11 @@ document.addEventListener("click",function(e){
   var rpm=e.target.closest("[data-remover-prof]");if(rpm){removerProf(rpm.dataset.removerProf);return;}
   var ma=e.target.closest("[data-marcar-auxiliar]");if(ma){marcarAuxiliar(ma.dataset.marcarAuxiliar);return;}
   var pc=e.target.closest("[data-promover-cabeleireiro]");if(pc){promoverCabeleireiro(pc.dataset.promoverCabeleireiro);return;}
+  var fc2=e.target.closest("[data-ficha-colab]");if(fc2){openFichaColab(fc2.dataset.fichaColab);return;}
+  var sfc=e.target.closest("[data-save-ficha-colab]");if(sfc){saveFichaColab(sfc.dataset.saveFichaColab);return;}
+  var pfc=e.target.closest("[data-print-ficha-colab]");if(pfc){printFichaColab(pfc.dataset.printFichaColab);return;}
+  var ap2=e.target.closest("[data-add-pix]");if(ap2){var pr2=document.getElementById("pix-rows");if(pr2){var ni=parseInt(pr2.dataset.pixNext||0);pr2.dataset.pixNext=ni+1;var nr=document.createElement("div");nr.className="g2 pix-row-item";nr.id="pix-row-"+ni;nr.style.marginBottom="6px";nr.style.alignItems="flex-end";nr.innerHTML='<div class="fi" style="flex:0 0 130px"><label>Tipo</label><select id="pix-tipo-'+ni+'" style="width:100%;padding:5px 8px;font-size:12px;background:#18181b;color:#f1f5f9;border:1px solid #3f3f46;border-radius:6px"><option value="CPF">CPF</option><option value="CNPJ">CNPJ</option><option value="Telefone">Telefone</option><option value="E-mail">E-mail</option><option value="Aleat\u00f3ria">Aleat\u00f3ria</option></select></div><div class="fi"><label>Chave</label><input type="text" id="pix-chave-'+ni+'" placeholder="Chave PIX" style="width:100%"></div><div style="padding-bottom:2px"><button class="db" style="padding:5px 9px;font-size:12px" data-pix-del="'+ni+'">\u2715</button></div>';pr2.appendChild(nr);}return;}
+  var pd2=e.target.closest("[data-pix-del]");if(pd2){var rowEl=pd2.closest(".pix-row-item");if(rowEl)rowEl.remove();return;}
   var bt=e.target.closest("[data-bd-tab]");if(bt){S.bdTab=bt.dataset.bdTab;rT();return;}
   var it=e.target.closest("[data-imptab]");if(it){_impTab=it.dataset.imptab;renderImpTab();return;}
   var rc=e.target.closest("[data-req-confirm]");if(rc){confirmRequest(rc.dataset.reqConfirm);return;}
