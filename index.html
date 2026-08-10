@@ -49,12 +49,12 @@ if(["agendado","convertido"].indexOf(l.etapa)>=0)s.agendados++;
 if(l.etapa==="convertido")s.convertidos++;
 var f=l.origem||"Não informado";s.fontes[f]=(s.fontes[f]||0)+1;
 });
-svcAtrib.forEach(function(s){var at=s.atendente_comercial;ga(at).compareceram++;});
+svcAtrib.forEach(function(s){var at=s.atendente_comercial==="Remarketing"&&s.comissaoAtendente?s.comissaoAtendente:s.atendente_comercial;ga(at).compareceram++;});
 var cfg=COMISSAO_COMERCIAL_CONFIG||{};
 var taxaL=cfg.taxaLead||0,taxaR=cfg.taxaRemarketing||0;
 function taxaSvc(s){var cap=(s.captacao_lead||"").toUpperCase();return(cap==="REMARKETING"||s.remarketingIdOrigem)?taxaR:taxaL;}
-svcAtrib.forEach(function(s){var at=s.atendente_comercial;ga(at).comissaoTotal=(ga(at).comissaoTotal||0)+taxaSvc(s);});
-var rows=Object.values(byAt).sort(function(a,b){return b.compareceram-a.compareceram||b.leads-a.leads});
+svcAtrib.forEach(function(s){var at=s.atendente_comercial==="Remarketing"&&s.comissaoAtendente?s.comissaoAtendente:s.atendente_comercial;ga(at).comissaoTotal=(ga(at).comissaoTotal||0)+taxaSvc(s);});
+var _deslig=getDesligados();var rows=Object.values(byAt).filter(function(r){if(r.nome==="Remarketing")return false;var d=_deslig[r.nome];if(d&&(y>d.year||(y===d.year&&m>=d.month)))return false;return true;}).sort(function(a,b){return b.compareceram-a.compareceram||b.leads-a.leads});
 var totLeads=leadsM.length;
 var totConv=leadsM.filter(function(l){return l.etapa==="convertido"}).length;
 var totComp=svcAtrib.length;
