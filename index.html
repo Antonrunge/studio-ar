@@ -59,8 +59,8 @@ svcAtrib.forEach(function(s){var at=s.atendente_comercial==="Remarketing"&&s.com
 var _deslig=getDesligados();var rows=Object.values(byAt).filter(function(r){if(r.nome==="Remarketing")return false;var d=_deslig[r.nome];if(d&&(y>d.year||(y===d.year&&m>=d.month)))return false;return true;}).sort(function(a,b){return b.compareceram-a.compareceram||b.leads-a.leads});
 var totLeads=leadsM.length;
 var totConv=leadsM.filter(function(l){return l.etapa==="convertido"}).length;
-var totComp=svcAtrib.length;
-var totCom=svcAtrib.reduce(function(s,sv){return s+taxaSvc(sv);},0);
+var remktConvM=(D.remarketing||[]).filter(function(r){if(r.status!=="convertido"||!r.dataConversao)return false;var g=gmy(r.dataConversao.slice(0,10));return g.m===m&&g.y===y;});var totRemkt=remktConvM.length;remktConvM.forEach(function(r){var at=r.comissaoAtendente||"Sem atendente";var rec=ga(at);rec.remktComp=(rec.remktComp||0)+1;rec.comissaoTotal=(rec.comissaoTotal||0)+taxaR;});var totComp=svcAtrib.length+totRemkt;
+var totCom=svcAtrib.reduce(function(s,sv){return s+taxaSvc(sv);},0)+totRemkt*taxaR;
 var temConfig=taxaL>0||taxaR>0;
 var fonteMap={};
 leadsM.forEach(function(l){var f=l.origem||"Não informado";fonteMap[f]=(fonteMap[f]||0)+1;});
@@ -77,7 +77,7 @@ return"<tr>"+
 "<td>"+r.contatados+"</td>"+
 "<td>"+r.agendados+" <span style='color:#52525b;font-size:10px'>("+txAg+"%)</span></td>"+
 "<td>"+r.convertidos+" <span style='color:#52525b;font-size:10px'>("+txCo+"%)</span></td>"+
-"<td style='color:#34d399;font-weight:700'>"+r.compareceram+"</td>"+
+"<td style='color:#34d399;font-weight:700'>"+r.compareceram+"</td>"+"<td style='color:#a78bfa;font-weight:700'>"+( r.remktComp||0)+"</td>"+
 (temConfig?"<td style='color:#f43f5e;font-weight:700'>"+fmt(r.comissaoTotal||0)+"</td>":"")+
 "<td style='color:#71717a;font-size:10px'>"+es(topF||"—")+"</td>"+
 "</tr>";}).join("");
@@ -89,7 +89,7 @@ return'<div class="pg">'+
 '<div class="kg">'+
 kp("Leads recebidos",totLeads,mes)+
 kp("Agendados / Conv.",totConv,"leads convertidos")+
-kp("Compareceram ✓",totComp,"comissão liberada")+
+kp("Compareceram ✓",totComp,"leads: "+svcAtrib.length+" | remkt: "+totRemkt)+
 (temConfig?kp("Comissão total",fmt(totCom),"a pagar"):'<div class="kp"><div class="kl">Comissão</div><div class="kv" style="font-size:11px;color:#52525b">Configure o valor</div></div>')+
 "</div>"+
 '<div class="cd"><div class="ct">Desempenho por Atendente — '+mes+'</div>'+
@@ -98,11 +98,11 @@ kp("Compareceram ✓",totComp,"comissão liberada")+
 '<th title="Fizeram pelo menos 1 contato">Contatados</th>'+
 '<th title="Lead chegou a ser agendado ou convertido">Agendados</th>'+
 '<th title="Lead virou cliente">Convertidos</th>'+
-'<th title="Cliente veio ao salão — gera comissão">Compareceram ✓</th>'+
+'<th title="Cliente veio ao salão — gera comissão">Compareceram ✓</th><th title="Conversão de remarketing — R$ '+taxaR+' cada">Remkt ✓</th>'+
 colCom+
 '<th>Principais origens</th>'+
 '</tr></thead><tbody>'+
-(atRows||'<tr><td colspan="8" class="emp">Nenhum dado neste mês. Os dados aparecem conforme leads são trabalhados e atribuídos ao responsável.</td></tr>')+
+(atRows||'<tr><td colspan="9" class="emp">Nenhum dado neste mês. Os dados aparecem conforme leads são trabalhados e atribuídos ao responsável.</td></tr>')+
 "</tbody></table></div></div>"+
 (Object.keys(fonteMap).length>0?'<div class="cd"><div class="ct">Origem dos Leads — '+mes+'</div><div class="ox"><table><thead><tr><th>Origem</th><th>Leads</th><th>%</th></tr></thead><tbody>'+fonteRows+"</tbody></table></div></div>":"")+
 '<div class="cd" style="background:#1a1a1e;border:1px solid #27272a;border-radius:8px;padding:12px 15px;font-size:11px;color:#71717a">'+
