@@ -573,9 +573,9 @@ function rArPedidos(){
       +(p.vendedor?'<span style="font-size:10px;color:#38bdf8;margin-left:8px">'+es(p.vendedor)+'</span>':'')
       +'</div><div style="font-size:10px;color:#52525b">'+dataF+'</div></div>'
       +(showActions?'<div style="display:flex;gap:6px;margin-top:10px">'
-        +'<button class="gb" style="flex:1;font-size:11px" data-pdf-ar-id="'+pid+'">PDF</button>'
-        +'<button class="pb" style="flex:2;font-size:11px;padding:7px;background:#34d399;border:none;color:#000;font-weight:700" data-confirmar-ar-id="'+pid+'">Confirmar Venda</button>'
-        +'<button style="flex:1;font-size:11px;padding:7px;background:#f43f5e22;border:1px solid #f43f5e44;color:#f87171;border-radius:8px;cursor:pointer" data-cancelar-ar-id="'+pid+'">Cancelar</button>'
+        +'<button class="gb" style="flex:1;font-size:11px" onclick="var _p=(D.pedidosAR||[]).find(function(x){return x.id===\''+pid+'\';});if(_p)_abrirPdfPedidoAR(_p)">PDF</button>'
+        +'<button class="pb" style="flex:2;font-size:11px;padding:7px;background:#34d399;border:none;color:#000;font-weight:700" onclick="confirmarPedidoAR(\''+pid+'\')">Confirmar Venda</button>'
+        +'<button style="flex:1;font-size:11px;padding:7px;background:#f43f5e22;border:1px solid #f43f5e44;color:#f87171;border-radius:8px;cursor:pointer" onclick="cancelarPedidoAR(\''+pid+'\')">Cancelar</button>'
         +'</div>':'')
       +'</div>';
   }
