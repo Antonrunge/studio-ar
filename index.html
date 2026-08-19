@@ -353,18 +353,19 @@ function waEnviarMidia(file){
   reader.onload=function(e){
     var base64=e.target.result.split(',')[1];
     var de=CURRENT_USER?CURRENT_USER.nome:'Equipe';
-    var ext=file.name.split('.').pop()||'bin';
-    var storRef=firebase.storage().ref('wa-media/'+uid()+'.'+ext);
-    var byteArr=atob(base64).split('').map(function(c){return c.charCodeAt(0);});
-    var blob=new Blob([new Uint8Array(byteArr)],{type:file.type});
-    storRef.put(blob).then(function(snap){return snap.ref.getDownloadURL();}).then(function(dlUrl){
+    function _enviarWA(dlUrl){
       var convId=WA_CONV_SELECIONADA;
-      if(convId){var entry={de:de,texto:icone,mediaUrl:dlUrl,mediaType:tipo,mimeType:file.type,filename:file.name,ts:firebase.firestore.Timestamp.now()};db.collection('waConversas').doc(convId).update({_historico:firebase.firestore.FieldValue.arrayUnion(entry)});}
-      return fetch('https://southamerica-east1-studio-ar-gestao.cloudfunctions.net/enviarMidiaHumano',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({to:tel,base64:base64,mimeType:file.type,filename:file.name,de:de,key:key})});
-    }).then(function(r){return r&&r.json?r.json():null;}).then(function(j){
-      if(j&&!j.ok)showToast('❌ '+(j.erro||'Falha ao enviar'),'#f43f5e');
-      else showToast('✅ '+icone+' enviado!');
-    }).catch(function(err){showToast('❌ '+err.message,'#f43f5e');});
+      if(convId&&dlUrl){var entry={de:de,texto:icone,mediaUrl:dlUrl,mediaType:tipo,mimeType:file.type,filename:file.name,ts:firebase.firestore.Timestamp.now()};db.collection('waConversas').doc(convId).update({_historico:firebase.firestore.FieldValue.arrayUnion(entry)});}
+      fetch('https://southamerica-east1-studio-ar-gestao.cloudfunctions.net/enviarMidiaHumano',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({to:tel,base64:base64,mimeType:file.type,filename:file.name,de:de,key:key})})
+      .then(function(r){return r.json();}).then(function(j){if(!j.ok)showToast('❌ '+(j.erro||'Falha ao enviar'),'#f43f5e');else showToast('✅ '+icone+' enviado!');}).catch(function(err){showToast('❌ '+err.message,'#f43f5e');});
+    }
+    try{
+      var ext=file.name.split('.').pop()||'bin';
+      var storRef=firebase.storage().ref('wa-media/'+uid()+'.'+ext);
+      var byteArr=atob(base64).split('').map(function(c){return c.charCodeAt(0);});
+      var blob=new Blob([new Uint8Array(byteArr)],{type:file.type});
+      storRef.put(blob).then(function(snap){return snap.ref.getDownloadURL();}).then(function(dlUrl){_enviarWA(dlUrl);}).catch(function(){_enviarWA(null);});
+    }catch(e){_enviarWA(null);}
   };
   reader.readAsDataURL(file);
 }
