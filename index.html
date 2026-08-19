@@ -295,14 +295,14 @@ function salvarContatoELead(){
   var btn=document.getElementById('wa-rec-btn');
   navigator.mediaDevices.getUserMedia({audio:true}).then(function(stream){
     var chunks=[];
-    var mtype=MediaRecorder.isTypeSupported('audio/mp4')?'audio/mp4':'audio/webm';window._waRec=new MediaRecorder(stream,{mimeType:mtype});
+    var mtype=MediaRecorder.isTypeSupported('audio/ogg; codecs=opus')?'audio/ogg; codecs=opus':MediaRecorder.isTypeSupported('audio/mp4')?'audio/mp4':'audio/webm';window._waRec=new MediaRecorder(stream,{mimeType:mtype});
     if(btn)btn.style.background='#f43f5e';
     window._waRec.ondataavailable=function(e){if(e.data.size>0)chunks.push(e.data);};
     window._waRec.onstop=function(){
       stream.getTracks().forEach(function(t){t.stop();});
       if(btn){btn.style.background='#27272a';btn.textContent='\uD83C\uDF9E';}
-      var blob=new Blob(chunks,{type:'audio/webm'});
-      var ext=mtype==='audio/mp4'?'m4a':'ogg';var ftype=mtype==='audio/mp4'?'audio/mp4':'audio/ogg';var file=new File([blob],'audio_'+Date.now()+'.'+ext,{type:ftype});
+      var blob=new Blob(chunks,{type:mtype});
+      var ext=mtype.indexOf('ogg')>=0?'ogg':mtype==='audio/mp4'?'m4a':'webm';var ftype=mtype==='audio/mp4'?'audio/mp4':'audio/ogg';var file=new File([blob],'audio_'+Date.now()+'.'+ext,{type:ftype});
       waEnviarMidia(file);
       window._waRec=null;
     };
