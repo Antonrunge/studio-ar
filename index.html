@@ -355,7 +355,9 @@ function waEnviarMidia(file){
     var de=CURRENT_USER?CURRENT_USER.nome:'Equipe';
     function _enviarWA(dlUrl){
       var convId=WA_CONV_SELECIONADA;
-      if(convId&&dlUrl){var entry={de:de,texto:icone,mediaUrl:dlUrl,mediaType:tipo,mimeType:file.type,filename:file.name,ts:firebase.firestore.Timestamp.now()};db.collection('waConversas').doc(convId).update({historico:firebase.firestore.FieldValue.arrayUnion(entry)});}
+      // Se Storage falhou, usar data URL do arquivo (funciona para áudios curtos < 400KB)
+      var finalUrl=dlUrl||(file.size<400*1024?e.target.result:null);
+      if(convId){var entry={de:de,texto:icone,mediaUrl:finalUrl||'',mediaType:tipo,mimeType:file.type,filename:file.name,ts:firebase.firestore.Timestamp.now()};db.collection('waConversas').doc(convId).update({historico:firebase.firestore.FieldValue.arrayUnion(entry)});}
       fetch('https://southamerica-east1-studio-ar-gestao.cloudfunctions.net/enviarMidiaHumano',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({to:tel,base64:base64,mimeType:file.type,filename:file.name,de:de,key:key})})
       .then(function(r){return r.json();}).then(function(j){if(!j.ok)showToast('❌ '+(j.erro||'Falha ao enviar'),'#f43f5e');else showToast('✅ '+icone+' enviado!');}).catch(function(err){showToast('❌ '+err.message,'#f43f5e');});
     }
