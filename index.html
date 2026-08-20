@@ -348,7 +348,7 @@ function waEnviarMidia(file){
   var key=localStorage.getItem('metaSyncKey');
   if(!key){key=prompt('SYNC_KEY:');if(!key)return;localStorage.setItem('metaSyncKey',key);}
   var icone=tipo==='image'?'📷 foto':tipo==='audio'?'🎵 áudio':tipo==='video'?'🎥 vídeo':'📎 arquivo';
-  showToast('⏳ Enviando '+icone+'...','#38bdf8');
+  showToast('⏳ Enviando '+icone+' ('+mtype+')...','#38bdf8');
   var reader=new FileReader();
   reader.onload=function(e){
     var base64=e.target.result.split(',')[1];
