@@ -355,9 +355,26 @@ function waEnviarMidia(file){
     var de=CURRENT_USER?CURRENT_USER.nome:'Equipe';
     function _enviarWA(dlUrl){
       var convId=WA_CONV_SELECIONADA;
-      // Se Storage falhou, usar data URL do arquivo (funciona para áudios curtos < 400KB)
-      var finalUrl=dlUrl||(file.size<400*1024?e.target.result:null);
-      if(convId){var entry={de:de,texto:icone,mediaUrl:finalUrl||'',mediaType:tipo,mimeType:file.type,filename:file.name,ts:firebase.firestore.Timestamp.now()};db.collection('waConversas').doc(convId).update({historico:firebase.firestore.FieldValue.arrayUnion(entry)});}
+      function _saveEntry(finalUrl){
+        if(convId){var entry={de:de,texto:icone,mediaUrl:finalUrl||'',mediaType:tipo,mimeType:file.type,filename:file.name,ts:firebase.firestore.Timestamp.now()};db.collection('waConversas').doc(convId).update({historico:firebase.firestore.FieldValue.arrayUnion(entry)});}
+      }
+      if(dlUrl){_saveEntry(dlUrl);}
+      else if(tipo==='image'){
+        // Gerar miniatura via canvas para imagens (independente do tamanho)
+        try{
+          var img=new Image();
+          img.onload=function(){
+            var cv=document.createElement('canvas'),maxW=600,w=img.width,h=img.height;
+            if(w>maxW){h=Math.round(h*maxW/w);w=maxW;}
+            cv.width=w;cv.height=h;
+            cv.getContext('2d').drawImage(img,0,0,w,h);
+            _saveEntry(cv.toDataURL('image/jpeg',0.75));
+          };
+          img.src=e.target.result;
+        }catch(ex){_saveEntry(null);}
+      }
+      else if(file.size<400*1024){_saveEntry(e.target.result);}
+      else{_saveEntry(null);}
       fetch('https://southamerica-east1-studio-ar-gestao.cloudfunctions.net/enviarMidiaHumano',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({to:tel,base64:base64,mimeType:file.type,filename:file.name,de:de,key:key,skipHistory:true})})
       .then(function(r){return r.json();}).then(function(j){if(!j.ok)showToast('❌ '+(j.erro||'Falha ao enviar'),'#f43f5e');else showToast('✅ '+icone+' enviado!');}).catch(function(err){showToast('❌ '+err.message,'#f43f5e');});
     }
