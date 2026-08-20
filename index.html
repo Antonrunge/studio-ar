@@ -598,9 +598,10 @@ function rArPedidos(){
       +(p.formaPagamento?'<span style="font-size:10px;color:#71717a;margin-left:8px">'+es(p.formaPagamento)+'</span>':'')
       +(p.vendedor?'<span style="font-size:10px;color:#38bdf8;margin-left:8px">'+es(p.vendedor)+'</span>':'')
       +'</div><div style="font-size:10px;color:#52525b">'+dataF+'</div></div>'
-      +(showActions?'<div style="display:flex;gap:6px;margin-top:10px">'
+      +(showActions?(function(pp){var pago=(pp.pagamentos||[]).reduce(function(s,pg){return s+(pg.valor||0);},0);var tot=pp.totVenda||0;var pct=tot>0?Math.min(100,Math.round(pago/tot*100)):0;var quitado=pago>=tot-0.01;var pgLista=(pp.pagamentos||[]).slice(-3).reverse().map(function(pg){return '<span style="font-size:10px;color:#a1a1aa">'+new Date(pg.data).toLocaleDateString('pt-BR')+' — R$ '+pg.valor.toFixed(2).replace('.',',')+' ('+es(pg.forma)+')'+(pg.obs?' – '+es(pg.obs):'')+' </span>';}).join('<br>');return '<div style="margin:8px 0;background:#27272a;border-radius:6px;padding:10px 12px">'+'<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:6px">'+'<span style="color:#a1a1aa">Pagamentos</span>'+'<span><strong style="color:'+(quitado?'#34d399':'#fbbf24')+'">R$ '+pago.toFixed(2).replace('.',',')+' / R$ '+tot.toFixed(2).replace('.',',')+'</strong></span>'+'</div>'+'<div style="background:#3f3f46;border-radius:4px;height:6px;overflow:hidden;margin-bottom:6px">'+'<div style="background:'+(quitado?'#34d399':'#f59e0b')+';height:100%;width:'+pct+'%;border-radius:4px;transition:width .3s"></div>'+'</div>'+(pgLista?'<div>'+pgLista+'</div>':'')+'</div>';})(p):'')+(showActions?'<div style="display:flex;gap:6px;margin-top:10px">'
         +'<button class="gb" style="flex:1;font-size:11px" onclick="var _p=(D.pedidosAR||[]).find(function(x){return x.id===\''+pid+'\';});if(_p)_abrirPdfPedidoAR(_p)">PDF</button>'
         +'<button class="pb" style="flex:2;font-size:11px;padding:7px;background:#34d399;border:none;color:#000;font-weight:700" onclick="confirmarPedidoAR(\''+pid+'\')">Confirmar Venda</button>'
+        +'<button class="gb" style="flex:1;font-size:11px" onclick="registrarPagamentoPedidoAR(\'\'+pid+\'\')">&nbsp;💳 Pgto</button>'
         +'<button style="flex:1;font-size:11px;padding:7px;background:#f43f5e22;border:1px solid #f43f5e44;color:#f87171;border-radius:8px;cursor:pointer" onclick="cancelarPedidoAR(\''+pid+'\')">Cancelar</button>'
         +'</div>':'')
       +'</div>';
@@ -654,6 +655,46 @@ function _waMsgContent(m){
   if(tipo==='video'||txt.indexOf('🎥')>=0)return '<div style="background:#27272a;border-radius:8px;padding:10px 14px;text-align:center;color:#71717a;font-size:11px">🎥 Vídeo recebido</div>';
   if(tipo==='document'||txt.indexOf('📎')>=0){var _lbl=m.filename||txt.replace('📎','').trim()||'Arquivo';return '<div style="background:#27272a;border-radius:8px;padding:10px 14px;color:#71717a;font-size:11px">📎 '+es(_lbl)+'</div>';}
   return es(txt);
+}
+
+
+function registrarPagamentoPedidoAR(id){
+  var p=(D.pedidosAR||[]).find(function(x){return x.id===id;});
+  if(!p)return showToast('Pedido nao encontrado.','#f43f5e');
+  var pago=(p.pagamentos||[]).reduce(function(s,pg){return s+(pg.valor||0);},0);
+  var restante=(p.totVenda||0)-pago;
+  omod(mhdr('Registrar Pagamento — '+es(p.numeroPedido))+
+    '<div style="font-size:12px;color:#a1a1aa;margin-bottom:12px">'+
+    'Total: <strong style="color:#f1f5f9">R$ '+(p.totVenda||0).toFixed(2).replace('.',',')+
+    '</strong> &nbsp;|&nbsp; Pago: <strong style="color:#34d399">R$ '+pago.toFixed(2).replace('.',',')+
+    '</strong> &nbsp;|&nbsp; Pendente: <strong style="color:#fbbf24">R$ '+restante.toFixed(2).replace('.',',')+
+    '</strong></div>'+
+    '<div class="g2"><div class="fi"><label>Valor recebido (R$)</label><input type="number" id="pgto-val" min="0.01" step="0.01" max="'+restante.toFixed(2)+'" placeholder="0,00"></div>'+
+    '<div class="fi"><label>Forma de pagamento</label><select id="pgto-forma">'+ol(PGTOS,'PIX')+'</select></div></div>'+
+    '<div class="fi"><label>Observação (opcional)</label><input type="text" id="pgto-obs" placeholder="Ex: parcela 1/3, entrada..."></div>'+
+    '<button class="pb" style="margin-top:10px" onclick="salvarPagamentoPedidoAR(\''+id+'\')">✅ Registrar Pagamento</button>'
+  );
+}
+
+function salvarPagamentoPedidoAR(id){
+  var val=parseFloat((document.getElementById('pgto-val')||{}).value||'0');
+  var forma=(document.getElementById('pgto-forma')||{}).value||'PIX';
+  var obs=(document.getElementById('pgto-obs')||{}).value||'';
+  if(!val||val<=0)return alert('Informe um valor válido.');
+  var novoPagamento={data:new Date().toISOString(),valor:val,forma:forma,obs:obs};
+  var p=(D.pedidosAR||[]).find(function(x){return x.id===id;});
+  var pagamentos=(p&&p.pagamentos||[]).concat([novoPagamento]);
+  var totalPago=pagamentos.reduce(function(s,pg){return s+(pg.valor||0);},0);
+  var totVenda=p?p.totVenda||0:0;
+  var quitado=totalPago>=totVenda-0.01; // tolerância 1 centavo
+  db.collection('pedidosAR').doc(id).update({
+    pagamentos:firebase.firestore.FieldValue.arrayUnion(novoPagamento),
+    totalPago:totalPago,
+    quitado:quitado
+  }).then(function(){
+    showToast('Pagamento de R$ '+val.toFixed(2).replace('.',',')+' registrado!'+(quitado?' Pedido quitado!':''));
+    cmod();
+  }).catch(function(e){showToast('Erro: '+e.message,'#f43f5e');});
 }
 
 </script>
