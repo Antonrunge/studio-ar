@@ -21,7 +21,7 @@
 <div id="login-screen"><div class="login-box"><h1>&#10010; Studio A R</h1><div class="sub">Acesso ao sistema de gest&#227;o</div><div class="login-err" id="login-err"></div><div class="fi"><label>E-mail</label><input type="email" id="lg-email" placeholder="seu-setor@studioar.com" autocomplete="email"></div><div class="fi"><label>Senha</label><div style="position:relative"><input type="password" id="lg-pass" placeholder="********" autocomplete="current-password" style="padding-right:42px"><button type="button" onclick="toggleSenha()" id="lg-eye" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#71717a;font-size:16px;padding:0;width:auto">&#128065;</button></div></div><label style="display:flex;align-items:center;gap:8px;font-size:12px;color:#71717a;margin-bottom:12px;cursor:pointer"><input type="checkbox" id="lg-lembrar" style="width:auto;accent-color:#f43f5e"> Lembrar meu acesso neste dispositivo
     </label><button class="pb" id="lg-btn">Entrar</button><div id="login-loading">Conectando&#8230;</div></div>
 </div>
-<div id="app" style="display:none"><div id="global-alert" onclick="S.tab='agenda';rT()"></div><button id="mb-toggle" aria-label="Abrir menu">☰</button><div id="sb-backdrop"></div><aside id="sb"></aside><main id="ct"></main>
+<div id="app" style="display:none"><div id="global-alert" onclick="S.tab='agenda';S.agnDate=hj();rT()"></div><button id="mb-toggle" aria-label="Abrir menu">☰</button><div id="sb-backdrop"></div><aside id="sb"></aside><main id="ct"></main>
 </div>
 <div id="ov" onclick="ovc(event)"></div>
 <input type="file" id="imp-json" accept=".json" style="display:none" onchange="doImportJSON(this)">
