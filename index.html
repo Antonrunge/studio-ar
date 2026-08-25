@@ -626,6 +626,7 @@ function rArPedidos(){
         +'<button class="gb" style="flex:1;font-size:11px" onclick="registrarPagamentoPedidoAR(\''+pid+'\')">&nbsp;💳 Pgto</button>'
         +'<button style="flex:1;font-size:11px;padding:7px;background:#f43f5e22;border:1px solid #f43f5e44;color:#f87171;border-radius:8px;cursor:pointer" onclick="cancelarPedidoAR(\''+pid+'\')">Cancelar</button>'
         +'</div>':'')
+      +(CURRENT_USER&&CURRENT_USER.role==='admin'?'<div style="margin-top:6px"><button style="width:100%;font-size:10px;padding:5px;background:#3f3f4622;border:1px solid #3f3f46;color:#a1a1aa;border-radius:6px;cursor:pointer" onclick="excluirPedidoAR(\''+pid+'\')">🗑 Excluir pedido</button></div>':'')
       +'</div>';
   }
   return '<div class="cd"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">'
@@ -655,6 +656,41 @@ function confirmarPedidoAR(id){
 function cancelarPedidoAR(id){
   if(!confirm('Cancelar este pedido?'))return;
   db.collection('pedidosAR').doc(id).update({status:'cancelado'}).then(function(){showToast('Pedido cancelado.');}).catch(function(e){showToast('Erro: '+e.message,'#f43f5e');});
+}
+
+function excluirPedidoAR(id){
+  var p=(D.pedidosAR||[]).find(function(x){return x.id===id;});
+  if(!p)return showToast('Pedido nao encontrado.','#f43f5e');
+  function doDelete(){
+    var batch=db.batch();
+    if(p.status==='aprovado'){
+      // pedido ja tinha sido confirmado: remove a venda gerada em Produtos e devolve o estoque debitado
+      (D.prd||[]).filter(function(r){return r.pedidoARId===id;}).forEach(function(r){
+        batch.delete(db.collection('produtos').doc(r.id));
+      });
+      (p.items||[]).forEach(function(it){
+        if(it.prodId)batch.update(db.collection('arProdutos').doc(it.prodId),{estoque:firebase.firestore.FieldValue.increment(it.qtd||0)});
+      });
+    }
+    batch.delete(db.collection('pedidosAR').doc(id));
+    batch.set(db.collection('auditoria').doc(),{
+      id:uid(),tipo:'exclusao_pedido_ar',colecao:'pedidosAR',docId:id,
+      nomeCliente:(p.comprador&&p.comprador.nome)||'',
+      alteradoPor:CURRENT_USER?CURRENT_USER.nome:'',
+      alteradoPorRole:CURRENT_USER?CURRENT_USER.role:'',
+      dataAlteracao:(new Date).toISOString()
+    });
+    batch.commit().then(function(){
+      showToast('🗑 Pedido excluído'+(p.status==='aprovado'?' e estoque estornado.':'.'));
+    }).catch(function(e){showToast('Erro: '+e.message,'#f43f5e');});
+  }
+  if(CURRENT_USER&&CURRENT_USER.role==='admin'){
+    if(!confirm('Excluir definitivamente o pedido '+(p.numeroPedido||'')+'?'+(p.status==='aprovado'?' Isso tambem remove a venda gerada em Produtos e devolve o estoque.':'')))return;
+    doDelete();
+  }else{
+    if(!confirm('Excluir este pedido? Sera necessaria a senha de um administrador.'))return;
+    openAdminAuthModal(doDelete);
+  }
 }
 
 
