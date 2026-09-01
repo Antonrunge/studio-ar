@@ -378,7 +378,7 @@ function waEnviarMidia(file){
     function _enviarWA(dlUrl){
       var convId=WA_CONV_SELECIONADA;
       function _saveEntry(finalUrl){
-        if(convId){var entry={de:de,texto:icone,mediaUrl:finalUrl||'',mediaType:tipo,mimeType:file.type,filename:file.name,ts:firebase.firestore.Timestamp.now()};db.collection('waConversas').doc(convId).update({historico:firebase.firestore.FieldValue.arrayUnion(entry)});}
+        if(convId){var entry={de:de,texto:icone,mediaUrl:finalUrl||'',mediaType:tipo,mimeType:file.type,filename:file.name,ts:firebase.firestore.Timestamp.now()};db.collection('waConversas').doc(convId).set({historico:firebase.firestore.FieldValue.arrayUnion(entry)},{merge:true}).catch(function(err){console.error('[wa-media] falha ao salvar no histórico:',err);showToast('⚠️ Áudio/mídia enviado, mas falhou ao salvar no histórico: '+(err&&err.message||err),'#f43f5e');});}
       }
       if(dlUrl){_saveEntry(dlUrl);}
       else if(tipo==='image'){
