@@ -395,7 +395,6 @@ function waEnviarMidia(file){
           img.src=e.target.result;
         }catch(ex){_saveEntry(null);}
       }
-      else if(file.size<400*1024){_saveEntry(e.target.result);}
       else{_saveEntry(null);}
       fetch('https://southamerica-east1-studio-ar-gestao.cloudfunctions.net/enviarMidiaHumano',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({to:tel,base64:base64,mimeType:file.type,filename:file.name,de:de,key:key,skipHistory:true})})
       .then(function(r){return r.json();}).then(function(j){if(!j.ok)showToast('❌ '+(j.erro||'Falha ao enviar'),'#f43f5e');else showToast('✅ '+icone+' enviado!');}).catch(function(err){showToast('❌ '+err.message,'#f43f5e');});
