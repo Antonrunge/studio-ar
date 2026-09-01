@@ -317,7 +317,7 @@ function salvarContatoELead(){
   var btn=document.getElementById('wa-rec-btn');
   navigator.mediaDevices.getUserMedia({audio:true}).then(function(stream){
     var chunks=[];
-    var mtype=MediaRecorder.isTypeSupported('audio/ogg; codecs=opus')?'audio/ogg; codecs=opus':MediaRecorder.isTypeSupported('audio/mp4')?'audio/mp4':'audio/webm';window._waRec=new MediaRecorder(stream,{mimeType:mtype});
+    var mtype=MediaRecorder.isTypeSupported('audio/ogg; codecs=opus')?'audio/ogg; codecs=opus':MediaRecorder.isTypeSupported('audio/webm; codecs=opus')?'audio/webm; codecs=opus':MediaRecorder.isTypeSupported('audio/webm')?'audio/webm':'audio/mp4';window._waRec=new MediaRecorder(stream,{mimeType:mtype});
     if(btn)btn.style.background='#f43f5e';
     window._waRec.ondataavailable=function(e){if(e.data.size>0)chunks.push(e.data);};
     window._waRec.onstop=function(){
