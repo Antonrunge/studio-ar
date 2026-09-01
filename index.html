@@ -324,7 +324,7 @@ function salvarContatoELead(){
       stream.getTracks().forEach(function(t){t.stop();});
       if(btn){btn.style.background='#27272a';btn.textContent='\uD83C\uDF9E';}
       var blob=new Blob(chunks,{type:mtype});
-      var ext=mtype.indexOf('ogg')>=0?'ogg':mtype==='audio/mp4'?'m4a':'webm';var ftype=mtype==='audio/mp4'?'audio/mp4':'audio/ogg';var file=new File([blob],'audio_'+Date.now()+'.'+ext,{type:ftype});
+      var ext=mtype.indexOf('ogg')>=0?'ogg':mtype==='audio/mp4'?'m4a':'webm';var ftype=mtype.indexOf('ogg')>=0?'audio/ogg':mtype==='audio/mp4'?'audio/mp4':'audio/webm';var file=new File([blob],'audio_'+Date.now()+'.'+ext,{type:ftype});
       waEnviarMidia(file);
       window._waRec=null;
     };
