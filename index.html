@@ -78,11 +78,29 @@ var corBarra=pct>=100?"#34d399":pct>=70?"#fbbf24":"#f87171";
 var porDia={};
 fs.forEach(function(r){porDia[r.date]=(porDia[r.date]||0)+flR(r)});
 var diaLimite=isMesFuturo?0:isMesAtual?hojeDia:lastDay;
-var acumulado=0,diasChart=[];
+var dailyTarget=meta>0&&diasUteisTotal>0?meta/diasUteisTotal:0;
+var DIASEM=["Dom","Seg","Ter","Qua","Qui","Sex","S\u00e1b"];
+var diasChart=[];
 for(var dc=1;dc<=diaLimite;dc++){
 var mm=S.month+1<10?"0"+(S.month+1):String(S.month+1),dd=dc<10?"0"+dc:String(dc);
-acumulado+=porDia[S.year+"-"+mm+"-"+dd]||0;
-diasChart.push({n:dd,v:Math.round(acumulado)});
+var valorDia=porDia[S.year+"-"+mm+"-"+dd]||0;
+var wdc=new Date(S.year,S.month,dc).getDay();
+var fechado=wdc===0||wdc===1;
+var cor=fechado?"#4b4438":(valorDia>=dailyTarget?"#34d399":"#e2685a");
+diasChart.push({n:dd,sem:DIASEM[wdc],v:valorDia,fechado:fechado,cor:cor});
+}
+function metaBarChart(items,alvoDiario){
+if(!items||!items.length)return'<p style="color:#726c5c;text-align:center;padding:20px 0">Sem dados ainda neste m\u00eas</p>';
+var W=380,top=16,base=149,mx=Math.max(alvoDiario,Math.max.apply(null,items.map(function(d){return d.fechado?0:d.v})))||1;
+var step=Math.floor((W-46)/items.length),bw=Math.max(3,step-3);
+var targetY=base-Math.round(Math.min(1,alvoDiario/mx)*(base-top));
+var bars=items.map(function(d,i){
+var x=26+i*step+Math.floor((step-bw)/2),h=d.fechado?3:Math.max(2,Math.round(d.v/mx*(base-top))),y=base-h;
+var valTxt=d.fechado?"":(d.v>9999?Math.round(d.v/1e3)+"k":String(Math.round(d.v)));
+return'<rect x="'+x+'" y="'+y+'" width="'+bw+'" height="'+h+'" fill="'+d.cor+'" rx="2"'+(d.fechado?' opacity=".55"':"")+'/>'+(valTxt?'<text x="'+(x+bw/2)+'" y="'+(y-3)+'" font-size="7.5" fill="#a1a1aa" text-anchor="middle">'+valTxt+"</text>":"")+'<text x="'+(x+bw/2)+'" y="161" font-size="8" fill="#8a8270" text-anchor="middle">'+es(d.n)+"</text>"+'<text x="'+(x+bw/2)+'" y="171" font-size="7" fill="#5f5a4d" text-anchor="middle">'+es(d.sem)+"</text>";
+}).join("");
+var targetLine=alvoDiario>0&&alvoDiario<=mx?'<line x1="26" y1="'+targetY+'" x2="'+W+'" y2="'+targetY+'" stroke="#d9b45c" stroke-width="1" stroke-dasharray="4 3"/><text x="'+(W-2)+'" y="'+(targetY-4)+'" font-size="8" fill="#d9b45c" text-anchor="end">M\u00e9dia necess\u00e1ria</text>':"";
+return'<svg viewBox="0 0 380 182" width="100%" height="182">'+[0,.5,1].map(function(p){var y=base-Math.round((base-top)*p);return'<line x1="26" y1="'+y+'" x2="'+W+'" y2="'+y+'" stroke="#27272a" stroke-dasharray="3 2"/>'}).join("")+bars+targetLine+"</svg>"+'<div style="display:flex;gap:16px;margin-top:10px;font-size:10px;color:#8a8270;flex-wrap:wrap"><span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#34d399;margin-right:5px"></span>na m\u00e9dia ou acima</span><span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#e2685a;margin-right:5px"></span>abaixo da m\u00e9dia</span><span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:#4b4438;margin-right:5px;opacity:.7"></span>fechado (dom/seg)</span></div>';
 }
 var CARD_PREM="background:linear-gradient(160deg,#1c1a14,#141210);border:1px solid rgba(217,180,92,.16);border-radius:16px;padding:24px 26px;margin-bottom:16px;box-shadow:0 14px 30px -22px rgba(0,0,0,.7)";
 var EYEBROW="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#d9b45c;font-weight:600";
@@ -107,7 +125,7 @@ metaBlock='<div style="'+CARD_PREM+'">'
 +tile("👥","Clientes atendidos",nCli,nSvcs+" atendimento(s) no mês")
 +tile("🎫","Ticket médio",fmt(ticketMedio))
 +"</div>"
-+'<div style="'+CARD_PREM+'"><div style="'+EYEBROW+';margin-bottom:14px">📈 Evolução diária do faturamento acumulado — '+MESES[S.month]+"</div>"+bvC(diasChart,"#d9b45c")+"</div>";
++'<div style="'+CARD_PREM+'"><div style="'+EYEBROW+';margin-bottom:14px">📈 Evolução diária do faturamento acumulado — '+MESES[S.month]+"</div>"+metaBarChart(diasChart,dailyTarget)+"</div>";
 }
 var formBlock=isAdmin?'<div style="'+CARD_PREM+'"><div style="'+EYEBROW+';margin-bottom:14px">Definir meta de '+MESES[S.month]+"/"+S.year+'</div><div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center"><input id="meta-input" type="number" step="0.01" placeholder="Ex: 92400" value="'+(meta||"")+'" style="background:#0d0c0a;border:1px solid rgba(217,180,92,.3);color:#f1e9d8;border-radius:10px;padding:11px 14px;font-size:14px;max-width:220px"><button class="ab" onclick="salvarMetaMes()" style="background:linear-gradient(135deg,#f3d98a,#c9982f);color:#241a09;border:none;font-weight:700;padding:11px 20px;border-radius:10px;box-shadow:0 4px 14px -4px rgba(201,152,47,.5)">💾 Salvar Meta</button></div></div>':"";
 return'<div class="pg"><div class="ph"><h2 style="display:flex;align-items:center;gap:10px"><span style="font-size:21px">🏆</span><span>Metas — '+MESES[S.month]+" "+S.year+'</span></h2></div>'+metaBlock+formBlock+"</div>";
