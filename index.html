@@ -482,7 +482,18 @@ function waEnviarMidia(file){
     function _enviarWA(dlUrl){
       var convId=WA_CONV_SELECIONADA;
       function _saveEntry(finalUrl){
-        if(convId){var entry={de:de,texto:icone,mediaUrl:finalUrl||'',mediaType:tipo,mimeType:file.type,filename:file.name,ts:firebase.firestore.Timestamp.now()};db.collection('waConversas').doc(convId).update({historico:firebase.firestore.FieldValue.arrayUnion(entry)});}
+        if(convId){
+          var entry={de:de,texto:icone,mediaUrl:finalUrl||'',mediaType:tipo,mimeType:file.type,filename:file.name,ts:firebase.firestore.Timestamp.now()};
+          // Antes usava arrayUnion, que só ACRESCENTA e nunca remove mensagens antigas —
+          // com o tempo isso deixou documentos de conversa passarem de 1MB (limite do Firestore),
+          // travando qualquer nova mensagem pra essa conversa. Agora lê o histórico atual e mantém
+          // só as últimas 40 mensagens antes de gravar, igual o backend já faz.
+          db.collection('waConversas').doc(convId).get().then(function(snap){
+            var hist=(snap.exists&&snap.data().historico)||[];
+            var novo=hist.concat([entry]).slice(-40);
+            return db.collection('waConversas').doc(convId).set({historico:novo},{merge:true});
+          });
+        }
       }
       if(dlUrl){_saveEntry(dlUrl);}
       else if(tipo==='image'){
@@ -499,7 +510,6 @@ function waEnviarMidia(file){
           img.src=e.target.result;
         }catch(ex){_saveEntry(null);}
       }
-      else if(file.size<400*1024){_saveEntry(e.target.result);}
       else{_saveEntry(null);}
       fetch('https://southamerica-east1-studio-ar-gestao.cloudfunctions.net/enviarMidiaHumano',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({to:tel,base64:base64,mimeType:file.type,filename:file.name,de:de,key:key,skipHistory:true})})
       .then(function(r){return r.json();}).then(function(j){if(!j.ok)showToast('❌ '+(j.erro||'Falha ao enviar'),'#f43f5e');else showToast('✅ '+icone+' enviado!');}).catch(function(err){showToast('❌ '+err.message,'#f43f5e');});
