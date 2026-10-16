@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Agende seu horário · Studio A R</title>
+<meta name="description" content="Agende seu horário no Studio A R, em Jacareí/SP. Escolha o serviço, a profissional, o dia e o horário.">
+<meta name="theme-color" content="#2a1520">
+<link rel="icon" href="sar-icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#faf6f2;--card:#ffffff;--ink:#2a1520;--soft:#7a6670;--line:#ecdfe3;--rose:#c2185b;--rose-d:#8e1244;--rose-l:#fbe9f0;--ok:#1f8a5b;--err:#b3261e}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{background:var(--bg);color:var(--ink);font-family:"DM Sans",system-ui,sans-serif;font-size:16px;line-height:1.45;min-height:100vh}
+button{font:inherit;color:inherit;cursor:pointer;background:none;border:0}
+.hero{background:radial-gradient(120% 140% at 0% 0%,#5a1c38 0%,#2a1520 60%);color:#fff;padding:28px 16px 64px;text-align:center}
+.hero img{width:56px;height:56px;border-radius:14px;box-shadow:0 6px 20px rgba(0,0,0,.25)}
+.hero h1{font-family:"Cormorant Garamond",serif;font-weight:700;font-size:36px;letter-spacing:.5px;margin-top:10px}
+.hero p{opacity:.85;font-size:14px;margin-top:4px}
+.wrap{max-width:560px;margin:-44px auto 0;padding:0 16px 40px}
+.step{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px 16px;margin-bottom:14px;box-shadow:0 2px 14px rgba(42,21,32,.05)}
+.step.off{opacity:.45;pointer-events:none}
+.st{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.st b{width:26px;height:26px;border-radius:50%;background:var(--rose);color:#fff;font-size:13px;display:grid;place-items:center;flex-shrink:0}
+.st h2{font-family:"Cormorant Garamond",serif;font-size:23px;font-weight:700;line-height:1.1}
+.st small{display:block;color:var(--soft);font-size:12px;font-family:"DM Sans",sans-serif;font-weight:400}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1.5px solid var(--line);background:#fff;border-radius:999px;padding:9px 14px;font-size:14px;font-weight:500;transition:.15s}
+.chip[aria-pressed="true"]{background:var(--rose);border-color:var(--rose);color:#fff}
+.chip:disabled{opacity:.35;cursor:default}
+.pros{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
+.pro{border:1.5px solid var(--line);border-radius:14px;padding:12px;text-align:left;display:flex;align-items:center;gap:10px}
+.pro .av{width:36px;height:36px;border-radius:50%;background:var(--rose-l);color:var(--rose-d);font-weight:700;display:grid;place-items:center;flex-shrink:0}
+.pro span{font-weight:600;font-size:14px;text-transform:capitalize}
+.pro[aria-pressed="true"]{border-color:var(--rose);background:var(--rose-l)}
+.days{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
+.day{flex:0 0 64px;border:1.5px solid var(--line);border-radius:14px;padding:8px 4px;text-align:center;scroll-snap-align:start}
+.day em{display:block;font-style:normal;font-size:11px;color:var(--soft);text-transform:uppercase;letter-spacing:.5px}
+.day strong{display:block;font-size:20px;font-weight:700;margin:1px 0}
+.day i{display:block;font-style:normal;font-size:11px;color:var(--soft)}
+.day[aria-pressed="true"]{background:var(--rose);border-color:var(--rose);color:#fff}
+.day[aria-pressed="true"] em,.day[aria-pressed="true"] i{color:#fff;opacity:.85}
+.times{display:grid;grid-template-columns:repeat(auto-fill,minmax(76px,1fr));gap:8px}
+.time{border:1.5px solid var(--line);border-radius:12px;padding:10px 0;font-weight:600;font-size:15px;text-align:center}
+.time[aria-pressed="true"]{background:var(--rose);border-color:var(--rose);color:#fff}
+.note{font-size:13px;color:var(--soft)}
+.tot{margin-top:10px;font-size:13px;color:var(--rose-d);font-weight:600}
+label{display:block;font-size:13px;font-weight:600;margin:10px 0 4px}
+input{width:100%;font:inherit;font-size:16px;padding:12px 14px;border:1.5px solid var(--line);border-radius:12px;background:#fff;color:var(--ink);outline:none}
+input:focus{border-color:var(--rose)}
+.hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+.go{width:100%;background:var(--rose);color:#fff;font-weight:700;font-size:16px;border-radius:14px;padding:15px;margin-top:14px;box-shadow:0 6px 18px rgba(194,24,91,.28)}
+.go:disabled{background:#d9c3cc;box-shadow:none;cursor:default}
+.err{color:var(--err);font-size:13px;margin-top:10px;min-height:1em}
+.sum{background:var(--rose-l);border-radius:12px;padding:12px 14px;font-size:14px;margin-top:6px}
+.sum div{display:flex;justify-content:space-between;gap:10px;padding:2px 0}
+.sum div span:first-child{color:var(--soft)}
+.done{text-align:center}
+.done .ic{width:64px;height:64px;border-radius:50%;background:#e4f5ec;color:var(--ok);font-size:32px;display:grid;place-items:center;margin:4px auto 10px}
+.done h2{font-family:"Cormorant Garamond",serif;font-size:30px}
+.btn2{display:block;text-align:center;text-decoration:none;border:1.5px solid var(--rose);color:var(--rose-d);font-weight:600;border-radius:14px;padding:13px;margin-top:10px}
+.wa{background:#25d366;border-color:#25d366;color:#fff}
+.foot{text-align:center;font-size:12px;color:var(--soft);margin-top:18px}
+.foot a{color:var(--rose-d)}
+.spin{display:inline-block;width:16px;height:16px;border:2px solid var(--line);border-top-color:var(--rose);border-radius:50%;animation:s .7s linear infinite;vertical-align:-3px;margin-right:6px}
+@keyframes s{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spin{animation:none}}
+</style>
+</head>
+<body>
+<header class="hero">
+  <img src="sar-icon-192.png" alt="Studio A R">
+  <h1>Studio A R</h1>
+  <p>Agende seu horário em poucos toques</p>
+</header>
+
+<main class="wrap" id="app">
+  <section class="step" id="loading"><p class="note"><span class="spin"></span>Carregando horários…</p></section>
+</main>
+
+<p class="foot">Rua Barão de Jacareí, 525 · Jacareí/SP · Ter a sáb, 9h às 19h<br>
+Dúvidas? <a href="https://wa.me/5512988850862" target="_blank" rel="noopener">Fale com a gente no WhatsApp</a></p>
+
+<script>
+(function(){
+var API="https://southamerica-east1-studio-ar-gestao.cloudfunctions.net/agendaPublica";
+var WA="5512988850862";
+var DIAS=["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"],MES=["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
+var C=null,st={svcs:[],prof:"",data:"",hora:"",horas:null,carregandoHoras:false,enviando:false,erro:"",ok:null};
+var app=document.getElementById("app");
+
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
+function cap(s){return String(s||"").toLowerCase().replace(/(^|\s)\S/g,function(c){return c.toUpperCase()}).replace(/ (Do|Da|De|Dos|Das|Com|E|S\/|C\/)(?= )/g,function(m){return m.toLowerCase()})}
+function addD(d,n){var x=new Date(d+"T12:00:00Z");x.setUTCDate(x.getUTCDate()+n);return x.toISOString().slice(0,10)}
+function wd(d){return new Date(d+"T12:00:00Z").getUTCDay()}
+function fdt(d){var p=d.split("-");return DIAS[wd(d)]+", "+(+p[2])+" de "+MES[+p[1]-1]}
+function durTxt(m){var h=Math.floor(m/60),r=m%60;return h?(h+"h"+(r?pad(r):"")):(r+" min")}
+function pad(n){return(n<10?"0":"")+n}
+function post(body){return fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}).then(function(r){return r.json().then(function(j){if(!r.ok||j.ok===false)throw new Error(j.erro||"Não foi possível continuar.");return j})})}
+function totalMin(){return st.svcs.reduce(function(t,n){var s=C.servicos.filter(function(x){return x.nome===n})[0];return t+(s?s.duracao:60)},0)}
+function profObj(){return C.profissionais.filter(function(p){return p.nome===st.prof})[0]}
+
+function render(){
+  if(st.ok){app.innerHTML=telaFinal();return}
+  var t=totalMin(),p=profObj(),h="";
+  h+='<section class="step"><div class="st"><b>1</b><h2>Serviços<small>Escolha um ou mais (até 4)</small></h2></div><div class="chips">'+
+    C.servicos.map(function(s){var on=st.svcs.indexOf(s.nome)>=0;return'<button class="chip" data-svc="'+esc(s.nome)+'" aria-pressed="'+on+'"'+(!on&&st.svcs.length>=4?" disabled":"")+'>'+esc(cap(s.nome))+'</button>'}).join("")+
+    '</div>'+(st.svcs.length?'<p class="tot">Tempo estimado: '+durTxt(t)+'</p>':'')+'</section>';
+  h+='<section class="step'+(st.svcs.length?"":" off")+'"><div class="st"><b>2</b><h2>Profissional</h2></div><div class="pros">'+
+    C.profissionais.map(function(p){return'<button class="pro" data-prof="'+esc(p.nome)+'" aria-pressed="'+(st.prof===p.nome)+'"><span class="av">'+esc(p.nome.charAt(0))+'</span><span>'+esc(cap(p.nome))+'</span></button>'}).join("")+'</div></section>';
+  var dias=[];if(p){for(var i=0;i<=C.diasAFrente;i++){var d=addD(C.hoje,i);if(p.dias.indexOf(wd(d))>=0)dias.push(d)}}
+  h+='<section class="step'+(st.svcs.length&&p?"":" off")+'"><div class="st"><b>3</b><h2>Dia</h2></div><div class="days">'+
+    (p?dias.map(function(d){var x=d.split("-");return'<button class="day" data-dia="'+d+'" aria-pressed="'+(st.data===d)+'"><em>'+(d===C.hoje?"Hoje":DIAS[wd(d)])+'</em><strong>'+(+x[2])+'</strong><i>'+MES[+x[1]-1]+'</i></button>'}).join(""):'<p class="note">Escolha a profissional primeiro.</p>')+'</div></section>';
+  var hz="";
+  if(!st.data)hz='<p class="note">Escolha o dia primeiro.</p>';
+  else if(st.carregandoHoras)hz='<p class="note"><span class="spin"></span>Procurando horários livres…</p>';
+  else if(st.horas&&!st.horas.length)hz='<p class="note">Não há horário livre nesse dia para '+durTxt(t)+' de atendimento. Tente outro dia ou outra profissional.</p>';
+  else if(st.horas)hz='<div class="times">'+st.horas.map(function(x){return'<button class="time" data-hora="'+x+'" aria-pressed="'+(st.hora===x)+'">'+x+'</button>'}).join("")+'</div>';
+  h+='<section class="step'+(st.data?"":" off")+'"><div class="st"><b>4</b><h2>Horário</h2></div>'+hz+'</section>';
+  var pronto=st.svcs.length&&st.prof&&st.data&&st.hora;
+  h+='<section class="step'+(pronto?"":" off")+'"><div class="st"><b>5</b><h2>Seus dados</h2></div>'+
+    (pronto?'<div class="sum"><div><span>Serviço</span><span>'+esc(st.svcs.map(cap).join(" + "))+'</span></div><div><span>Com</span><span>'+esc(cap(st.prof))+'</span></div><div><span>Quando</span><span>'+esc(fdt(st.data))+' às '+st.hora+'</span></div></div>':'')+
+    '<label for="f-nome">Nome completo</label><input id="f-nome" autocomplete="name" maxlength="60" placeholder="Seu nome">'+
+    '<label for="f-tel">WhatsApp com DDD</label><input id="f-tel" type="tel" inputmode="numeric" autocomplete="tel" placeholder="(12) 99999-9999">'+
+    '<div class="hp" aria-hidden="true"><label>Site</label><input id="f-site" tabindex="-1" autocomplete="off"></div>'+
+    '<button class="go" id="f-go"'+(pronto&&!st.enviando?"":" disabled")+'>'+(st.enviando?'<span class="spin" style="border-top-color:#fff"></span>Agendando…':'Confirmar agendamento')+'</button>'+
+    '<p class="err" role="alert">'+esc(st.erro)+'</p></section>';
+  var nm=document.getElementById("f-nome"),tl=document.getElementById("f-tel"),keepN=nm?nm.value:"",keepT=tl?tl.value:"";
+  app.innerHTML=h;
+  document.getElementById("f-nome").value=keepN;document.getElementById("f-tel").value=keepT;
+}
+
+function telaFinal(){
+  var o=st.ok,svc=o.servicos.map(cap).join(" + "),ini=o.data.replace(/-/g,"")+"T"+o.hora.replace(":","")+"00",fim=o.data.replace(/-/g,"")+"T"+o.fim.replace(":","")+"00";
+  var gcal="https://calendar.google.com/calendar/render?action=TEMPLATE&text="+encodeURIComponent("Studio A R — "+svc)+"&dates="+ini+"/"+fim+"&ctz=America/Sao_Paulo&location="+encodeURIComponent("Rua Barão de Jacareí, 525 - Jacareí/SP");
+  var msg="Oi! Acabei de agendar pelo site: "+svc+" com "+cap(o.profissional)+" em "+fdt(o.data)+" às "+o.hora+".";
+  return'<section class="step done"><div class="ic">✓</div><h2>Horário reservado!</h2><p class="note" style="margin:4px 0 12px">Te esperamos com carinho 💖</p>'+
+    '<div class="sum" style="text-align:left"><div><span>Serviço</span><span>'+esc(svc)+'</span></div><div><span>Com</span><span>'+esc(cap(o.profissional))+'</span></div><div><span>Quando</span><span>'+esc(fdt(o.data))+' às '+o.hora+'</span></div><div><span>Onde</span><span>Rua Barão de Jacareí, 525</span></div></div>'+
+    '<a class="btn2" href="'+gcal+'" target="_blank" rel="noopener">📅 Salvar na minha agenda</a>'+
+    '<a class="btn2 wa" href="https://wa.me/'+WA+'?text='+encodeURIComponent(msg)+'" target="_blank" rel="noopener">💬 Avisar o salão no WhatsApp</a>'+
+    '<p class="note" style="margin-top:12px">Precisa mudar ou cancelar? É só chamar a gente no WhatsApp.</p></section>';
+}
+
+function buscarHoras(){
+  st.horas=null;st.hora="";st.erro="";
+  if(!st.data||!st.prof||!st.svcs.length){render();return}
+  st.carregandoHoras=true;render();
+  var pedido=[st.data,st.prof,st.svcs.join("|")].join("#");st._pedido=pedido;
+  post({acao:"horarios",data:st.data,profissional:st.prof,servicos:st.svcs}).then(function(j){if(st._pedido!==pedido)return;st.horas=j.horarios||[]}).catch(function(e){if(st._pedido!==pedido)return;st.horas=[];st.erro=e.message}).then(function(){if(st._pedido===pedido){st.carregandoHoras=false;render()}});
+}
+
+app.addEventListener("click",function(e){
+  var b=e.target.closest("button");if(!b||b.disabled)return;
+  if(b.dataset.svc){var n=b.dataset.svc,i=st.svcs.indexOf(n);i>=0?st.svcs.splice(i,1):st.svcs.push(n);if(!st.svcs.length){st.data="";st.horas=null;st.hora=""}st.data?buscarHoras():render();return}
+  if(b.dataset.prof){st.prof=b.dataset.prof;var p=profObj();if(st.data&&p.dias.indexOf(wd(st.data))<0)st.data="";st.data?buscarHoras():(st.horas=null,st.hora="",render());return}
+  if(b.dataset.dia){st.data=b.dataset.dia;buscarHoras();return}
+  if(b.dataset.hora){st.hora=b.dataset.hora;st.erro="";render();var g=document.getElementById("f-nome");g&&g.scrollIntoView({behavior:"smooth",block:"center"});return}
+  if(b.id==="f-go")enviar();
+});
+app.addEventListener("input",function(e){
+  if(e.target.id!=="f-tel")return;var d=e.target.value.replace(/\D/g,"").slice(0,11),v=d;
+  if(d.length>2)v="("+d.slice(0,2)+") "+d.slice(2);if(d.length>7)v="("+d.slice(0,2)+") "+d.slice(2,d.length-4)+"-"+d.slice(-4);e.target.value=v;
+});
+
+function enviar(){
+  var nome=document.getElementById("f-nome").value.trim(),tel=document.getElementById("f-tel").value.replace(/\D/g,"");
+  if(nome.split(/\s+/).length<2||nome.length<5){st.erro="Digite seu nome e sobrenome.";render();return}
+  if(tel.length<10){st.erro="Digite seu WhatsApp com DDD.";render();return}
+  st.enviando=true;st.erro="";render();
+  post({acao:"agendar",data:st.data,profissional:st.prof,servicos:st.svcs,hora:st.hora,nome:nome,telefone:tel,site:document.getElementById("f-site").value})
+    .then(function(j){st.ok=j;st.enviando=false;render();window.scrollTo({top:0,behavior:"smooth"})})
+    .catch(function(e){st.enviando=false;st.erro=e.message;render();if(/ocupado/i.test(e.message)){var msg=e.message;buscarHoras();st.erro=msg}});
+}
+
+post({acao:"config"}).then(function(j){
+  if(!j.ativo){app.innerHTML='<section class="step"><p>O agendamento online está pausado no momento.</p><a class="btn2 wa" href="https://wa.me/'+WA+'?text='+encodeURIComponent("Oi! Quero agendar um horário.")+'" target="_blank" rel="noopener">💬 Agendar pelo WhatsApp</a></section>';return}
+  C=j;
+  if(!C.profissionais.length||!C.servicos.length){app.innerHTML='<section class="step"><p>Agenda indisponível no momento.</p><a class="btn2 wa" href="https://wa.me/'+WA+'" target="_blank" rel="noopener">💬 Falar no WhatsApp</a></section>';return}
+  render();
+}).catch(function(){
+  app.innerHTML='<section class="step"><p>Não conseguimos carregar a agenda agora.</p><a class="btn2 wa" href="https://wa.me/'+WA+'?text='+encodeURIComponent("Oi! Quero agendar um horário.")+'" target="_blank" rel="noopener">💬 Agendar pelo WhatsApp</a></section>';
+});
+})();
+</script>
+</body>
+</html>
