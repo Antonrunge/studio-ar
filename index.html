@@ -1158,20 +1158,28 @@ function rArPedidos(){
 function confirmarPedidoAR(id){
   var p=(D.pedidosAR||[]).find(function(x){return x.id===id;});
   if(!p)return showToast('Pedido nao encontrado.','#f43f5e');
-  if(!confirm('Confirmar venda do pedido '+p.numeroPedido+'?\n\nIsso vai salvar os itens em Produtos, abater o estoque AR e registrar comissao para '+p.vendedor))return;
+  var linhas=(p.items||[]).map(function(it){var ap=(D.arProdutos||[]).find(function(x){return x.id===it.prodId;})||{};return'<tr><td style="padding:5px 6px;color:#f1f5f9">'+es(it.nome||'')+'</td><td style="padding:5px 6px;text-align:center">'+(it.qtd||0)+'</td><td style="padding:5px 6px;text-align:center;color:'+((ap.estoque||0)>=(it.qtd||0)?'#34d399':'#f87171')+'">'+(ap.estoque||0)+'</td><td style="padding:5px 6px;text-align:center;color:'+((ap.prateleira||0)>=(it.qtd||0)?'#34d399':'#f87171')+'">'+(ap.prateleira||0)+'</td></tr>';}).join('');
+  omod(mhdr('Confirmar venda — '+es(p.numeroPedido||''))+'<div style="font-size:12px;color:#a1a1aa;margin-bottom:10px">Os itens vão para Produtos (Vendas Externas) com comissão para <strong style="color:#f1f5f9">'+es(p.vendedor||'')+'</strong>. <strong style="color:#fbbf24">De onde saem os produtos?</strong></div><div class="ox" style="margin-bottom:12px"><table style="width:100%;font-size:12px"><thead><tr><th style="text-align:left;padding:5px 6px">Produto</th><th style="padding:5px 6px">Qtd</th><th style="padding:5px 6px">Estoque</th><th style="padding:5px 6px">Prateleira</th></tr></thead><tbody>'+linhas+'</tbody></table></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="pb" style="flex:1;min-width:160px" onclick="confirmarPedidoARDe(\''+id+'\',\'estoque\')">📦 Sai do ESTOQUE</button><button class="pb" style="flex:1;min-width:160px;background:#38bdf8;color:#000" onclick="confirmarPedidoARDe(\''+id+'\',\'prateleira\')">🛍️ Sai da PRATELEIRA</button></div><div style="font-size:10px;color:#71717a;margin-top:8px">Use PRATELEIRA quando você já repôs a prateleira para separar este pedido.</div>');
+}
+function confirmarPedidoARDe(id,origem){
+  var p=(D.pedidosAR||[]).find(function(x){return x.id===id;});
+  if(!p)return showToast('Pedido nao encontrado.','#f43f5e');
+  if(p.status==='aprovado')return showToast('Este pedido já foi confirmado.','#f59e0b'),void cmod();
+  var campo=origem==='prateleira'?'prateleira':'estoque',falta=[];
+  (p.items||[]).forEach(function(it){if(!it.prodId)return;var ap=(D.arProdutos||[]).find(function(x){return x.id===it.prodId;})||{};if((ap[campo]||0)<(it.qtd||0))falta.push((it.nome||'')+' ('+campo+': '+(ap[campo]||0)+', pedido: '+(it.qtd||0)+')');});
+  if(falta.length&&!confirm('Quantidade insuficiente '+(campo==='prateleira'?'na PRATELEIRA':'no ESTOQUE')+':\n\n'+falta.join('\n')+'\n\nConfirmar mesmo assim? (o saldo ficará negativo)'))return;
   var batch=db.batch();
   (p.items||[]).forEach(function(it){
     var rec={id:uid(),date:hj(),produto:it.nome,quantidade:it.qtd,valorUnitario:it.preco,custo:it.custo,
       cliente:p.comprador&&p.comprador.nome||'',profissional:p.vendedor||'',
       comissaoSalao:0.3,comissaoVendedor:0.1,formaPagamento:p.formaPagamento||'PIX',
-      externa:true,pedidoARId:id,numeroPedido:p.numeroPedido,createdBy:CURRENT_USER?CURRENT_USER.role:''};
+      externa:true,pedidoARId:id,numeroPedido:p.numeroPedido,baixaDe:campo,createdBy:CURRENT_USER?CURRENT_USER.role:''};
     batch.set(db.collection('produtos').doc(rec.id),rec);
-    if(it.prodId)batch.update(db.collection('arProdutos').doc(it.prodId),{estoque:firebase.firestore.FieldValue.increment(-it.qtd)});
+    if(it.prodId){var upd={};upd[campo]=firebase.firestore.FieldValue.increment(-it.qtd);batch.update(db.collection('arProdutos').doc(it.prodId),upd);}
   });
-  batch.update(db.collection('pedidosAR').doc(id),{status:'aprovado',dataAprovacao:(new Date).toISOString(),aprovadoPor:CURRENT_USER?CURRENT_USER.nome:''});
-  batch.commit().then(function(){showToast('Pedido '+p.numeroPedido+' confirmado! Estoque abatido e comissao registrada.');}).catch(function(e){showToast('Erro: '+e.message,'#f43f5e');});
+  batch.update(db.collection('pedidosAR').doc(id),{status:'aprovado',baixaDe:campo,dataAprovacao:(new Date).toISOString(),aprovadoPor:CURRENT_USER?CURRENT_USER.nome:''});
+  batch.commit().then(function(){cmod();showToast('Pedido '+p.numeroPedido+' confirmado! Baixa feita '+(campo==='prateleira'?'da PRATELEIRA':'do ESTOQUE')+' e comissao registrada.');}).catch(function(e){showToast('Erro: '+e.message,'#f43f5e');});
 }
-
 function cancelarPedidoAR(id){
   if(!confirm('Cancelar este pedido?'))return;
   db.collection('pedidosAR').doc(id).update({status:'cancelado'}).then(function(){showToast('Pedido cancelado.');}).catch(function(e){showToast('Erro: '+e.message,'#f43f5e');});
@@ -1188,7 +1196,7 @@ function excluirPedidoAR(id){
         batch.delete(db.collection('produtos').doc(r.id));
       });
       (p.items||[]).forEach(function(it){
-        if(it.prodId)batch.update(db.collection('arProdutos').doc(it.prodId),{estoque:firebase.firestore.FieldValue.increment(it.qtd||0)});
+        if(it.prodId){var _dv={};_dv[p.baixaDe==='prateleira'?'prateleira':'estoque']=firebase.firestore.FieldValue.increment(it.qtd||0);batch.update(db.collection('arProdutos').doc(it.prodId),_dv);}
       });
     }
     batch.delete(db.collection('pedidosAR').doc(id));
@@ -1200,7 +1208,7 @@ function excluirPedidoAR(id){
       dataAlteracao:(new Date).toISOString()
     });
     batch.commit().then(function(){
-      showToast('🗑 Pedido excluído'+(p.status==='aprovado'?' e estoque estornado.':'.'));
+      showToast('🗑 Pedido excluído'+(p.status==='aprovado'?' e '+(p.baixaDe==='prateleira'?'prateleira':'estoque')+' estornado.':'.'));
     }).catch(function(e){showToast('Erro: '+e.message,'#f43f5e');});
   }
   if(CURRENT_USER&&CURRENT_USER.role==='admin'){
